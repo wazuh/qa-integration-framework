@@ -1,7 +1,6 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-from . import global_parameters
 
-
-session_parameters = global_parameters.GlobalParameters()
+WAZUH_UNIX_USER = 'wazuh'
+WAZUH_UNIX_GROUP = 'wazuh'

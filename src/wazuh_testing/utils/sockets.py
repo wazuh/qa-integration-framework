@@ -4,6 +4,7 @@
 import os
 
 from wazuh_testing.constants.paths import WAZUH_PATH
+from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, MODULESD_C_INTERNAL_SOCKET_PATH
 
 
 def delete_sockets(path=None):
@@ -14,14 +15,13 @@ def delete_sockets(path=None):
     """
     try:
         if path is None:
-            path = os.path.join(WAZUH_PATH, 'queue', 'sockets')
+            path = QUEUE_SOCKETS_PATH
             for file in os.listdir(path):
                 os.remove(os.path.join(path, file))
-            if os.path.exists(os.path.join(WAZUH_PATH, 'queue', 'db', 'wdb')):
-                os.remove(os.path.join(WAZUH_PATH, 'queue', 'db', 'wdb'))
-            if os.path.exists(os.path.join(WAZUH_PATH, 'queue', 'cluster', 'c-internal.sock')):
-                os.remove(os.path.join(WAZUH_PATH, 'queue',
-                          'cluster', 'c-internal.sock'))
+            if os.path.exists(WAZUH_DB_SOCKET_PATH):
+                os.remove(WAZUH_DB_SOCKET_PATH)
+            if os.path.exists(MODULESD_C_INTERNAL_SOCKET_PATH):
+                os.remove(MODULESD_C_INTERNAL_SOCKET_PATH)
         else:
             for item in path:
                 os.remove(item)

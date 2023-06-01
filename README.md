@@ -1,7 +1,7 @@
 # qa-integration-framework
 Wazuh QA framework for integration tests
 
-## Installation 
+## Installation
 
 1. Clone the framework's repo: `git clone https://github.com/wazuh/qa-integration-framework.git`
 2. Install python deps: `apt-get install python3 python3-dev python3-pip -y`
@@ -13,10 +13,12 @@ Wazuh QA framework for integration tests
 You can just import it from the test suite as any other python library
 ```python
 from wazuh_testing.constants.paths.logs import OSSEC_LOG_PATH
-from wazuh_testing.modules.analysisd.testrule import patterns
-from wazuh_testing.tools.file_monitor import FileMonitor, generate_callback
+from wazuh_testing.modules.analysisd import patterns
+from wazuh_testing.tools import file_monitor
+from wazuh_testing.utils import callbacks
 
 
-FileMonitor(OSSEC_LOG_PATH, generate_callback(patterns.SID_NOT_FOUND))
+monitor = file_monitor.FileMonitor(OSSEC_LOG_PATH)
+monitor.start(callback=callbacks.generate_callback(patterns.SID_NOT_FOUND))
 
 ```

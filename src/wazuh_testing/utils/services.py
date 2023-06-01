@@ -6,12 +6,14 @@ import platform
 import psutil
 import subprocess
 import sys
+import time
 
+from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths import WAZUH_PATH
 from wazuh_testing.constants.paths.binaries import WAZUH_CONTROL_PATH
-from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS
+from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 
-from .sockets import delete_sockets
+from . import sockets
 
 
 def get_service() -> str:
@@ -28,14 +30,14 @@ def get_service() -> str:
 
     """
     if platform.system() in ['Windows', 'win32']:
-        return 'wazuh-agent'
+        return WAZUH_AGENT
 
     else:  # Linux, sunos5, darwin, aix...
         service = subprocess.check_output([
             WAZUH_CONTROL_PATH, "info", "-t"
         ], stderr=subprocess.PIPE).decode('utf-8').strip()
 
-    return 'wazuh-manager' if service == 'server' else 'wazuh-agent'
+    return WAZUH_MANAGER if service == 'server' else WAZUH_AGENT
 
 
 def get_version() -> str:
@@ -108,7 +110,7 @@ def control_service(action, daemon=None, debug_mode=False):
             else:
                 result = subprocess.run(
                     ['service', get_service(), action]).returncode
-            action == 'stop' and delete_sockets()
+            action == 'stop' and sockets.delete_sockets()
         else:
             if action == 'restart':
                 control_service('stop', daemon=daemon)
@@ -118,7 +120,7 @@ def control_service(action, daemon=None, debug_mode=False):
 
                 for proc in psutil.process_iter():
                     try:
-                        if daemon in ['wazuh-clusterd', 'wazuh-apid']:
+                        if daemon in [CLUSTER_DAEMON, API_DAEMON]:
                             for file in os.listdir(f'{WAZUH_PATH}/var/run'):
                                 if daemon in file:
                                     pid = file.split("-")
@@ -140,7 +142,7 @@ def control_service(action, daemon=None, debug_mode=False):
                 except psutil.NoSuchProcess:
                     pass
 
-                delete_sockets(WAZUH_SOCKETS[daemon])
+                sockets.delete_sockets(WAZUH_SOCKETS[daemon])
             else:
                 daemon_path = os.path.join(WAZUH_PATH, 'bin')
                 start_process = [
@@ -151,3 +153,74 @@ def control_service(action, daemon=None, debug_mode=False):
     if result != 0:
         raise ValueError(
             f"Error when executing {action} in daemon {daemon}. Exit status: {result}")
+
+
+def check_daemon_status(target_daemon=None, running_condition=True, timeout=10, extra_sockets=[]):
+    """Wait until Wazuh daemon's status matches the expected one. If timeout is reached and the status didn't match,
+       it raises a TimeoutError.
+
+    Args:
+        target_daemon (str, optional):  Wazuh daemon to check. Default `None`. None means all.
+        running_condition (bool, optional): True if the daemon is expected to be running False
+            if it is expected to be stopped. Default `True`.
+        timeout (int, optional): Timeout value for the check. Default `10` seconds.
+        extra_sockets (list, optional): Additional sockets to check. They may not be present in default configuration.
+
+    Raises:
+        TimeoutError: If the daemon status is wrong after timeout seconds.
+    """
+    condition_met = False
+    start_time = time.time()
+    elapsed_time = 0
+
+    while elapsed_time < timeout and not condition_met:
+        if sys.platform == 'win32':
+            condition_met = check_if_process_is_running(WAZUH_AGENT_WIN) == running_condition
+        else:
+            control_status_output = subprocess.run([WAZUH_CONTROL_PATH, 'status'],
+                                                   stdout=subprocess.PIPE).stdout.decode()
+            condition_met = True
+            for lines in control_status_output.splitlines():
+                daemon_status_tokens = lines.split()
+                current_daemon = daemon_status_tokens[0]
+                daemon_status = ' '.join(daemon_status_tokens[1:])
+                daemon_running = daemon_status == 'is running...'
+                if current_daemon == target_daemon or target_daemon is None:
+                    if current_daemon in WAZUH_SOCKETS.keys():
+                        socket_set = {path for path in WAZUH_SOCKETS[current_daemon]}
+                    else:
+                        socket_set = set()
+                    # We remove optional sockets and add extra sockets to the set to check
+                    socket_set.difference_update(WAZUH_OPTIONAL_SOCKETS)
+                    socket_set.update(extra_sockets)
+                    # Check specified socket/s status
+                    for socket in socket_set:
+                        if os.path.exists(socket) != running_condition:
+                            condition_met = False
+                    if daemon_running != running_condition:
+                        condition_met = False
+        if not condition_met:
+            time.sleep(1)
+        elapsed_time = time.time() - start_time
+
+    if not condition_met:
+        raise TimeoutError(f"{target_daemon} does not meet condition: running = {running_condition}")
+    return condition_met
+
+
+def check_if_process_is_running(process_name):
+    """Check if process is running.
+
+    Args:
+        process_name (str): Name of process.
+
+    Returns
+        boolean: True if process is running, False otherwise.
+    """
+    is_running = False
+    try:
+        is_running = process_name in (p.name() for p in psutil.process_iter())
+    except psutil.NoSuchProcess:
+        pass
+
+    return is_running

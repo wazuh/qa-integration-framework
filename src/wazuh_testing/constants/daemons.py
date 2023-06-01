@@ -46,5 +46,7 @@ API_DAEMONS_REQUIREMENTS = [ANALYSISD_DAEMON,
                             REMOTE_DAEMON,
                             WAZUH_DB_DAEMON]
 
-WAZUH_UNIX_USER = 'wazuh'
-WAZUH_UNIX_GROUP = 'wazuh'
+WAZUH_AGENT = 'wazuh-agent'
+WAZUH_MANAGER = 'wazuh-manager'
+
+WAZUH_AGENT_WIN = 'wazuh-agent.exe'

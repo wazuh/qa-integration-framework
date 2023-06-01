@@ -9,8 +9,10 @@ from . import WAZUH_PATH
 
 if sys.platform == 'win32':
     WAZUH_CONF_PATH = os.path.join(WAZUH_PATH, 'ossec.conf')
+    WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(WAZUH_PATH, 'local_internal_options.conf')
 else:
     CONF_PATH = os.path.join(WAZUH_PATH, 'etc')
     WAZUH_CONF_PATH = os.path.join(CONF_PATH, 'ossec.conf')
+    WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(CONF_PATH, 'local_internal_options.conf')
 
 CUSTOM_RULES_PATH = os.path.join(CONF_PATH, 'rules')
