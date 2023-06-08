@@ -17,3 +17,6 @@ else:
     else:
         WAZUH_PATH = os.path.join("/", "var", "ossec")
         ROOT_PREFIX = os.sep
+
+# Common paths to all tests
+BACKUPS_PATH = os.path.join(WAZUH_PATH, 'backup', 'db')

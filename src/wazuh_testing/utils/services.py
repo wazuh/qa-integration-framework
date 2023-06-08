@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 
-from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
+from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN, WAZUH_SERVICES_STOP, WAZUH_SERVICES_START
 from wazuh_testing.constants.paths import WAZUH_PATH
 from wazuh_testing.constants.paths.binaries import WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
@@ -224,3 +224,8 @@ def check_if_process_is_running(process_name):
         pass
 
     return is_running
+
+def restart_wazuh_function():
+    """Restarts Wazuh."""
+    control_service(WAZUH_SERVICES_STOP)
+    control_service(WAZUH_SERVICES_START)

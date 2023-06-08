@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import chardet
 import os
+import shutil
 import yaml
 
 from typing import Union, List
@@ -96,3 +97,61 @@ def get_file_encoding(file_path):
         raise TypeError(f"Could not detect the {file_path} encoding")
 
     return encoding
+
+def remove_file(file_path):
+    """Remove a file or a directory path.
+
+    Args:
+        file_path (str): File or directory path to remove.
+    """
+    if os.path.exists(file_path):
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        elif os.path.isdir(file_path):
+            delete_path_recursively(file_path)
+
+def delete_path_recursively(path):
+    '''Remove a directory recursively.
+
+    Args:
+        path (str): Directory path.
+    '''
+    if os.path.exists(path):
+        shutil.rmtree(path, onerror=on_write_error)
+
+def on_write_error(function, path, exc_info):
+    """ Error handler for functions that try to modify a file. If the error is due to an access error (read only file),
+    it attempts to add write permission and then retries. If the error is for another reason it re-raises the error.
+
+    Args:
+        function (function): function that called the handler.
+        path (str): Path to the file the function is trying to modify
+        exc_info (object): function instance execution information. Passed in by function in runtime.
+
+    Example:
+        > shutil.rmtree(path, onerror=on_write_error)
+    """
+    import stat
+    # Check if the error is an access error for Write permissions.
+    if not os.access(path, os.W_OK):
+        # Add write permissions so file can be edited and execute function.
+        os.chmod(path, 0o0777)
+        function(path)
+    # If error is not Write access error, raise the error
+    else:
+        raise
+
+def recursive_directory_creation(path):
+    """Recursive function to create folders.
+
+    Args:
+        path (str): Path to create. If a folder doesn't exists, it will create it.
+    """
+    parent, _ = os.path.split(path)
+    if parent != '' and not os.path.exists(parent):
+        split = os.path.split(parent)
+        recursive_directory_creation(split[0])
+        os.mkdir(parent)
+
+    if not os.path.exists(path):
+        os.mkdir(path)
