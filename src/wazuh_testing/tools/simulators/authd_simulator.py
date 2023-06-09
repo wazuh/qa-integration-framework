@@ -45,9 +45,8 @@ class AuthdSimulator(SimulatorInterface):
             key_path (str): The file path for the SSL key used by the server.
             cert_path (str): The file path for the SSL certificate used by the server.
         """
+        super().__init__(server_ip, port)
 
-        self.server_ip = server_ip
-        self.port = port
         self.secret = secret
         self.mode = mode
         self.key_path = key_path
