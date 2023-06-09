@@ -14,6 +14,7 @@ class GlobalParameters:
         timeouts['linux'] = 5
         timeouts['darwin'] = 5
         self._default_timeout = timeouts[sys.platform]
+        self._fim_mode = ['realtime', 'whodata', 'scheduled']
 
     @property
     def default_timeout(self):
@@ -33,6 +34,24 @@ class GlobalParameters:
         """
         self._default_timeout = value
 
+    @property
+    def fim_mode(self):
+        """Getter method for the fim_mode
+
+        Returns:
+            list (str): List of string with fim modes to be run
+        """
+        return self._fim_mode
+    
+    @default_timeout.setter
+    def fim_mode(self, value):
+        """Setter method for the fim_mode property
+
+        Args:
+            value (List(str)): List of string of fim modes. 
+        """
+        self._fim_mode = value
+    
     @property
     def current_configuration(self):
         """Getter method for the current configuration property
