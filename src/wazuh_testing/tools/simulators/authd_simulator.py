@@ -23,8 +23,8 @@ class AuthdSimulator(SimulatorInterface):
         self.key_path = key_path
         self.cert_path = cert_path
 
-        self.cert_controller = CertificateController()
         self.agent_id = 0
+        self.cert_controller = CertificateController()
 
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol='SSL',
@@ -51,7 +51,7 @@ class AuthdSimulator(SimulatorInterface):
 
     def start(self):
         """
-        Generates certificate for the SSL server and starts server sockets
+        Generates certificate for the SSL server and starts the Man in the middle.
         """
         self.__generate_certificates()
         self.__mitm.start()
@@ -60,7 +60,7 @@ class AuthdSimulator(SimulatorInterface):
 
     def shutdown(self):
         """
-        Shutdown sockets
+        Shutdown Man in the middle sockets.
         """
         self.__mitm.shutdown()
 
