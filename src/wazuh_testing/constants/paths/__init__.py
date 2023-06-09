@@ -17,3 +17,6 @@ else:
     else:
         WAZUH_PATH = os.path.join("/", "var", "ossec")
         ROOT_PREFIX = os.sep
+
+CVE_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'cve.db')
+CPE_HELPER_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'dictionaries', 'cpe_helper.json')
