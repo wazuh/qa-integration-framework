@@ -2,11 +2,12 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import sys
+import json
 from copy import deepcopy
 from typing import List
 
 import xml.etree.ElementTree as ET
-
+from wazuh_testing.global_parameters import GlobalParameters as global_parameters
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
 
 from . import file
@@ -319,6 +320,28 @@ def load_configuration_template(data_file_path, configuration_parameters=[], con
             for replacement, meta in zip(configuration_parameters, configuration_metadata)]
 
 
+def update_configuration_template(configurations, old_values, new_values):
+    """Update the configuration templates with specific values. Useful for setting the configuration dynamically.
+
+    Args:
+        configurations (list(dict)): Configuration templates.
+        old_values (list)): Values to be replace.
+        new_values (list): New values.
+
+    Raises:
+        ValueError: If the number of values to replace are not the same.
+    """
+    if len(configurations) != len(old_values) != len(new_values):
+        raise ValueError('The number of configuration and values items should be the same.')
+
+    configurations_to_update = json.dumps(configurations)
+
+    for old_value, new_value in zip(old_values, new_values):
+        configurations_to_update = configurations_to_update.replace(old_value, new_value)
+
+    return json.loads(configurations_to_update)
+
+
 def get_test_cases_data(data_file_path):
     """Load a test case template file and get its data.
 
@@ -330,17 +353,31 @@ def get_test_cases_data(data_file_path):
     Returns:
         (list(dict), list(dict), list(str)): Configurations, metadata and test case names.
     """
+    fim_modes = global_parameters.fim_mode
     test_cases_data = file.read_yaml(data_file_path)
     configuration_parameters = []
     configuration_metadata = []
     test_cases_ids = []
-
-    for test_case in test_cases_data:
+    
+    def set_test_case_data():
         configuration_parameters.append(test_case['configuration_parameters'])
-        metadata_parameters = {
-            'name': test_case['name'], 'description': test_case['description']}
+        metadata_parameters = {'name': test_case['name'], 'description': test_case['description']}
         metadata_parameters.update(test_case['metadata'])
         configuration_metadata.append(metadata_parameters)
         test_cases_ids.append(test_case['name'])
+
+    for test_case in test_cases_data:
+        if 'fim_mode' in test_case['metadata']:
+            fim_mode = test_case['metadata']['fim_mode']
+            if fim_mode not in VALID_FIM_MODES:
+                raise ValueError(f"Invalid fim_mode: {fim_mode} detected.")
+            if sys.platform in ['darwin', 'sunos5'] and fim_mode in ['realtime', 'whodata']:
+                continue
+            if fim_mode not in fim_modes:
+                continue
+            else:
+                set_test_case_data()
+        else:
+            set_test_case_data()
 
     return configuration_parameters, configuration_metadata, test_cases_ids
