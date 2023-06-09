@@ -1,114 +1,113 @@
+from ast import List
 import ssl
 import time
+from typing import Literal, Any
 
 from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.tools.security import CertificateController
+from wazuh_testing.utils.certificate_controller import CertificateController
 
 
 class AuthdSimulator:
-    """
-    Create an SSL server socket for simulating authd connection
-    """
+    def __init__(self,
+                 ip_address: str = '127.0.0.1',
+                 port: int = 1515,
+                 secret: str = 'SuperSecretKey',
+                 mode: Literal['ACCEPT', 'REJECT'] = 'ACCEPT',
+                 key_path: str = '/etc/manager.key',
+                 cert_path: str = '/etc/manager.cert') -> None:
 
-    def __init__(self, server_address='127.0.0.1', enrollment_port=1515, key_path='/etc/manager.key',
-                 cert_path='/etc/manager.cert', initial_mode='ACCEPT'):
-        self.mitm_enrollment = ManInTheMiddle(address=(server_address, enrollment_port), family='AF_INET',
-                                              connection_protocol='SSL', func=self._process_enrollment_message)
+        self.cert_controller = CertificateController()
         self.key_path = key_path
         self.cert_path = cert_path
-        self.id_count = 1
-        self.secret = 'TopSecret'
-        self.controller = CertificateController()
-        self.mode = initial_mode
+        self.mode = mode
+        self.secret = secret
+        self.agent_id = 0
+        self.enrollment = ManInTheMiddle(address=(ip_address, port),
+                                         family='AF_INET',
+                                         connection_protocol='SSL',
+                                         func=self.__authd_response_simulation)
+
+    # Properties
+
+    @property
+    def mode(self) -> Literal['ACCEPT', 'REJECT']:
+        return self.__mode
+
+    @mode.setter
+    def mode(self, mode: Literal['ACCEPT', 'REJECT']) -> None:
+        if mode.upper() not in ['ACCEPT', 'REJECT']:
+            raise ValueError('Invalid mode.')
+
+        self.__mode = mode.upper()
+
+    @property
+    def queue(self):
+        return self.enrollment.queue
+
+    # Functions
 
     def start(self):
         """
         Generates certificate for the SSL server and starts server sockets
         """
-        self._generate_certificates()
-        self.mitm_enrollment.start()
-        self.mitm_enrollment.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLSv1_2,
-                                                            certificate=self.cert_path, keyfile=self.key_path)
+        self.__generate_certificates()
+        self.enrollment.start()
+        self.enrollment.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_CLIENT,
+                                                       certificate=self.cert_path, keyfile=self.key_path)
 
     def shutdown(self):
         """
         Shutdown sockets
         """
-        self.mitm_enrollment.shutdown()
+        self.enrollment.shutdown()
 
     def clear(self):
         """
         Clear sockets after each response. By default, they stop handling connections
         after one successful connection, and they need to be cleared afterwards
         """
-        while not self.mitm_enrollment.queue.empty():
-            self.mitm_enrollment.queue.get_nowait()
-        self.mitm_enrollment.event.clear()
+        while not self.enrollment.queue.empty():
+            self.enrollment.queue.get_nowait()
+        self.enrollment.event.clear()
 
-    @property
-    def queue(self):
-        return self.mitm_enrollment.queue
+    # Internal functions
 
-    @property
-    def cert_controller(self):
-        return self.controller
+    def __authd_response_simulation(self, received: Any) -> None:
+        if received is None:
+            raise ValueError('"None" is not a valid message.')
 
-    @property
-    def agent_id(self):
-        return self.id_count
-
-    @agent_id.setter
-    def agent_id(self, value):
-        self.id_count = value
-
-    def set_mode(self, mode):
-        """
-        Sets a mode:
-
-            ACCEPT: Accepts connection and produces enrollment
-            REJECT: Waits 2 seconds and anwsers with an empty message
-        """
-        self.mode = mode
-
-    def _process_enrollment_message(self, received):
-        """ 
-        Reads a message received at the SSL socket, and parses to emulate a authd response
-        
-        Expected message:
-            OSSEC A:'{name}' G:'{groups}' IP:'{ip}'\n
-
-        Key response:
-            OSSEC K: {id} {name} {ip} {key:64}
-        """
         if self.mode == 'REJECT':
-            time.sleep(2)
-            self.mitm_enrollment.event.set()
+            self.enrollment.event.set()
             return b'ERROR'
 
-        agent_info = {
-            'id': self.id_count,
-            'name': None,
-            'ip': None
-        }
-        if len(received) == 0:
-            # Empty message
-            raise
-        parts = received.decode().split(' ')
-        for part in parts:
-            if part.startswith('A:'):
-                agent_info['name'] = part.split("'")[1]
-            if part.startswith('IP:'):
-                agent_info['ip'] = part.split("'")[1]
-        if agent_info['ip'] is None:
-            agent_info['ip'] = 'any'
-        if agent_info['ip'] == 'src':
-            agent_info['ip'] = self.mitm_enrollment.listener.last_address[0]
-        self.id_count += 1
-        self.mitm_enrollment.event.set()
-        return f'OSSEC K:\'{agent_info.get("id"):03d} {agent_info.get("name")} {agent_info["ip"]} {self.secret}\'\n'.encode()
+        self.agent_id += 1
 
-    def _generate_certificates(self):
-        # Generate root key and certificate
-        self.controller.get_root_ca_cert().sign(self.controller.get_root_key(), self.controller.digest)
-        self.controller.store_private_key(self.controller.get_root_key(), self.key_path)
-        self.controller.store_ca_certificate(self.controller.get_root_ca_cert(), self.cert_path)
+        msg_sections = received.decode().split(' ')
+        agent_info = self.__set_agent_info(msg_sections)
+        response = f"OSSEC K:'{self.agent_id:03d} {agent_info['name']} {agent_info['ip']} {self.secret}'\n"
+
+        self.enrollment.event.set()
+        return response.encode()
+
+    def __set_agent_info(self, msg_sections: List[str]) -> dict:
+        agent_info = {'id': self.agent_id, 'name': None, 'ip': None}
+
+        for section in msg_sections:
+            if section.startswith('A:'):
+                agent_info['name'] = section.split("'")[1]
+            elif section.startswith('IP:'):
+                agent_info['ip'] = section.split("'")[1]
+
+        agent_info['ip'] = agent_info.get('ip', 'any') or 'any'
+        if agent_info['ip'] == 'src':
+            agent_info['ip'] = self.enrollment.listener.last_address[0]
+
+        return agent_info
+
+    def __generate_certificates(self):
+        self.cert_controller.root_ca_cert.sign(
+            self.cert_controller.root_ca_key, self.cert_controller.digest)
+        self.cert_controller.store_private_key(
+            self.cert_controller.root_ca_key, self.key_path)
+        self.cert_controller.store_ca_certificate(
+            self.cert_controller.root_ca_cert, self.cert_path)
