@@ -12,10 +12,10 @@ if platform.system() == 'Windows':
 
 class CertificateController:
     def __init__(self, message_digest: str = 'sha256WithRSAEncryption'):
+        self.digest = message_digest
         self.root_ca_key = crypto.PKey()
         self.root_ca_key.generate_key(crypto.TYPE_RSA, 4096)
         self.root_ca_cert = self._create_ca_cert(self.root_ca_key)
-        self.digest = message_digest
 
     def generate_agent_certificates(self, agent_key_path: str, agent_cert_path: str, agentname: str,
                                     key_bits: int = 4096, signed: bool = True) -> None:

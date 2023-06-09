@@ -2,16 +2,9 @@ from abc import ABC, abstractmethod
 
 
 class SimulatorInterface(ABC):
-
-    @property
-    @abstractmethod
-    def server_ip(self):
-        pass
-
-    @property
-    @abstractmethod
-    def port(self):
-        pass
+    
+    server_ip: str
+    port: int
 
     @abstractmethod
     def start():
