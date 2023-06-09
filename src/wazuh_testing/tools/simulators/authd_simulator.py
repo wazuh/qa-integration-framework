@@ -1,31 +1,34 @@
-from ast import List
 import ssl
-import time
-from typing import Literal, Any
+from typing import List, Literal, Any
 
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.utils.certificate_controller import CertificateController
 
+from .base_simulator import SimulatorInterface
 
-class AuthdSimulator:
+
+class AuthdSimulator(SimulatorInterface):
     def __init__(self,
-                 ip_address: str = '127.0.0.1',
+                 server_ip: str = '127.0.0.1',
                  port: int = 1515,
                  secret: str = 'SuperSecretKey',
                  mode: Literal['ACCEPT', 'REJECT'] = 'ACCEPT',
                  key_path: str = '/etc/manager.key',
                  cert_path: str = '/etc/manager.cert') -> None:
 
-        self.cert_controller = CertificateController()
+        self.server_ip = server_ip
+        self.port = port
+        self.secret = secret
+        self.mode = mode
         self.key_path = key_path
         self.cert_path = cert_path
-        self.mode = mode
-        self.secret = secret
+
+        self.cert_controller = CertificateController()
         self.agent_id = 0
-        self.enrollment = ManInTheMiddle(address=(ip_address, port),
-                                         family='AF_INET',
-                                         connection_protocol='SSL',
-                                         func=self.__authd_response_simulation)
+
+        self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
+                                     family='AF_INET', connection_protocol='SSL',
+                                     func=self.__authd_response_simulation)
 
     # Properties
 
@@ -42,7 +45,7 @@ class AuthdSimulator:
 
     @property
     def queue(self):
-        return self.enrollment.queue
+        return self.__mitm.queue
 
     # Functions
 
@@ -51,24 +54,24 @@ class AuthdSimulator:
         Generates certificate for the SSL server and starts server sockets
         """
         self.__generate_certificates()
-        self.enrollment.start()
-        self.enrollment.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_CLIENT,
-                                                       certificate=self.cert_path, keyfile=self.key_path)
+        self.__mitm.start()
+        self.__mitm.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_CLIENT,
+                                                   certificate=self.cert_path, keyfile=self.key_path)
 
     def shutdown(self):
         """
         Shutdown sockets
         """
-        self.enrollment.shutdown()
+        self.__mitm.shutdown()
 
     def clear(self):
         """
         Clear sockets after each response. By default, they stop handling connections
         after one successful connection, and they need to be cleared afterwards
         """
-        while not self.enrollment.queue.empty():
-            self.enrollment.queue.get_nowait()
-        self.enrollment.event.clear()
+        while not self.__mitm.queue.empty():
+            self.__mitm.queue.get_nowait()
+        self.__mitm.event.clear()
 
     # Internal functions
 
@@ -77,7 +80,7 @@ class AuthdSimulator:
             raise ValueError('"None" is not a valid message.')
 
         if self.mode == 'REJECT':
-            self.enrollment.event.set()
+            self.__mitm.event.set()
             return b'ERROR'
 
         self.agent_id += 1
@@ -86,7 +89,7 @@ class AuthdSimulator:
         agent_info = self.__set_agent_info(msg_sections)
         response = f"OSSEC K:'{self.agent_id:03d} {agent_info['name']} {agent_info['ip']} {self.secret}'\n"
 
-        self.enrollment.event.set()
+        self.__mitm.event.set()
         return response.encode()
 
     def __set_agent_info(self, msg_sections: List[str]) -> dict:
@@ -100,7 +103,7 @@ class AuthdSimulator:
 
         agent_info['ip'] = agent_info.get('ip', 'any') or 'any'
         if agent_info['ip'] == 'src':
-            agent_info['ip'] = self.enrollment.listener.last_address[0]
+            agent_info['ip'] = self.__mitm.listener.last_address[0]
 
         return agent_info
 
