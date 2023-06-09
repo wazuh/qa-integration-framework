@@ -1,0 +1,36 @@
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+# FIM events
+
+SYSCHECK_DATA = 'data'
+SYSCHECK_PATH = 'path'
+SYSCHECK_INDEX = 'index'
+SYSCHECK_MODE = 'mode'
+SYSCHECK_TYPE = 'type'
+SYSCHECK_TYPE_ADDED = 'added'
+SYSCHECK_TYPE_MODIFIED = 'modified'
+SYSCHECK_TYPE_DELETED = 'deleted'
+SYSCHECK_ARCH = 'arch'
+SYSCHECK_TIMESTAMP = 'timestamp'
+SYSCHECK_ATTRIBUTES = 'attributes'
+SYSCHECK_ATTRIBUTES_TYPE = 'type'
+SYSCHECK_ATTRIBUTES_TYPE_FILE = 'file'
+SYSCHECK_ATTRIBUTES_TYPE_REGISTRY = 'registry_key'
+SYSCHECK_ATTRIBUTES_SIZE = 'size'
+SYSCHECK_ATTRIBUTES_PERM = 'perm'
+SYSCHECK_ATTRIBUTES_UID = 'uid'
+SYSCHECK_ATTRIBUTES_GID = 'gid'
+SYSCHECK_ATTRIBUTES_USER_NAME = 'user_name'
+SYSCHECK_ATTRIBUTES_GROUP_NAME = 'group_name'
+SYSCHECK_ATTRIBUTES_INODE = 'inode'
+SYSCHECK_ATTRIBUTES_MTIME = 'mtime'
+SYSCHECK_ATTRIBUTES_HASH = 'hash'
+SYSCHECK_ATTRIBUTES_CHECKSUM = 'checksum'
+SYSCHECK_OLD_ATTRIBUTES = 'old_attributes'
+SYSCHECK_CHANGED_ATTRIBUTES = 'changed_attributes'
+SYSCHECK_VALUE_NAME = 'value_name'
+SYSCHECK_VALUE_TYPE = 'value_type'
+SYSCHECK_CONTENT_CHANGES = 'content_changes'
+SYSCHECK_TAGS = 'tags'
