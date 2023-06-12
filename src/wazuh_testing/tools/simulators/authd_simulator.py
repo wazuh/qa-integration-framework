@@ -13,9 +13,10 @@ class AuthdSimulator(SimulatorInterface):
     """
     Simulates the behavior of an Authd server.
 
-    Args:
+    Attributes:
         server_ip (str): The IP address of the Authd server. Defaults to '127.0.0.1'.
         port (int): The port number of the Authd server. Defaults to 1515.
+        running (bool): The actual status of the simulator. Initial state False.
         secret (str): The secret key used by the Authd server. Defaults to 'SuperSecretKey'.
         mode (Literal['ACCEPT', 'REJECT']): The mode of operation for the simulator. Valid values are 'ACCEPT'
                                             and 'REJECT'. Defaults to 'ACCEPT'.
@@ -45,7 +46,7 @@ class AuthdSimulator(SimulatorInterface):
             key_path (str): The file path for the SSL key used by the server.
             cert_path (str): The file path for the SSL certificate used by the server.
         """
-        super().__init__(server_ip, port)
+        super().__init__(server_ip=server_ip, port=port, running=False)
 
         self.secret = secret
         self.mode = mode
@@ -107,16 +108,22 @@ class AuthdSimulator(SimulatorInterface):
         he connection protocol as 'ssl.PROTOCOL_TLS_CLIENT' and providing the
         generated certificate and keyfile paths.
         """
+        if self.running:
+            return
         self.__generate_certificates()
         self.__mitm.start()
         self.__mitm.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_CLIENT,
                                                    certificate=self.cert_path, keyfile=self.key_path)
+        self.running = True
 
     def shutdown(self) -> None:
         """
         Shutdown Man in the middle connection.
         """
+        if not self.running:
+            return
         self.__mitm.shutdown()
+        self.running = False
 
     def clear(self) -> None:
         """
