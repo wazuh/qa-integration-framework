@@ -27,6 +27,7 @@ class AuthdSimulator(SimulatorInterface):
     Note:
         The `key_path` and `cert_path` parameters should be set to appropriate file paths prior to initializing the simulator.
     """
+    MODES = ['ACCEPT', 'REJECT']
 
     def __init__(self,
                  server_ip: str = '127.0.0.1',
@@ -83,7 +84,7 @@ class AuthdSimulator(SimulatorInterface):
         Raises:
             ValueError: If the specified mode is not 'ACCEPT' or 'REJECT'.
         """
-        if mode.upper() not in ['ACCEPT', 'REJECT']:
+        if mode.upper() not in self.MODES:
             raise ValueError('Invalid mode.')
 
         self.__mode = mode.upper()
