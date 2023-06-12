@@ -344,6 +344,8 @@ def get_test_cases_data(data_file_path):
     test_cases_ids = []
 
     for test_case in test_cases_data:
+        if test_case['metadata'] is None:
+            test_case['metadata'] = deepcopy(test_case['configuration_parameters'])
         configuration_parameters.append(test_case['configuration_parameters'])
         metadata_parameters = {
             'name': test_case['name'], 'description': test_case['description']}

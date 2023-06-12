@@ -1,18 +1,19 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import chardet
 import os
 import re
 import shutil
 import time
 import yaml
-
 from typing import Union, List
 from datetime import datetime
 
 
-def write_file(file_path: str, data: Union[List[str], str] = ''):
+def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
     Write the specified data to the specified file.
 
@@ -20,9 +21,6 @@ def write_file(file_path: str, data: Union[List[str], str] = ''):
         file_path (str): The path to the file to write to.
         data (List[str], str): The data to write to the file. This can either
                                be a string or a list of strings.
-
-    Returns:
-        None
     """
     with open(file_path, 'w') as f:
         f.writelines(data)
@@ -62,7 +60,7 @@ def read_yaml(file_path):
     """Read a YAML file from a given path, return a dictionary with the YAML data
 
     Args:
-        file_path (str): Path of the YAML file to be readed
+        file_path (str): Path of the YAML file to be read.
 
     Returns:
        dict: Yaml structure.
@@ -71,15 +69,27 @@ def read_yaml(file_path):
         return yaml.safe_load(f)
 
 
+def append_content_to_yaml(path: Union[str, os.PathLike], content: dict) -> None:
+    """Write content at the end of a file or clear its content if `content` is None.
+
+    Args:
+        path (str | PathLike): Path to the target file.
+    """
+    # Clear file content if the content is None
+    if content is None:
+        with open(path, 'w') as file:
+            pass
+    else:
+        with open(path, 'w+') as file:
+            yaml.dump(content, file)
+
+
 def truncate_file(file_path: str) -> None:
     """
     Truncates the specified file.
 
     Args:
         file_path (str): The path to the file to be truncated.
-
-    Returns:
-        None
     """
     with open(file_path, "w") as f:
         f.truncate()
@@ -108,14 +118,14 @@ def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], fil
     write_file(file_path, file_data)
 
 
-def get_file_encoding(file_path):
+def get_file_encoding(file_path: Union[str, os.PathLike]) -> str:
     """Detect and return the file encoding.
 
     Args:
         file_path (str): File path to check.
 
     Returns:
-        str: File encoding.
+        encoding (str): File encoding.
 
     Raises:
         ValueError: If could not find the file_path or is not a file.
@@ -223,3 +233,13 @@ def exists_and_is_file(path: str) -> bool:
         bool: True if the file exists and is a regular file, False otherwise.
     """
     return os.path.exists(path) and os.path.isfile(path)
+
+
+def delete_file(path: Union[str, os.PathLike]) -> None:
+    """Delete a regular file.
+
+    Args:
+        path (str | PathLike): File path of the file to be deleted.
+    """
+    if os.path.exists(path):
+        os.remove(path)

@@ -22,3 +22,7 @@ ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.con
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 CUSTOM_RULES_PATH = os.path.join(BASE_CONF_PATH, 'rules')
 CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_PATH, 'api', 'configuration', 'api.yaml')
+WAZUH_SECURITY_CONFIGURATION_PATH = os.path.join(WAZUH_PATH, 'api', 'configuration', 'security', 'security.yaml')
+WAZUH_API_LOG_FILE_PATH = os.path.join(WAZUH_PATH, 'logs', 'api.log')
+WAZUH_API_JSON_LOG_FILE_PATH = os.path.join(WAZUH_PATH, 'logs', 'api.json')
