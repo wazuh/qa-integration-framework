@@ -18,6 +18,12 @@ REMOTE_DAEMON = 'wazuh-remoted'
 SYSCHECK_DAEMON = 'wazuh-syscheckd'
 WAZUH_DB_DAEMON = 'wazuh-db'
 
+# Services Variables
+WAZUH_SERVICES_STOPPED = 'stopped'
+WAZUH_SERVICE_PREFIX = 'wazuh'
+WAZUH_SERVICES_STOP = 'stop'
+WAZUH_SERVICES_START = 'start'
+
 WAZUH_AGENT_DAEMONS = [AGENT_DAEMON,
                        EXEC_DAEMON,
                        MODULES_DAEMON,
