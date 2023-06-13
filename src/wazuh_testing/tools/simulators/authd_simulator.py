@@ -113,7 +113,7 @@ class AuthdSimulator(SimulatorInterface):
             return
         self.__generate_certificates()
         self.__mitm.start()
-        self.__mitm.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_CLIENT,
+        self.__mitm.listener.set_ssl_configuration(connection_protocol=ssl.PROTOCOL_TLS_SERVER,
                                                    certificate=self.cert_path, keyfile=self.key_path)
         self.running = True
 

@@ -1,3 +1,4 @@
+from queue import Queue
 from typing import Any, Literal
 import zlib
 
@@ -9,62 +10,72 @@ from .simulator_interface import SimulatorInterface
 
 class RemotedSimulator(SimulatorInterface):
 
-    MODES = ['ACCEPT', 'REJECT', 'DUMMY_ACK',
+    MODES = ['REJECT', 'DUMMY_ACK',
              'CONTROLLED_ACK', 'WRONG_KEY', 'INVALID_MSG']
 
     def __init__(self,
-                 server_ip: str = '',
-                 port: int = 1,
-                 protocol: Literal['udp', 'tcp'] = 'udp') -> None:
+                 server_ip: str = '127.0.0.1',
+                 port: int = 1514,
+                 mode='REJECT',
+                 protocol: Literal['udp', 'tcp'] = 'tcp') -> None:
         super().__init__(server_ip, port, False)
+
         self.protocol = protocol
+        self.mode = mode
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
-                                     )
+                                     func=self.__remoted_response_simulation)
 
     # Properties
 
     @property
-    def mode(self) -> Literal['ACCEPT', 'REJECT']:
-        """
-        Get the mode of operation for the simulator.
-
-        Returns:
-            Literal['ACCEPT', 'REJECT']: The current mode of operation.
-        """
+    def mode(self):
         return self.__mode
 
     @mode.setter
-    def mode(self, mode: Literal['ACCEPT', 'REJECT']) -> None:
-        """
-        Set the mode of operation for the simulator.
-
-        Args:
-            mode (Literal['ACCEPT', 'REJECT']): The mode of operation to set.
-
-        Raises:
-            ValueError: If the specified mode is not 'ACCEPT' or 'REJECT'.
-        """
+    def mode(self, mode) -> None:
         if mode.upper() not in self.MODES:
             raise ValueError('Invalid mode.')
 
         self.__mode = mode.upper()
 
-    # Methods
-    
-    def start():
-        pass
+    @property
+    def queue(self) -> Queue:
+        """
+        Get the queue used for storing received messages.
 
-    def shutdown():
-        pass
+        Returns:
+            Queue: MitM queue object that stores received messages.
+        """
+        return self.__mitm.queue
+
+    # Methods
+
+    def start(self) -> None:
+        if self.running:
+            return
+        self.__mitm.start()
+        self.running = True
+
+    def shutdown(self) -> None:
+        if not self.running:
+            return
+        self.__mitm.shutdown()
+        self.running = False
 
     # Internal methods.
 
     def __remoted_response_simulation(self, received: Any) -> None:
         if not received:
             raise ValueError('Received message is empty.')
-        
+
+        # handle ping pong response
+        if received == b'#ping':
+            response = '#pong'
+
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
-            self.__mitm.event.set()
-            return b'ERROR'
+            response = 'ERROR'
+
+        self.__mitm.event.set()
+        return response.encode()
