@@ -9,3 +9,6 @@ ANALYSISD_STARTED = fr"{PREFIX}Input message handler thread started."
 
 # Callback patterns to find events in socket.
 ANALYSISD_QUEUE_DB_MESSSAGE = r"^agent (\d{3,}) \w+ (\w+) (.+)$"
+
+# Alerts useful IDs
+ANALYSISD_ALERTS_SYSCHECK_IDS = ['550', '553', '554', '594', '597', '598', '750', '751', '752']

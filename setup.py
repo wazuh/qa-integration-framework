@@ -7,6 +7,13 @@ from pathlib import Path
 from setuptools import setup, find_packages
 from typing import List
 
+
+# Extra data.
+package_data_list = [
+    'data/analysis_alert.json',
+    'data/analysis_alert_windows.json'
+]
+
 # Entry point scripts.
 scripts_list = []
 
@@ -31,6 +38,7 @@ setup(
     license='GPLv2',
     packages=find_packages(where='src'),
     package_dir={'wazuh_testing': 'src/wazuh_testing'},
+    package_data={'wazuh_testing': package_data_list},
     python_requires='>=3.8',
     install_requires=get_install_requires(),
     entry_points={'console_scripts': scripts_list},

@@ -6,3 +6,4 @@ PREFIX = r'.*wazuh-analysisd.*'
 
 QUEUE_EVENTS_SIZE = 16384
 ANALYSISD_DEBUG_CONFIG = {'analysisd.debug': '2', 'monitord.rotate_log': '0'}
+ANALYSISD_DAEMON_HANDLER = {'daemons': ['wazuh-analysisd']}
