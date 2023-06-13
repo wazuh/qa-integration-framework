@@ -8,7 +8,7 @@ import sys
 import sqlite3
 from time import sleep
 
-from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH
+from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
 from wazuh_testing.utils.messages import wazuh_pack, wazuh_unpack
 from wazuh_testing.utils.services import control_service
 
