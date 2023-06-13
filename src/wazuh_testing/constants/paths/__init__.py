@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import sys
 import os
+import platform
 
 
 if sys.platform == 'win32':
@@ -20,3 +21,4 @@ else:
 
 CVE_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'cve.db')
 CPE_HELPER_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'dictionaries', 'cpe_helper.json')
+CLIENT_KEYS_PATH = os.path.join(WAZUH_PATH, 'etc' if platform.system() == 'Linux' else '', 'client.keys')
