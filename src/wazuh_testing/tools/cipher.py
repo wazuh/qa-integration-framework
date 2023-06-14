@@ -30,3 +30,16 @@ class Cipher:
     def decrypt_blowfish(self) -> bytes:
         cipher = Blowfish.new(self.blowfish_key, Blowfish.MODE_CBC, self.blowfish_iv)
         return cipher.decrypt(self.data)
+    
+    @staticmethod
+    def get_encrypted_payload(message: bytes) -> str:
+        if (index := message.find(b'#AES:')) is not -1:
+            # AES encryption is used
+            encrypted_data = message[index + len(b'#AES:'):]
+        elif (index := message.find(b':')) is not -1:
+            # Blowfish encryption is used
+            encrypted_data = message[index + 1:]
+        else:
+            raise ValueError('Message encryption is not valid.')
+
+        return encrypted_data

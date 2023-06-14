@@ -211,7 +211,9 @@ def remove_file(file_path):
             os.remove(file_path)
         elif os.path.isdir(file_path):
             delete_path_recursively(file_path)
-def file_exists(path: str) -> bool:
+
+
+def exists_and_is_file(path: str) -> bool:
     """Check if a file exists at the given path.
 
     Args:

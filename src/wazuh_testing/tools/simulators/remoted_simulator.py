@@ -76,7 +76,7 @@ class RemotedSimulator(SimulatorInterface):
         identifier = self.__get_agent_identifier(received)
         print(f'AGENT IDENTIFIER: {identifier}')
 
-        data = self.__get_encrypted_payload(received)
+        data = Cipher.get_encrypted_payload(received)
         print(f'FILTERED DATA: {data}')
 
         if self.mode == 'REJECT':
@@ -85,18 +85,6 @@ class RemotedSimulator(SimulatorInterface):
 
         self.__mitm.event.set()
         return response.encode()
-
-    def __get_encrypted_payload(self, message: bytes) -> str:
-        if (index := message.find(b'#AES:')) is not -1:
-            # AES encryption is used
-            encrypted_data = message[index + len(b'#AES:'):]
-        elif (index := message.find(b':')) is not -1:
-            # Blowfish encryption is used
-            encrypted_data = message[index + 1:]
-        else:
-            raise ValueError('Message encryption is not valid.')
-
-        return encrypted_data
 
     def __get_agent_identifier(self, message: bytes) -> dict:
         if (start_index := message.find(b'!') + 1) is not -1:
@@ -107,12 +95,3 @@ class RemotedSimulator(SimulatorInterface):
             # Get the agent IP.
             agent_identifier = {'ip': self.__mitm.listener.last_address[0]}
         return agent_identifier
-
-    def __decrypt(self, message: bytes) -> str:
-        if message.find(b'#AES') is not -1:
-            crypto_method = 'aes'
-            print('AES')
-        else:
-            print('blowfish')
-            crypto_method = 'blowfish'
-        return message
