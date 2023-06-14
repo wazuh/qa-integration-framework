@@ -17,7 +17,7 @@ def detect_wrong_content_config(error_type, tag, integration, file_monitor):
     
     return file_monitor.start(timeout=10, callback=generate_callback(callback))
 
-def detect_integration_start(enabled, integration, file_monitor):
+def detect_integration_start(integration, file_monitor):
     """Detect module GitHub starts after restarting Wazuh.
 
     Args:
