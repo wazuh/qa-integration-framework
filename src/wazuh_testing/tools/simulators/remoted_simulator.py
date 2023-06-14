@@ -1,4 +1,5 @@
 from queue import Queue
+import re
 from typing import Any, Literal, List
 
 from wazuh_testing.tools.mitm import ManInTheMiddle
@@ -72,10 +73,11 @@ class RemotedSimulator(SimulatorInterface):
         if received == b'#ping':
             response = '#pong'
 
-        received, identifier = self.__get_message_and_identifier(received)
-        
-        print(received)
-        print(identifier)
+        identifier = self.__get_agent_identifier(received)
+        print(f'AGENT IDENTIFIER: {identifier}')
+
+        data = self.__get_encrypted_payload(received)
+        print(f'FILTERED DATA: {data}')
 
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
@@ -84,12 +86,33 @@ class RemotedSimulator(SimulatorInterface):
         self.__mitm.event.set()
         return response.encode()
 
-    def __get_message_and_identifier(self, message: bytes) -> List[bytes | str]:
-        index = message.find(b'!')
-        if index == 0:
-            index = message[1:].find(b'!')
-            agent_identifier = {'id': message[1:index + 1].decode()}
-            message = message[index + 2:]
+    def __get_encrypted_payload(self, message: bytes) -> str:
+        if (index := message.find(b'#AES:')) is not -1:
+            # AES encryption is used
+            encrypted_data = message[index + len(b'#AES:'):]
+        elif (index := message.find(b':')) is not -1:
+            # Blowfish encryption is used
+            encrypted_data = message[index + 1:]
         else:
+            raise ValueError('Message encryption is not valid.')
+
+        return encrypted_data
+
+    def __get_agent_identifier(self, message: bytes) -> dict:
+        if (start_index := message.find(b'!') + 1) is not -1:
+            # The message comes with the agent ID.
+            end_index = message.find(b'!', start_index)
+            agent_identifier = {'id': message[start_index: end_index].decode()}
+        else:
+            # Get the agent IP.
             agent_identifier = {'ip': self.__mitm.listener.last_address[0]}
-        return message, agent_identifier
+        return agent_identifier
+
+    def __decrypt(self, message: bytes) -> str:
+        if message.find(b'#AES') is not -1:
+            crypto_method = 'aes'
+            print('AES')
+        else:
+            print('blowfish')
+            crypto_method = 'blowfish'
+        return message

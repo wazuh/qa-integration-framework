@@ -29,7 +29,7 @@ class StreamServerPort(socketserver.ThreadingTCPServer):
         overrides process_request and saves `last_address`.
         """
         self.last_address = client_addres
-        super().process_request( request, client_addres)
+        super().process_request(request, client_addres)
 
 
 class StreamServerPortV6(StreamServerPort):
