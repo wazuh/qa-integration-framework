@@ -2,7 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
-from wazuh_testing.tools.file_monitor import generate_callback
+from wazuh_testing.utils.callbacks import generate_callback
 
 def detect_wrong_content_config(error_type, tag, integration, file_monitor):
     """Detect module integration starts after restarting Wazuh.
