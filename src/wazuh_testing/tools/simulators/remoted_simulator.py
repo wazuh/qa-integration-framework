@@ -1,6 +1,5 @@
 from queue import Queue
-from typing import Any, Literal
-import zlib
+from typing import Any, Literal, List
 
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.tools.cipher import Cipher
@@ -73,9 +72,24 @@ class RemotedSimulator(SimulatorInterface):
         if received == b'#ping':
             response = '#pong'
 
+        received, identifier = self.__get_message_and_identifier(received)
+        
+        print(received)
+        print(identifier)
+
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
             response = 'ERROR'
 
         self.__mitm.event.set()
         return response.encode()
+
+    def __get_message_and_identifier(self, message: bytes) -> List[bytes | str]:
+        index = message.find(b'!')
+        if index == 0:
+            index = message[1:].find(b'!')
+            agent_identifier = {'id': message[1:index + 1].decode()}
+            message = message[index + 2:]
+        else:
+            agent_identifier = {'ip': self.__mitm.listener.last_address[0]}
+        return message, agent_identifier

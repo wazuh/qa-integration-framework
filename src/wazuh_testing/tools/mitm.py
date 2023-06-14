@@ -14,13 +14,22 @@ import socketserver
 import ssl
 import threading
 
+from typing import Union
+
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
 
 from wazuh_testing.utils import messages
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
-    pass
+
+    def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
+                        client_addres: tuple[str | bytes | bytearray, int]) -> None:
+        """
+        overrides process_request and saves `last_address`.
+        """
+        self.last_address = client_addres
+        super().process_request( request, client_addres)
 
 
 class StreamServerPortV6(StreamServerPort):
