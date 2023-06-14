@@ -3,9 +3,11 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import chardet
 import os
+import time
 import yaml
 
 from typing import Union, List
+from datetime import datetime
 
 
 def write_file(file_path: str, data: Union[List[str], str] = ''):
@@ -96,3 +98,30 @@ def get_file_encoding(file_path):
         raise TypeError(f"Could not detect the {file_path} encoding")
 
     return encoding
+
+
+def wait_mtime(path, time_step=5, timeout=-1):
+    """
+    Wait until the monitored log is not being modified.
+
+    Args:
+        path (str): Path to the file.
+        time_step (int, optional): Time step between checks of mtime. Default `5`
+        timeout (int, optional): Timeout for function to fail. Default `-1`
+
+    Raises:
+        FileNotFoundError: Raised when the file does not exist.
+        TimeoutError: Raised when timeout is reached.
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} not found.")
+
+    last_mtime = 0.0
+    tic = datetime.now().timestamp()
+
+    while last_mtime != os.path.getmtime(path):
+        last_mtime = os.path.getmtime(path)
+        time.sleep(time_step)
+
+        if last_mtime - tic >= timeout:
+            raise TimeoutError("Reached timeout.")

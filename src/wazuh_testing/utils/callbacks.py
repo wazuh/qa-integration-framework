@@ -59,7 +59,7 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         if match:
             # Return the matched line or match groups.
             return line if len(match.groups()) == 0 else match.groups()
-        
+
         return None
 
     return new_callback

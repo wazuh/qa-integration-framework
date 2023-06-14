@@ -12,8 +12,6 @@ from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.keys.alerts import *
 from wazuh_testing.constants.keys.events import *
 
-from .patterns import ANALYSISD_QUEUE_DB_MESSSAGE, ANALYSISD_ALERTS_SYSCHECK_IDS
-
 
 with open(os.path.join(DATA_PATH, 'analysis_alert.json'), 'r') as f:
     linux_schema = json.load(f)
@@ -21,44 +19,6 @@ with open(os.path.join(DATA_PATH, 'analysis_alert.json'), 'r') as f:
 with open(os.path.join(DATA_PATH, 'analysis_alert_windows.json'), 'r') as f:
     win32_schema = json.load(f)
 
-
-# Callbacks
-
-def callback_analysisd_message(line):
-    if isinstance(line, bytes):
-        line = line.decode()
-    match = re.match(ANALYSISD_QUEUE_DB_MESSSAGE, line)
-    if match:
-        try:
-            body = json.loads(match.group(3))
-        except json.decoder.JSONDecodeError:
-            body = match.group(3)
-        return match.group(1), match.group(2), body
-    return None
-
-
-def callback_wazuh_db_message(item):
-    data, _ = item
-    match = re.match(ANALYSISD_QUEUE_DB_MESSSAGE, data.decode())
-    if match:
-        try:
-            body = json.loads(match.group(3))
-        except json.decoder.JSONDecodeError:
-            body = match.group(3)
-        return match.group(1), match.group(2), body
-    return None
-
-
-def callback_fim_alert(line):
-    try:
-        alert = json.loads(line)
-        if (ALERTS_SYSCHECK in alert and alert[ALERTS_RULE][ALERTS_ID] in ANALYSISD_ALERTS_SYSCHECK_IDS):
-            return alert
-    except json.decoder.JSONDecodeError:
-        return None
-
-
-# Validations
 
 def validate_analysis_alert(alert, schema='linux'):
     """Check if an Analysis event is properly formatted.
