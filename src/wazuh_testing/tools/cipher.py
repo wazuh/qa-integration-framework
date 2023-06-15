@@ -1,3 +1,4 @@
+from typing import Union, Literal
 from Crypto.Cipher import AES, Blowfish
 from Crypto.Util.Padding import pad
 
@@ -6,31 +7,37 @@ class Cipher:
     """Algorithm to perform encryption/decryption of manager-agent secure messages:
     https://documentation.wazuh.com/current/development/message-format.html#secure-message-format.
     """
+    __BLOCK_SIZE = 16
+    __AES_IV = b'FEDCBA0987654321'
+    __BLOWFISH_IV = b'\xfe\xdc\xba\x98\x76\x54\x32\x10'
+    __ALGORITHMS = ['AES', 'BLOWFISH']
 
-    def __init__(self, data: bytes, key: bytes) -> None:
-        self.block_size = 16
-        self.data = data
-        self.blowfish_key = key
-        self.aes_key = key[:32]
-        self.aes_iv = b'FEDCBA0987654321'
-        self.blowfish_iv = b'\xfe\xdc\xba\x98\x76\x54\x32\x10'
+    @classmethod
+    def encrypt(cls, data: bytes, key: bytes, algorithm: Literal['AES', 'BLOWFISH']) -> bytes:
+        cipher, data = cls.__get_cipher_and_data(data, key, algorithm)
 
-    def encrypt_aes(self) -> bytes:
-        cipher = AES.new(self.aes_key, AES.MODE_CBC, self.aes_iv)
-        return cipher.encrypt(pad(self.data, self.block_size))
+        return cipher.encrypt(data)
 
-    def decrypt_aes(self) -> bytes:
-        cipher = AES.new(self.aes_key, AES.MODE_CBC, self.aes_iv)
-        return cipher.decrypt(pad(self.data, self.block_size))
+    @classmethod
+    def decrypt(cls, data: bytes, key: bytes, algorithm: Literal['AES', 'BLOWFISH']) -> bytes:
+        cipher, data = cls.__get_cipher_and_data(data, key, algorithm)
 
-    def encrypt_blowfish(self) -> bytes:
-        cipher = Blowfish.new(self.blowfish_key, Blowfish.MODE_CBC, self.blowfish_iv)
-        return cipher.encrypt(self.data)
+        return cipher.decrypt(data)
 
-    def decrypt_blowfish(self) -> bytes:
-        cipher = Blowfish.new(self.blowfish_key, Blowfish.MODE_CBC, self.blowfish_iv)
-        return cipher.decrypt(self.data)
-    
+    @classmethod
+    def __get_cipher_and_data(cls, data: bytes, key: bytes,
+                              algorithm: Literal['AES', 'BLOWFISH']) -> Union[object, bytes]:
+        if algorithm not in cls.__ALGORITHMS:
+            raise ValueError(f'Invalid encryption/decryption algorithm.')
+
+        if algorithm.upper() == 'AES':
+            cipher = AES.new(key[:32], AES.MODE_CBC, cls.__AES_IV)
+            data = pad(data, cls.__BLOCK_SIZE)
+        elif algorithm.upper() == 'BLOWFISH':
+            cipher = Blowfish.new(key, Blowfish.MODE_CBC, cls.__BLOWFISH_IV)
+
+        return cipher, data
+
     @staticmethod
     def get_encrypted_payload(message: bytes) -> str:
         if (index := message.find(b'#AES:')) is not -1:
@@ -40,6 +47,6 @@ class Cipher:
             # Blowfish encryption is used
             encrypted_data = message[index + 1:]
         else:
-            raise ValueError('Message encryption is not valid.')
+            raise ValueError('Invalid message encryption header.')
 
         return encrypted_data

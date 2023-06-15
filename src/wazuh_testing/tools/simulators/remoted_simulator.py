@@ -1,9 +1,11 @@
 from queue import Queue
 import re
 from typing import Any, Literal, List
+from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.tools.cipher import Cipher
+from wazuh_testing.utils import keys
 
 from .simulator_interface import SimulatorInterface
 
@@ -17,11 +19,13 @@ class RemotedSimulator(SimulatorInterface):
                  server_ip: str = '127.0.0.1',
                  port: int = 1514,
                  mode='REJECT',
-                 protocol: Literal['udp', 'tcp'] = 'tcp') -> None:
+                 protocol: Literal['udp', 'tcp'] = 'tcp',
+                 keys_path: str = f'{BASE_CONF_PATH}/client.keys') -> None:
         super().__init__(server_ip, port, False)
 
-        self.protocol = protocol
         self.mode = mode
+        self.protocol = protocol
+        self.keys_path = keys_path
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
@@ -78,6 +82,12 @@ class RemotedSimulator(SimulatorInterface):
 
         data = Cipher.get_encrypted_payload(received)
         print(f'FILTERED DATA: {data}')
+
+        client_keys = keys.get_client_keys(self.keys_path)
+        # Save the keys in case the file doesn't exists.
+        keys.save_client_keys(client_keys, self.keys_path)
+        
+        encription = keys.create_encryption_key(**client_keys.pop('ip', None))
 
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
