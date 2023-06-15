@@ -1,10 +1,9 @@
 from queue import Queue
-import re
 from typing import Any, Literal, List
-from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 
+from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.tools.cipher import Cipher
+from wazuh_testing.tools.secure_message import SecureMessage
 from wazuh_testing.utils import keys
 
 from .simulator_interface import SimulatorInterface
@@ -77,17 +76,25 @@ class RemotedSimulator(SimulatorInterface):
         if received == b'#ping':
             response = '#pong'
 
-        identifier = self.__get_agent_identifier(received)
-        print(f'AGENT IDENTIFIER: {identifier}')
+        # Get and save the agent keys.
+        client_keys = keys.get_client_keys(self.keys_path)[0]
 
-        data = Cipher.get_encrypted_payload(received)
-        print(f'FILTERED DATA: {data}')
-
-        client_keys = keys.get_client_keys(self.keys_path)
-        # Save the keys in case the file doesn't exists.
-        keys.save_client_keys(client_keys, self.keys_path)
+        # Decrypt the received message.
+        client_keys.pop('ip', None)
+        encryption_key = keys.create_encryption_key(**client_keys)
         
-        encription = keys.create_encryption_key(**client_keys.pop('ip', None))
+        
+        identifier = self.__get_agent_identifier(received)
+
+        payload, algo = SecureMessage.extract_payload_and_algorithm(received)
+        decrypted_message = SecureMessage.decrypt(payload, encryption_key, algo)
+        msg_decoded = SecureMessage.decompress_and_decode(decrypted_message)
+        
+
+        print(f'DECRYPTED MESSAGE: {msg_decoded}')
+
+        if '#!-' in msg_decoded:
+            print('NECESITA RESPUESTA')
 
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
@@ -97,11 +104,7 @@ class RemotedSimulator(SimulatorInterface):
         return response.encode()
 
     def __get_agent_identifier(self, message: bytes) -> dict:
-        if (start_index := message.find(b'!') + 1) is not -1:
-            # The message comes with the agent ID.
-            end_index = message.find(b'!', start_index)
-            agent_identifier = {'id': message[start_index: end_index].decode()}
-        else:
-            # Get the agent IP.
-            agent_identifier = {'ip': self.__mitm.listener.last_address[0]}
-        return agent_identifier
+        agent_id = SecureMessage.extract_agent_id(message)
+        if not agent_id:
+            return {'ip': self.__mitm.listener.last_address[0]}
+        return {'id': agent_id}

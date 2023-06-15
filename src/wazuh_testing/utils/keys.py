@@ -44,7 +44,7 @@ def get_client_keys(path: str = f'{BASE_CONF_PATH}/client.keys') -> List[dict]:
 
     keys = []
     for line in file.read_file_lines(path):
-        (id, name, ip, key) = line.split(' ')
+        (id, name, ip, key) = line.replace('\n', '').split(' ')
         keys.append({'id': id, 'name': name, 'ip': ip, 'key': key})
 
     return keys
