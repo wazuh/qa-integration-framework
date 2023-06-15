@@ -76,20 +76,17 @@ class RemotedSimulator(SimulatorInterface):
         if received == b'#ping':
             response = '#pong'
 
-        # Get and save the agent keys.
+        # Get the client keys and prepare encryption key.
         client_keys = keys.get_client_keys(self.keys_path)[0]
-
-        # Decrypt the received message.
         client_keys.pop('ip', None)
         encryption_key = keys.create_encryption_key(**client_keys)
-        
-        
+
+        # Get agent identifier. ID or IP.
         identifier = self.__get_agent_identifier(received)
 
-        payload, algo = SecureMessage.extract_payload_and_algorithm(received)
-        decrypted_message = SecureMessage.decrypt(payload, encryption_key, algo)
-        msg_decoded = SecureMessage.decompress_and_decode(decrypted_message)
-        
+        # Decrypt and decode the received message.
+        decrypted_message = SecureMessage.decrypt(received, encryption_key)
+        msg_decoded = SecureMessage.decode(decrypted_message)
 
         print(f'DECRYPTED MESSAGE: {msg_decoded}')
 
