@@ -1,5 +1,5 @@
 """
-Copyright (C) 2015-2022, Wazuh Inc.
+Copyright (C) 2015-2023, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
@@ -7,6 +7,7 @@ import json
 import time
 import requests
 from base64 import b64encode
+from copy import deepcopy
 from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
@@ -15,7 +16,7 @@ from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 
 
 # Variables
-base_headers = {'Content-Type': 'application/json'}
+BASE_HEADERS = {'Content-Type': 'application/json'}
 
 disable_warnings(exceptions.InsecureRequestWarning)
 
@@ -49,18 +50,23 @@ def get_base_url(protocol: str = API_PROTOCOL, host: str = API_HOST, port: str =
     return f"{protocol}://{host}:{port}"
 
 
-def set_authentication_header(user: str = None, password: str = None) -> None:
-    """Set Authentication header.
+def set_authorization_header(user: str = None, password: str = None) -> dict:
+    """Set Authorization header.
 
     Args:
         user (str): User to login to the API.
         password (str): Password to login to the API.
+
+    Returns:
+        headers (dict): Headers with authorization included
     """
     user = API_USER if user is None else user
     password = API_PASSWORD if password is None else password
     _token = generate_bearer_token(user, password)
+    headers = deepcopy(BASE_HEADERS)
+    headers['Authorization'] = f'Basic {_token.decode()}'
 
-    base_headers['Authorization'] = f'Basic {_token.decode()}'
+    return headers
 
 
 def login(user: str = API_USER, password: str = API_PASSWORD, timeout: int = session_parameters.default_timeout,
@@ -81,13 +87,16 @@ def login(user: str = API_USER, password: str = API_PASSWORD, timeout: int = ses
         RuntimeError: When the login was not successful after `login_attempts` every `sleep_time`
     """
     url = f"{get_base_url()}{LOGIN_ROUTE}"
-    set_authentication_header(user, password)
 
     for _ in range(login_attempts):
-        response = requests.post(url, headers=base_headers, verify=False, timeout=timeout)
+        response = requests.post(url, headers=set_authorization_header(user, password), verify=False, timeout=timeout)
 
         if response.status_code == 200:
-            return json.loads(response.content.decode())['data']['token']
+            authentication_headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f"Bearer {json.loads(response.content.decode())['data']['token']}"
+            }
+            return authentication_headers
         else:
             time.sleep(sleep_time)
 

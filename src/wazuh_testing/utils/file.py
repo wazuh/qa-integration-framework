@@ -9,6 +9,7 @@ import re
 import shutil
 import time
 import yaml
+from pathlib import Path
 from typing import Union, List
 from datetime import datetime
 
@@ -75,13 +76,8 @@ def append_content_to_yaml(path: Union[str, os.PathLike], content: dict) -> None
     Args:
         path (str | PathLike): Path to the target file.
     """
-    # Clear file content if the content is None
-    if content is None:
-        with open(path, 'w') as file:
-            pass
-    else:
-        with open(path, 'w+') as file:
-            yaml.dump(content, file)
+    with open(path, 'w+') as file:
+        yaml.dump(content, file)
 
 
 def truncate_file(file_path: str) -> None:
@@ -243,3 +239,48 @@ def delete_file(path: Union[str, os.PathLike]) -> None:
     """
     if os.path.exists(path):
         os.remove(path)
+
+
+def create_files(files: list[Union[str, os.PathLike]]) -> list:
+    """Create multiple files. Return the list of created files/directories.
+
+    Args:
+        files (list(str | os.PathLike)): Paths of files to be created.
+
+    Returns:
+        created_files (list): List of files/directories created during the process.
+
+    Raises:
+        FileExistsError: When a file already exists.
+    """
+    if not isinstance(file, list):
+        raise TypeError(f"`file` should be a 'list', not a '{type(file)}'")
+
+    created_files = []
+    for file in files:
+        file = Path(file)
+        if file.exists():
+            raise FileExistsError(f"`{file}` already exists.")
+        # Create parent directories
+        for parent in reversed(file.parents):
+            # If the folder exist do not add it to the `created_files` list, otherwise add it
+            try:
+                parent.mkdir(exist_ok=False)
+                created_files.append(parent)
+            except FileExistsError:
+                pass
+
+        write_file(file_path=file, data='')
+        created_files.append(file)
+
+    return created_files
+
+
+def delete_files(files: list[Union[str, os.PathLike]]) -> None:
+    """Delete a list of files.
+
+    Args:
+        files (list(str | os.PathLike)): Paths of files to be deleted.
+    """
+    for file in files:
+        delete_file(file)
