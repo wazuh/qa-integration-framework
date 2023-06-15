@@ -78,7 +78,7 @@ def validate_analysis_alert_syscheck(alert, event, schema='linux'):
                 f"{value} not equal to {syscheck_alert['{}_{}'.format(attribute, suffix)]}"
 
         if SYSCHECK_TAGS in event[SYSCHECK_DATA]:
-            assert event[SYSCHECK_DATA][SYSCHECK_TAGS] == syscheck_alert[ALERTS_SYSCHECK_TAGS][0], 'Tags not in alert or with different value'
+            assert event[SYSCHECK_DATA][SYSCHECK_TAGS] == syscheck_alert[SYSCHECK_TAGS][0], 'Tags not in alert or with different value'
 
         if SYSCHECK_CONTENT_CHANGES in event[SYSCHECK_DATA]:
             assert event[SYSCHECK_DATA][SYSCHECK_CONTENT_CHANGES] == syscheck_alert[ALERTS_SYSCHECK_DIFF]
