@@ -80,7 +80,7 @@ def update_os_info(agent_id='000', scan_id=int(time()), scan_time=datetime.datet
     insert_os_info(**locals())
 
 
-def delete_os_info(agent_id='000'):
+def delete_os_info(agent_id: str='000'):
     """Delete the sys_osinfo data from a specific agent.
 
     Args:
@@ -134,8 +134,21 @@ def insert_package(agent_id='000', scan_id=int(time()), format='rpm', name='cust
               f"{arguments['item_id']})")
 
 
-def update_sync_info(agent_id='000', component='syscollector-packages', last_attempt=1, last_completion=1,
-                     n_attempts=0, n_completions=0, last_agent_checksum=''):
+def delete_package(package: str, agent_id: str='000'):
+    """Remove package from database.
+
+    Used to simulate uninstall of the package given.
+
+    Args:
+        package (str): Package name.
+        agent_id (str): Agent ID.
+    """
+    delete_query_string = f'agent {agent_id} sql DELETE FROM sys_programs WHERE name="{package}"'
+    query_wdb(delete_query_string)
+
+
+def update_sync_info(agent_id: str='000', component: str='syscollector-packages', last_attempt: int=1,
+                     last_completion: int=1, n_attempts: int=0, n_completions: int=0, last_agent_checksum: str=''):
     """Update the sync_info table of the specified agent for the selected component.
 
     Args:
@@ -182,3 +195,15 @@ def insert_vulnerability_in_agent_inventory(agent_id='000', name='', version='',
               f" condition, title, published, updated) VALUES ('{name}', '{version}', '{architecture}', '{cve}', "
               f"'{detection_time}', '{severity}', {cvss2_score}, {cvss3_score},'{reference}', '{type}', '{status}', "
               f"'{external_references}', '{condition}', '{title}', '{published}', '{updated}')")
+
+
+# -----------------------------------------------------VDT Scan related -------------------------------------------------
+def update_last_full_scan(last_scan: int=0, agent_id: str='000'):
+    """Update the last full scan of an agent.
+
+    Args:
+        last_scan (int): Last scan ID. This is compute by casting to int the result of time().
+        agent_id (str): Agent ID.
+    """
+    query_string = f"agent {agent_id} sql UPDATE vuln_metadata SET LAST_FULL_SCAN={last_scan}"
+    query_wdb(query_string)

@@ -4,7 +4,7 @@
 
 import re
 
-def parse_date_time_format(date_time):
+def parse_date_time_format(date_time: str):
     """Parse the specified date_time to return a common format.
 
     Args:
@@ -29,3 +29,21 @@ def parse_date_time_format(date_time):
             return f"{match.group(1)} {match.group(2)}{item['append']}"
 
     ValueError(f"Could not parse the {date_time} datetime.")
+
+
+def time_to_seconds(time_value: str) -> int:
+    """Convert a string with format (1s, 1m, 1h, 1d, 1w) in number of seconds.
+
+    Args:
+        time_value (str): String (1s, 1m, 1h, 1d, 1w).
+
+    Returns:
+        time_value (int): Number of seconds.
+    """
+    time_unit = time_value[len(time_value) - 1:]
+
+    time_value = int(time_value[:len(time_value) - 1])
+
+    units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400, 'w': 604800}
+
+    return time_value * units[time_unit]

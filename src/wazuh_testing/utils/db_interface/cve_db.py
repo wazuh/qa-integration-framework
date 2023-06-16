@@ -60,6 +60,14 @@ def clean_all_cve_tables():
     make_sqlite_query(CVE_DB_PATH, query)
 
 
+def clean_nvd_tables():
+    """Clean the NVD tables data"""
+    query = [f"DELETE FROM {table}" for table in ['NVD_CVE']]
+
+    # Send all queries in the same batch (instead of calling clean_table method) to avoid so many restarts of wazuh-db
+    make_sqlite_query(CVE_DB_PATH, query)
+
+
 def get_nvd_metadata_timestamp(year):
     """Get the NVD timestamp data for a specific year from nvd_metadata table.
 
