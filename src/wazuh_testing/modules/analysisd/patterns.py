@@ -8,6 +8,9 @@ from . import PREFIX
 ANALYSISD_STARTED = fr"{PREFIX}Input message handler thread started."
 ANALYSISD_ERROR_MESSAGES = r'.* (?:DEBUG|ERROR): ((?:dbsync:|No member|No such member|Invalid) .*)'
 
+# Callback patterns to find events in alerts file.
+ANALYSISD_ALERT_STARTED = r'.*Ossec server started.*'
+
 # Callback patterns to find events in socket.
 ANALYSISD_QUEUE_DB_MESSSAGE = r"^agent (\d{3,}) \w+ (\w+) (.+)$"
 ANALYSISD_SYSCHECK_MESSSAGE = r'(.*)syscheck:(.+)$'

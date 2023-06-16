@@ -11,7 +11,8 @@ from typing import List
 # Extra data.
 package_data_list = [
     'data/analysis_alert.json',
-    'data/analysis_alert_windows.json'
+    'data/analysis_alert_windows.json',
+    'data/mitre_event.json'
 ]
 
 # Entry point scripts.

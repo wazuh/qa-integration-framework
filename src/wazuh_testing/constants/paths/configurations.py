@@ -16,3 +16,4 @@ else:
     WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(CONF_PATH, 'local_internal_options.conf')
 
 CUSTOM_RULES_PATH = os.path.join(CONF_PATH, 'rules')
+CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
