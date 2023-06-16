@@ -1,6 +1,9 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import bz2
+import gzip
+import filetype
 import chardet
 import os
 import sys
@@ -9,12 +12,14 @@ import stat
 import json
 import time
 import yaml
+import xml.etree.ElementTree as ET
+import requests
 
 from typing import Union, List
 from datetime import datetime
 
 
-def write_file(file_path: str, data: Union[List[str], str] = ''):
+def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
     Write the specified data to the specified file.
 
@@ -45,7 +50,7 @@ def read_file_lines(path: str) -> List[str]:
     return lines
 
 
-def read_file(file_path):
+def read_file(file_path: str):
     """
     Read the data in a file and return it
 
@@ -60,7 +65,7 @@ def read_file(file_path):
     return data
 
 
-def copy(source, destination):
+def copy(source: str, destination: str) -> None:
     """
     Copy file with metadata and ownership to a specific destination.
 
@@ -75,7 +80,19 @@ def copy(source, destination):
         os.chown(destination, source_stats[stat.ST_UID], source_stats[stat.ST_GID])
 
 
-def remove_file(file_path):
+def download_file(source_url: str, dest_path: str) -> None:
+    """Download file to destination path.
+
+    Args:
+        source_url (str): Source url of file to download.
+        dest_path (str): Destination where file will be downloaded to.
+    """
+    request = requests.get(source_url, allow_redirects=True)
+    with open(dest_path, 'wb') as dest_file:
+        dest_file.write(request.content)
+
+
+def remove_file(file_path: str) -> None:
     """Remove a file or a directory path.
 
     Args:
@@ -88,7 +105,7 @@ def remove_file(file_path):
             delete_path_recursively(file_path)
 
 
-def delete_path_recursively(path):
+def delete_path_recursively(path: str) -> None:
     '''Remove a directory recursively.
 
     Args:
@@ -98,7 +115,7 @@ def delete_path_recursively(path):
         shutil.rmtree(path, onerror=on_write_error)
 
 
-def on_write_error(function, path, exc_info):
+def on_write_error(function, path, exc_info) -> None:
     """ Error handler for functions that try to modify a file. If the error is due to an access error (read only file),
     it attempts to add write permission and then retries. If the error is for another reason it re-raises the error.
 
@@ -148,7 +165,7 @@ def truncate_file(file_path: str) -> None:
         f.truncate()
 
 
-def get_file_encoding(file_path):
+def get_file_encoding(file_path: str) -> str:
     """Detect and return the file encoding.
 
     Args:
@@ -180,7 +197,41 @@ def get_file_encoding(file_path):
     return encoding
 
 
-def read_json_file(file_path):
+def get_file_info(file_path, info_type="extension") -> str:
+    """Gets a file extension
+
+    Args:
+        file_path (str): File path to check.
+        info_type (str): expected extension type. Default: 'extension'
+
+    Returns:
+        str: File extension or mime type.
+    """
+    if os.path.exists(file_path) and filetype.guess(file_path) is not None:
+        file = filetype.guess(file_path)
+        return file.extension if info_type == "extension" else file.mime
+
+
+def decompress_file(file_path, dest_file_path, compression_type="gzip") -> None:
+    """Decompresses file to destination
+
+    Args:
+        file_path (str): path of file to decompress
+        dest_file_path (str): path where to decompress the file
+        compression_type (str): type of compression. Default: 'gzip'. Values: 'gzip', 'zip', 'bz2'
+    """
+    if compression_type == "gzip":
+        with gzip.open(file_path, 'rb') as source, open(dest_file_path, 'wb') as dest:
+            dest.write(source.read())
+    elif compression_type == "zip":
+        with zipfile.ZipFile(file_path, 'r') as zip_reference:
+            zip_reference.extractall(dest_file_path)
+    elif compression_type == "bz2":
+        with open(file_path, 'rb') as source, open(dest_file_path, 'wb') as dest:
+            dest.write(bz2.decompress(source.read()))
+
+
+def read_json_file(file_path: str) -> str:
     """
     Write dict data to JSON file
 
@@ -193,7 +244,7 @@ def read_json_file(file_path):
     return json.loads(read_file(file_path))
 
 
-def write_json_file(file_path, data, ensure_ascii=False):
+def write_json_file(file_path: str, data: dict[str, str], ensure_ascii: bool=False) -> None:
     """
     Write dict data to JSON file
 
@@ -205,6 +256,8 @@ def write_json_file(file_path, data, ensure_ascii=False):
                                  be output as-is.
     """
     write_file(file_path, json.dumps(data, indent=4, ensure_ascii=ensure_ascii))
+
+
 def wait_mtime(path, time_step=5, timeout=-1):
     """
     Wait until the monitored log is not being modified.
@@ -230,3 +283,36 @@ def wait_mtime(path, time_step=5, timeout=-1):
 
         if last_mtime - tic >= timeout:
             raise TimeoutError("Reached timeout.")
+
+
+def validate_json_file(file_path: str) -> bool:
+    """Validates a file is in JSON format
+
+    Args:
+        file_path (str): File path where is located the JSON file to read.
+    
+    Returns:
+        Boolean: returns True if the file is in JSON format, False otherwise.
+    """
+    try:
+        with open(file_path) as file:
+            json.loads(file.read())
+        return True
+    except json.decoder.JSONDecodeError:
+        return False
+
+
+def validate_xml_file(file_path: str) -> bool:
+    """Validates a file is in JSON format
+
+    Args:
+        file_path (str): File path where is located the XML file to read.
+    
+    Returns:
+        Boolean: returns True if the file is in XML format, False otherwise.
+    """
+    try:
+        ET.parse(file_path)
+        return True
+    except ET.ParseError:
+        return False
