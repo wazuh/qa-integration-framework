@@ -7,6 +7,7 @@ import psutil
 import subprocess
 import sys
 import time
+from typing import Union
 
 from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
@@ -225,3 +226,24 @@ def check_if_process_is_running(process_name):
         pass
 
     return is_running
+
+
+def search_process_by_command(search_cmd: str) -> Union[psutil.Process, None]:
+    """Search a process by its command
+
+    Args:
+        search_cmd (str): Name of the command to be fetched.
+
+    Returns:
+        proc (psutil.Process | None): First occurrence of the process object matching the `search_cmd` or
+            None if no process has been found.
+    """
+    if not isinstance(search_cmd, str):
+        TypeError(f"`search_cmd` must be a str, but a {type(search_cmd)} was passed.")
+    if search_cmd == '':
+        TypeError('`search_cmd` must not be an empty string.')
+
+    for process in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
+        command = next((command for command in process.cmdline() if search_cmd in command), None)
+        if command:
+            return process
