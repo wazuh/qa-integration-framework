@@ -11,7 +11,8 @@ from copy import deepcopy
 from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
-from wazuh_testing.modules.api.constants import API_PROTOCOL, API_HOST, API_PORT, API_USER, API_PASSWORD, LOGIN_ROUTE
+from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
+                                        WAZUH_API_PASSWORD, LOGIN_ROUTE
 from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 
 
@@ -35,7 +36,7 @@ def generate_bearer_token(user: str = None, password: str = None) -> bytes:
     return b64encode(f"{user}:{password}".encode())
 
 
-def get_base_url(protocol: str = API_PROTOCOL, host: str = API_HOST, port: str = API_PORT) -> str:
+def get_base_url(protocol: str = WAZUH_API_PROTOCOL, host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT) -> str:
     """Get Wazuh API's base URL.
 
     Args:
@@ -60,8 +61,8 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     Returns:
         headers (dict): Headers with authorization included
     """
-    user = API_USER if user is None else user
-    password = API_PASSWORD if password is None else password
+    user = WAZUH_API_USER if user is None else user
+    password = WAZUH_API_PASSWORD if password is None else password
     _token = generate_bearer_token(user, password)
     headers = deepcopy(BASE_HEADERS)
     headers['Authorization'] = f'Basic {_token.decode()}'
@@ -69,7 +70,7 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     return headers
 
 
-def login(user: str = API_USER, password: str = API_PASSWORD, timeout: int = session_parameters.default_timeout,
+def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD, timeout: int = session_parameters.default_timeout,
           login_attempts: int = 1, sleep_time: int = 0) -> str:
     """Login to the API and get the token.
 

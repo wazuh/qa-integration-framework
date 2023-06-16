@@ -3,13 +3,8 @@ Copyright (C) 2015-2023, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
-import os
-from copy import deepcopy
-from typing import Union
-
 from wazuh_testing.constants.paths.configurations import WAZUH_API_CONFIGURATION_PATH, WAZUH_SECURITY_CONFIGURATION_PATH
-from wazuh_testing.modules.api.constants import CONFIGURATION_TYPES
-from wazuh_testing.utils.configuration import expand_placeholders, add_metadata
+from wazuh_testing.constants.api import CONFIGURATION_TYPES
 from wazuh_testing.utils.file import read_yaml, append_content_to_yaml, delete_file, truncate_file
 
 
