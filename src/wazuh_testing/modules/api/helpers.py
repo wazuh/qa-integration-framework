@@ -70,24 +70,27 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     return headers
 
 
-def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD, timeout: int = session_parameters.default_timeout,
-          login_attempts: int = 1, sleep_time: int = 0) -> str:
+def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
+          timeout: int = session_parameters.default_timeout, login_attempts: int = 1, sleep_time: int = 0,
+          host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT) -> dict:
     """Login to the API and get the token.
 
     Args:
         user (str): User to login to the API.
-        host (str): Password to login to the API.
+        password (str): Password to login to the API.
         timeout (int): Request timeout.
         login_attempts (int): Login attempts before raising a RuntimeError.
         sleep_time (time): Time to sleep before executing the next attempt.
+        host (str): Host where the API is receiving requests.
+        port (str): Port where the API is listening.
 
     Returns:
-        login_token (str): Login token.
+        authentication_headers (dict): Headers required to make a future request.
 
     Raises:
         RuntimeError: When the login was not successful after `login_attempts` every `sleep_time`
     """
-    url = f"{get_base_url()}{LOGIN_ROUTE}"
+    url = f"{get_base_url(host=host, port=port)}{LOGIN_ROUTE}"
 
     for _ in range(login_attempts):
         response = requests.post(url, headers=set_authorization_header(user, password), verify=False, timeout=timeout)
