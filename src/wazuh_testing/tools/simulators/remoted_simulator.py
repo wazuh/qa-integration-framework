@@ -1,4 +1,5 @@
 from queue import Queue
+from struct import pack
 from typing import Any, Literal, List
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
@@ -28,7 +29,7 @@ class RemotedSimulator(SimulatorInterface):
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
-
+        self.special_response = ''
     # Properties
 
     @property
@@ -70,6 +71,8 @@ class RemotedSimulator(SimulatorInterface):
 
     def __remoted_response_simulation(self, received: Any) -> None:
         if not received:
+            self.__mitm.event.set()
+            return
             raise ValueError('Received message is empty.')
 
         # handle ping pong response
@@ -96,9 +99,35 @@ class RemotedSimulator(SimulatorInterface):
         if self.mode == 'REJECT':
             # Simulate a reject from authd.
             response = 'ERROR'
+        response = SecureMessage.encode(b'#!-agent ack ')
+        response = SecureMessage.encrypt(response, encryption_key, 'AES')
+        length = pack('<I', len(response))
+        response = length + response
+        #!-agent ack 
+        # self.__mitm.event.set()
+        
+        #     def send(self, dst, data):
+        # """Send method to write on the socket.
 
-        self.__mitm.event.set()
-        return response.encode()
+        # Args:
+        #     dst (socket): Address to write specified data.
+        #     data (socket): Data to be send.
+        # """
+        # self.update_counters()
+        # if self.protocol == "tcp":
+        #     try:
+        #         length = pack('<I', len(data))
+        #         dst.send(length + data)
+        #     except:
+        #         pass
+        # elif self.protocol == "udp":
+        #     try:
+        #         self.sock.sendto(data, dst)
+        #     except:
+        #         pass
+        if self.special_response:
+            return self.special_response
+        return response
 
     def __get_agent_identifier(self, message: bytes) -> dict:
         agent_id = SecureMessage.extract_agent_id(message)
