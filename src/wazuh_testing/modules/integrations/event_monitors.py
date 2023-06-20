@@ -4,7 +4,7 @@
 
 from wazuh_testing.utils.callbacks import generate_callback
 
-def detect_wrong_content_config(error_type, tag, integration, file_monitor):
+def detect_wrong_content_config(error_type, tag, integration, file_monitor, replacement = None):
     """Detect module integration starts after restarting Wazuh.
 
     Args:
@@ -15,9 +15,9 @@ def detect_wrong_content_config(error_type, tag, integration, file_monitor):
     """   
     callback = f".*ERROR: {error_type} content for tag '{tag}' at module '{integration}'."
     
-    return file_monitor.start(timeout=180, callback=generate_callback(callback))
+    return file_monitor.start(timeout=60, callback=generate_callback(callback, replacement))
 
-def detect_integration_start(integration, file_monitor):
+def detect_integration_start(integration, file_monitor, replacement = None):
     """Detect module GitHub starts after restarting Wazuh.
 
     Args:
@@ -26,4 +26,4 @@ def detect_integration_start(integration, file_monitor):
     """
     callback = f".*INFO: Module {integration} started."
 
-    file_monitor.start(timeout=60, callback=generate_callback(callback))
+    file_monitor.start(timeout=60, callback=generate_callback(callback, replacement))
