@@ -80,7 +80,7 @@ def update_os_info(agent_id='000', scan_id=int(time()), scan_time=datetime.datet
     insert_os_info(**locals())
 
 
-def delete_os_info(agent_id: str='000'):
+def delete_os_info(agent_id: str = '000'):
     """Delete the sys_osinfo data from a specific agent.
 
     Args:
@@ -134,7 +134,7 @@ def insert_package(agent_id='000', scan_id=int(time()), format='rpm', name='cust
               f"{arguments['item_id']})")
 
 
-def delete_package(package: str, agent_id: str='000'):
+def delete_package(package: str, agent_id: str = '000'):
     """Remove package from database.
 
     Used to simulate uninstall of the package given.
@@ -147,8 +147,9 @@ def delete_package(package: str, agent_id: str='000'):
     query_wdb(delete_query_string)
 
 
-def update_sync_info(agent_id: str='000', component: str='syscollector-packages', last_attempt: int=1,
-                     last_completion: int=1, n_attempts: int=0, n_completions: int=0, last_agent_checksum: str=''):
+def update_sync_info(agent_id: str = '000', component: str = 'syscollector-packages', last_attempt: int = 1,
+                     last_completion: int = 1, n_attempts: int = 0, n_completions: int = 0,
+                     last_agent_checksum: str = ''):
     """Update the sync_info table of the specified agent for the selected component.
 
     Args:
@@ -197,8 +198,52 @@ def insert_vulnerability_in_agent_inventory(agent_id='000', name='', version='',
               f"'{external_references}', '{condition}', '{title}', '{published}', '{updated}')")
 
 
-# -----------------------------------------------------VDT Scan related -------------------------------------------------
-def update_last_full_scan(last_scan: int=0, agent_id: str='000'):
+def get_vulnerability_inventory_data(agent_id='000', name=None, status=None, cve=None, version=None, type=None,
+                                     architecture=None, severity=None, cvss2_score=None, cvss3_score=None):
+    """Get the vulnerability inventory data according to the specified parameters.
+
+    Args:
+        agent_id (str): Agent ID.
+        name (str): Vulnerability name.
+        status (str): Vulnerability status.
+        cve (str): Vulnerability CVE.
+        version (str): Version.
+        type (str): Vulnerability type.
+        architecture (str): Architecture.
+        severity (str): Vulnerability severity.
+        cvss2_score (float): CVSS2 score.
+        cvss3_score (float): CVSS3 score
+
+    Returns:
+        list(dict): Data in the DB.
+
+    """
+    # Build a dictionary with local variables
+    query_parameters = locals()
+
+    # Remove non query parameters
+    del query_parameters['agent_id']
+
+    # Define the initial query string
+    query = f"agent {agent_id} sql SELECT * FROM vuln_cves"
+
+    # Build the query string according to the specified parameters
+    first_parameter = True
+    for item, value in query_parameters.items():
+        if value is not None:
+            formated_value = f"'{value}'" if isinstance(value, str) else value
+
+            if first_parameter:
+                query += f" WHERE {item}={formated_value}"
+                first_parameter = False
+            else:
+                query += f" AND {item}={formated_value}"
+
+    return query_wdb(query)
+
+
+# -----------------------------------------------------VDT Scan related -----------------------------------------------
+def update_last_full_scan(last_scan: int = 0, agent_id: str = '000'):
     """Update the last full scan of an agent.
 
     Args:

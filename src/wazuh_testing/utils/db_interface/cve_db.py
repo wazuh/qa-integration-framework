@@ -3,7 +3,7 @@ from wazuh_testing.constants.paths import CVE_DB_PATH
 from wazuh_testing.utils.db_interface.basic_queries import make_sqlite_query, get_sqlite_query_result
 
 
-def get_tables():
+def get_tables() -> list:
     """Get all the table names from the CVE database.
 
     Returns:
@@ -12,7 +12,7 @@ def get_tables():
     return get_sqlite_query_result(CVE_DB_PATH, "SELECT name FROM sqlite_master WHERE type='table';")
 
 
-def get_rows_from_table(value, column, table, limit=None):
+def get_rows_from_table(value, column, table, limit=None) -> list:
     """
     Args:
         value (str): value that user wants to find in query
@@ -36,7 +36,7 @@ def get_rows_from_table(value, column, table, limit=None):
     return result[0]
 
 
-def get_rows_number(cve_table):
+def get_rows_number(cve_table) -> int:
     """Get the rows number of a specific table from the CVE database
 
     Args:
@@ -52,7 +52,26 @@ def get_rows_number(cve_table):
     return rows_number
 
 
-def clean_all_cve_tables():
+def check_inserted_value_exists(table: str, column: str, value: str) -> bool:
+    """Check if a value exists in a specific table column.
+
+    Args:
+        table (str): Table of cve.db.
+        column (str): Column of the table.
+        value (str): Value to be checked.
+
+    Returns:
+        boolean: True if the specified value exists, False otherwise.
+    """
+    custom_value = f"'{value}'" if type(value) == str else value
+    query_string = f"SELECT count(*) FROM {table} WHERE {column}={custom_value}"
+    result = get_sqlite_query_result(CVE_DB_PATH, query_string)
+    rows_number = int(result[0])
+
+    return rows_number > 0
+
+
+def clean_all_cve_tables() -> None:
     """Clean all tables from CVE database."""
     query = [f"DELETE FROM {table}" for table in get_tables()]
 
@@ -60,7 +79,7 @@ def clean_all_cve_tables():
     make_sqlite_query(CVE_DB_PATH, query)
 
 
-def clean_nvd_tables():
+def clean_nvd_tables() -> None:
     """Clean the NVD tables data"""
     query = [f"DELETE FROM {table}" for table in ['NVD_CVE']]
 
@@ -68,7 +87,7 @@ def clean_nvd_tables():
     make_sqlite_query(CVE_DB_PATH, query)
 
 
-def get_nvd_metadata_timestamp(year):
+def get_nvd_metadata_timestamp(year) -> str:
     """Get the NVD timestamp data for a specific year from nvd_metadata table.
 
     Args:
@@ -86,7 +105,7 @@ def get_nvd_metadata_timestamp(year):
     return result[0]
 
 
-def get_metadata_timestamp(provider_os):
+def get_metadata_timestamp(provider_os) -> str:
     """Get the timestamp data for a specific provider_os from metadata table.
 
     Args:
