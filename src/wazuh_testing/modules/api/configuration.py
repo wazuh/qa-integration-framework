@@ -3,9 +3,11 @@ Copyright (C) 2015-2023, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
+from pathlib import Path
+
 from wazuh_testing.constants.paths.configurations import WAZUH_API_CONFIGURATION_PATH, WAZUH_SECURITY_CONFIGURATION_PATH
 from wazuh_testing.constants.api import CONFIGURATION_TYPES
-from wazuh_testing.utils.file import read_yaml, append_content_to_yaml, delete_file, truncate_file
+from wazuh_testing.utils.file import read_yaml, append_content_to_yaml, delete_file, truncate_file, write_file
 
 
 def check_configuration_type(configuration_type: str) -> None:
@@ -46,7 +48,9 @@ def get_configuration(configuration_type: str = 'base') -> dict:
     Returns:
         current_configuration (dict): Current content of the `api.yaml` file.
     """
-    return read_yaml(set_target_configuration_file(configuration_type))
+    target_file = set_target_configuration_file(configuration_type)
+
+    return read_yaml(target_file) if Path(target_file).exists() else None
 
 
 def append_configuration(wazuh_api_configuration_content: dict, configuration_type: str = 'base') -> None:
@@ -57,6 +61,8 @@ def append_configuration(wazuh_api_configuration_content: dict, configuration_ty
         wazuh_api_configuration_content (dict): Content to be written in the given file.
     """
     target_file = set_target_configuration_file(configuration_type)
+    if not Path(target_file).exists():
+        write_file(target_file)
 
     if wazuh_api_configuration_content is None:
         truncate_file(target_file)
