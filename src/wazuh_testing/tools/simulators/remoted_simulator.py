@@ -30,6 +30,7 @@ class RemotedSimulator(SimulatorInterface):
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
         self.special_response = ''
+
     # Properties
 
     @property
@@ -101,8 +102,10 @@ class RemotedSimulator(SimulatorInterface):
             response = 'ERROR'
         response = SecureMessage.encode(b'#!-agent ack ')
         response = SecureMessage.encrypt(response, encryption_key, 'AES')
-        length = pack('<I', len(response))
-        response = length + response
+
+        if self.protocol == "tcp":
+            length = pack('<I', len(response))
+            return length + response
         #!-agent ack 
         # self.__mitm.event.set()
         
@@ -113,13 +116,12 @@ class RemotedSimulator(SimulatorInterface):
         #     dst (socket): Address to write specified data.
         #     data (socket): Data to be send.
         # """
-        # self.update_counters()
-        # if self.protocol == "tcp":
         #     try:
         #         length = pack('<I', len(data))
         #         dst.send(length + data)
         #     except:
         #         pass
+        # self.update_counters()
         # elif self.protocol == "udp":
         #     try:
         #         self.sock.sendto(data, dst)
