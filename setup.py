@@ -10,6 +10,7 @@ from typing import List
 
 # Extra data.
 package_data_list = [
+    'data/all_disabled_ossec.conf',
     'data/analysis_alert.json',
     'data/analysis_alert_windows.json',
     'data/mitre_event.json'

@@ -1,15 +1,26 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import os
 import sys
 from copy import deepcopy
 from typing import List
 
 import xml.etree.ElementTree as ET
 
+from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
 
 from . import file
+
+
+def get_minimal_configuration():
+    """Get the wazuh minimal configuration data.
+
+    Returns:
+        List of str: Wazuh minimal configuration data.
+    """
+    return file.read_file_lines(os.path.join(DATA_PATH, 'all_disabled_ossec.conf'))
 
 
 def get_wazuh_conf() -> List[str]:

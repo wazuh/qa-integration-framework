@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import chardet
 import os
+import re
 import time
 import yaml
 
@@ -24,6 +25,21 @@ def write_file(file_path: str, data: Union[List[str], str] = ''):
     """
     with open(file_path, 'w') as f:
         f.writelines(data)
+
+
+def read_file(path: str) -> str:
+    """
+    Read a file and return its content.
+
+    Args:
+        path (str): The path to the file to read.
+
+    Returns:
+        str: A string with the content of the file.
+    """
+    with open(path) as f:
+        data = f.read()
+    return data
 
 
 def read_file_lines(path: str) -> List[str]:
@@ -66,6 +82,29 @@ def truncate_file(file_path: str) -> None:
     """
     with open(file_path, "w") as f:
         f.truncate()
+
+
+def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], file_path: str) -> None:
+    """Perform replacements in a file data according to the specified regex.
+
+    Args:
+        search_regex (List[str]): Search regex list.
+        replace_regex (List[str]): Replacements regex list.
+        file_path (str): File path to read and update.
+    """
+    if (len(search_regex) != len(replace_regex)):
+        raise ValueError('search_regex has to have the same number of items than replace_regex. '
+                         f"{len(search_regex)} != {len(replace_regex)}")
+
+    # Read the file content
+    file_data = read_file(file_path)
+
+    # Perform the replacements
+    for search, replace in zip(search_regex, replace_regex):
+        file_data = re.sub(search, replace, file_data)
+
+    # Write the file data
+    write_file(file_path, file_data)
 
 
 def get_file_encoding(file_path):

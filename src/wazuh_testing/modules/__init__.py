@@ -2,4 +2,6 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
-ALL_DAEMON_HANDLER = {'all_daemons': True}
+DAEMONS = 'daemons'
+ALL_DAEMONS = 'all_daemons'
+IGNORE_ERRORS = 'ignore_errors'

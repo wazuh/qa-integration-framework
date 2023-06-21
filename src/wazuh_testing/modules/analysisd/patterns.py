@@ -7,6 +7,10 @@ from . import PREFIX
 # Callback patterns to find events in log file.
 ANALYSISD_STARTED = fr"{PREFIX}Input message handler thread started."
 ANALYSISD_ERROR_MESSAGES = r'.* (?:DEBUG|ERROR): ((?:dbsync:|No member|No such member|Invalid) .*)'
+ANALYSISD_EPS_ENABLED = r".*INFO: EPS limit enabled, EPS: '{maximum}', timeframe: '{timeframe}'"
+ANALYSISD_EPS_DISABLED = r".*INFO: EPS limit disabled.*"
+ANALYSISD_EPS_MISSING_MAX = r".*WARNING: EPS limit disabled.*"
+ANALYSISD_CONFIGURATION_ERROR = r".* \(\d+\): Configuration error at.*"
 
 # Callback patterns to find events in alerts file.
 ANALYSISD_ALERT_STARTED = r'.*Ossec server started.*'
