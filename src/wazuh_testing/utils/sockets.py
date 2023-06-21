@@ -4,7 +4,8 @@
 import os
 
 from wazuh_testing.constants.paths import WAZUH_PATH
-from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, MODULESD_C_INTERNAL_SOCKET_PATH
+from wazuh_testing.constants.paths.sockets import (QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH,
+                                                   MODULESD_C_INTERNAL_SOCKET_PATH)
 
 
 def delete_sockets(path=None):

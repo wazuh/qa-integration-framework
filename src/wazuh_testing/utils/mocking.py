@@ -256,7 +256,7 @@ def delete_mocked_agent(agent_id: int) -> None:
     client_keys.delete_client_keys_entry(agent_id)
 
 
-def insert_mocked_packages(agent_id: str='000', num_packages: int=10)-> list:
+def insert_mocked_packages(agent_id: str = '000', num_packages: int = 10) -> list:
     """Insert a specific number of mocked packages in the agent DB (package_1, package2 ...).
 
     Args:
@@ -274,7 +274,7 @@ def insert_mocked_packages(agent_id: str='000', num_packages: int=10)-> list:
     return package_names
 
 
-def delete_mocked_packages(agent_id: str='000') -> None:
+def delete_mocked_packages(agent_id: str = '000') -> None:
     """Delete the mocked packages in the agent DB.
 
     Args:
@@ -286,7 +286,7 @@ def delete_mocked_packages(agent_id: str='000') -> None:
         agent_db.delete_package(package=package_name, agent_id=agent_id)
 
 
-def delete_all_mocked_agents(name: str='mocked_agent') -> None:
+def delete_all_mocked_agents(name: str = 'mocked_agent') -> None:
     """Delete all mocked agents by name.
 
     Args:

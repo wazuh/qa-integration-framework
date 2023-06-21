@@ -4,6 +4,7 @@
 
 import re
 
+
 def parse_date_time_format(date_time: str):
     """Parse the specified date_time to return a common format.
 

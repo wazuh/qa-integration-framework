@@ -237,14 +237,14 @@ def read_json_file(file_path: str) -> str:
 
     Args:
         file_path (str): File path where is located the JSON file to write.
-    
+
     Returns:
         str: JSON file data.
     """
     return json.loads(read_file(file_path))
 
 
-def write_json_file(file_path: str, data: dict[str, str], ensure_ascii: bool=False) -> None:
+def write_json_file(file_path: str, data: dict[str, str], ensure_ascii: bool = False) -> None:
     """
     Write dict data to JSON file
 
@@ -290,7 +290,7 @@ def validate_json_file(file_path: str) -> bool:
 
     Args:
         file_path (str): File path where is located the JSON file to read.
-    
+
     Returns:
         Boolean: returns True if the file is in JSON format, False otherwise.
     """
@@ -307,7 +307,7 @@ def validate_xml_file(file_path: str) -> bool:
 
     Args:
         file_path (str): File path where is located the XML file to read.
-    
+
     Returns:
         Boolean: returns True if the file is in XML format, False otherwise.
     """
