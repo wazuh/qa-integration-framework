@@ -8,9 +8,9 @@ from . import WAZUH_PATH
 
 
 if sys.platform == 'win32':
-    OSSEC_LOG_PATH = os.path.join(WAZUH_PATH, 'ossec.log')
+    WAZUH_LOG_PATH = os.path.join(WAZUH_PATH, 'ossec.log')
 else:
-    OSSEC_LOG_PATH = os.path.join(WAZUH_PATH, 'logs', 'ossec.log')
+    WAZUH_LOG_PATH = os.path.join(WAZUH_PATH, 'logs', 'ossec.log')
 
 BASE_LOGS_PATH = os.path.join(WAZUH_PATH, 'logs')
 
