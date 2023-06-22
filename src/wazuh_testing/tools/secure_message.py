@@ -18,14 +18,15 @@ class SecureMessage:
 
     @classmethod
     def encrypt(cls, message: bytes, key: bytes, algorithm: str) -> bytes:
+        algorithm = cls.__validate_algorithm(algorithm)
         cipher, data = cls.__get_cipher_and_data(message, key, algorithm)
 
-        return cls.__set_algorithm_header(cipher.encrypt(data), algorithm)
+        return cipher.encrypt(data)
 
     @classmethod
-    def decrypt(cls, message: bytes, key: bytes) -> bytes:
-        payload, algorithm = cls.__get_payload_and_algorithm(message)
-        cipher, data = cls.__get_cipher_and_data(payload, key, algorithm)
+    def decrypt(cls, message: bytes, key: bytes,  algorithm: str) -> bytes:
+        algorithm = cls.__validate_algorithm(algorithm)
+        cipher, data = cls.__get_cipher_and_data(message, key, algorithm)
 
         return cipher.decrypt(data)
 
@@ -46,15 +47,21 @@ class SecureMessage:
         message_hash = hashlib.md5(payload).hexdigest()
         payload = message_hash.encode() + payload
         # Compress
-        compressed_payload = zlib.compress(payload)
+        payload = zlib.compress(payload)
         # Padding
-        padding = (b'!' * (8 - extra if (extra := len(compressed_payload) % 8) > 0 else 8))
-        padded_payload = padding + compressed_payload
+        padding = (b'!' * (8 - extra if (extra := len(payload) % 8) > 0 else 8))
 
-        return padded_payload
+        return padding + payload
+
+    @classmethod
+    def get_algorithm(cls, message: bytes) -> Union[str, None]:
+        if cls.algorithm_headers['AES'] in message:
+            return 'AES'
+        elif cls.algorithm_headers['BLOWFISH'] in message:
+            return 'BLOWFISH'
 
     @staticmethod
-    def extract_agent_id(message: bytes) -> Union[str, None]:
+    def get_agent_id(message: bytes) -> Union[str, None]:
         """
         Extracts the agent ID from a given Wazuh message.
 
@@ -79,7 +86,7 @@ class SecureMessage:
     # Internal Methods
 
     @classmethod
-    def __get_payload_and_algorithm(cls, message: bytes) -> Tuple[bytes, str]:
+    def get_payload(cls, message: bytes, algorithm: str) -> bytes:
         """
         Extracts the payload and encryption algorithm from a given wazuh message.
 
@@ -87,26 +94,27 @@ class SecureMessage:
             message (bytes): The message from which to extract the payload and encryption algorithm.
 
         Returns:
-            Tuple[bytes, str]: The extracted payload and encryption algorithm.
+            bytes: The extracted payload.
 
         Raises:
             ValueError: If the message encryption header is invalid.
         """
-        if (index := message.find(cls.algorithm_headers['AES'])) is not -1:
-            # AES encryption is used
-            algorithm = 'AES'
-            payload = message[index + 5:]
-        elif (index := message.find(cls.algorithm_headers['BLOWFISH'])) is not -1:
-            # Blowfish encryption is used
-            algorithm = 'BLOWFISH'
-            payload = message[index + 1:]
-        else:
+        algorithm = cls.__validate_algorithm(algorithm)
+
+        if algorithm == 'AES':
+            start_index = message.find(cls.algorithm_headers['AES'])
+            end_index = start_index + 5
+        elif algorithm == 'BLOWFISH':
+            start_index = message.find(cls.algorithm_headers['BLOWFISH'])
+            end_index = start_index + 1
+
+        if start_index == -1:
             raise ValueError('Invalid message encryption header.')
 
-        return payload, algorithm
+        return message[end_index:]
 
     @classmethod
-    def __set_algorithm_header(cls, message: bytes, algorithm: str) -> bytes:
+    def set_algorithm_header(cls, message: bytes, algorithm: str) -> bytes:
         """
         Extracts the payload and encryption algorithm from a given wazuh message.
 
@@ -119,21 +127,28 @@ class SecureMessage:
         Raises:
             ValueError: If the message encryption header is invalid.
         """
-        if algorithm not in cls.algorithm_headers.keys():
-            raise ValueError('Invalid message encryption algorithm.')
-        header = cls.algorithm_headers[algorithm.upper()]
+        algorithm = cls.__validate_algorithm(algorithm)
+        header = cls.algorithm_headers[algorithm]
+
         return header + message
 
     @classmethod
     def __get_cipher_and_data(cls, payload: bytes, key: bytes,
                               algorithm: Literal['AES', 'BLOWFISH']) -> Union[object, bytes]:
-        if algorithm.upper() not in cls.algorithm_headers.keys():
+        if algorithm not in cls.algorithm_headers.keys():
             raise ValueError(f'Invalid encryption/decryption algorithm.')
 
-        if algorithm.upper() == 'AES':
+        if algorithm == 'AES':
             cipher = AES.new(key[:32], AES.MODE_CBC, cls.__aes_iv)
             payload = pad(payload, cls.__block_size)
-        elif algorithm.upper() == 'BLOWFISH':
+        elif algorithm == 'BLOWFISH':
             cipher = Blowfish.new(key, Blowfish.MODE_CBC, cls.__blowfish_iv)
 
         return cipher, payload
+    
+    @classmethod
+    def __validate_algorithm(cls, algorithm: str) -> str:
+        if not algorithm or algorithm.upper() not in cls.algorithm_headers.keys():
+            raise ValueError('Invalid encryption algorithm.')
+
+        return algorithm.upper()
