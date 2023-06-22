@@ -4,7 +4,7 @@
 import socket
 import ssl
 
-from wazuh_testing.utils import messages
+from wazuh_testing.tools.secure_message import SecureMessage
 
 
 class SocketController:
@@ -102,7 +102,7 @@ class SocketController:
         """
         msg_bytes = message.encode() if isinstance(message, str) else message
         try:
-            msg_bytes = messages.wazuh_pack(len(msg_bytes)) + msg_bytes if size else msg_bytes
+            msg_bytes = SecureMessage.pack(len(msg_bytes)) + msg_bytes if size else msg_bytes
             if self.protocol == socket.SOCK_STREAM:  # TCP
                 output = self.sock.sendall(msg_bytes)
             else:  # UDP
@@ -126,7 +126,7 @@ class SocketController:
             if not data:
                 output = bytes('', 'utf8')
                 return output
-            size = messages.wazuh_unpack(data)
+            size = SecureMessage.unpack(data)
             output = self.sock.recv(size, socket.MSG_WAITALL)
         else:
             output = self.sock.recv(4096)

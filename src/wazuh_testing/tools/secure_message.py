@@ -1,8 +1,12 @@
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import hashlib
 import zlib
 
 from Crypto.Cipher import AES, Blowfish
 from Crypto.Util.Padding import pad
+from struct import pack, unpack
 from typing import Union, Tuple
 
 
@@ -111,6 +115,32 @@ class SecureMessage:
         msg_decompress = zlib.decompress(msg_remove_padding)
 
         return msg_decompress.decode('ISO-8859-1')
+
+    @staticmethod
+    def pack(data, format_: str = "<I") -> bytes:
+        """Pack data with a given header. Using Wazuh header by default.
+
+        Args:
+            data (int): Int number to pack
+            format_ (str): Optional - Format used to pack data. Default "<I"
+
+        Returns:
+            (bytes) : Packed value
+        """
+        return pack(format_, data)
+
+    @staticmethod
+    def unpack(data, format_: str = "<I") -> bytes:
+        """Unpack data with a given header. Using Wazuh header by default.
+
+        Args:
+            data (bytes): Binary data to unpack
+            format_ (str): Optional - Format used to unpack data. Default "<I"
+
+        Returns:
+            int : Unpacked value
+        """
+        return unpack(format_, data)[0]
 
     @classmethod
     def get_algorithm(cls, message: bytes) -> Union[str, None]:
@@ -227,6 +257,8 @@ class SecureMessage:
         header = cls.algorithm_headers[algorithm]
 
         return header + message
+
+    # Internal methods
 
     @classmethod
     def __get_cipher_and_data(cls, payload: bytes, key: bytes, algorithm: str) -> Tuple[object, bytes]:
