@@ -1,6 +1,5 @@
 from queue import Queue
-from struct import pack
-from typing import Any, Literal, List, Tuple, Union
+from typing import Any, Literal, Union
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
@@ -8,6 +7,7 @@ from wazuh_testing.tools.secure_message import SecureMessage
 from wazuh_testing.utils import keys
 
 from .simulator_interface import SimulatorInterface
+
 
 # Internal constants
 _RESPONSE_ACK = b'#!-agent ack '
@@ -28,7 +28,7 @@ class RemotedSimulator(SimulatorInterface):
         mode (str): The current mode of the simulator.
         protocol (str): The connection protocol used by the simulator ('udp' or 'tcp').
         keys_path (str): The path to the file containing the client keys.
-        special_response (bytes): A special response message to send to the server instead of the default one.
+        custom_message (bytes): A custom response message to send to the server instead of the default one.
         last_message_ctx (dict): A dictionary that stores the context of the last received message.
     """
     MODES = ['ACCEPT', 'WRONG_KEY', 'INVALID_MSG']
@@ -58,7 +58,7 @@ class RemotedSimulator(SimulatorInterface):
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
 
-        self.special_response = None
+        self.custom_message = None
         self.last_message_ctx = {}
 
     # Properties
@@ -103,7 +103,7 @@ class RemotedSimulator(SimulatorInterface):
             self.__mitm.queue.get_nowait()
         self.__mitm.event.clear()
 
-    def send_special_response(self, message: Union[str, bytes]) -> None:
+    def send_custom_message(self, message: Union[str, bytes]) -> None:
         """
         Send a custom message to the connected wazuh agent.
 
@@ -117,13 +117,13 @@ class RemotedSimulator(SimulatorInterface):
             raise TypeError('Message must be a string or bytes.')
 
         if not isinstance(message, bytes):
-            message.encode()
+            message = message.encode()
 
-        self.special_response = message
+        self.custom_message = message
 
     # Internal methods.
 
-    def __remoted_response_simulation(self, request: Any) -> bytes:
+    def __remoted_response_simulation(self, _request: Any) -> bytes:
         """
         Simulate a Remoted response to an agent based on the received message and the
         mode of operation.
@@ -132,46 +132,46 @@ class RemotedSimulator(SimulatorInterface):
         for every received message.
 
         Args:
-            received (Any): The received message from the agent.
+            _request (Any): The received message from the agent.
 
         Returns:
             bytes: The response message to send back to the agent. If protocol is 'tcp', 
                    then it also includes a header with the length of the response.
         """
-        if not request:
+        if not _request:
             self.__mitm.event.set()
             return _RESPONSE_EMPTY
 
-        if b'#ping' in request:
+        if b'#ping' in _request:
             return b'#pong'
 
         # Save message context.
-        self.__set_encryption_values(request)
-        self.__save_message_context(request)
+        self.__set_encryption_values(_request)
+        self.__save_message_context(_request)
         # Decrypt and decode the request message.
-        request = self.__decrypt_received_message(request)
+        _request = self.__decrypt_received_message(_request)
 
         # Set the correct response message.
-        if self.special_response and '#!-' not in request:
-            response = self.special_response
+        if self.custom_message and '#!-' not in _request:
+            response = self.custom_message
         elif self.mode == 'WRONG_KEY':
             self.encryption_key = keys.create_encryption_key('a', 'b', 'c')
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
-        elif '#!-' not in request:
-            response = _RESPONSE_EMPTY
-        elif 'agent shutdown' in request:
+        elif '#!-agent shutdown' in _request:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        else:  # By default send ack response.
+        elif '#!-' in _request:  # By default send ack response.
             response = _RESPONSE_ACK
+        else:
+            return _RESPONSE_EMPTY
 
         # Encrypt the response.
         response = self.__encrypt_response_message(response)
 
         if self.protocol == "tcp":
-            return pack('<I', len(response)) + response
+            return SecureMessage.pack(len(response)) + response
 
         return response
 

@@ -112,7 +112,7 @@ class AuthdSimulator(SimulatorInterface):
 
     # Internal methods.
 
-    def __authd_response_simulation(self, received: Any) -> bytes:
+    def __authd_response_simulation(self, _request: Any) -> bytes:
         """
         Simulate an Authd response to an agent based on the received message and the mode
         of operation.
@@ -121,7 +121,7 @@ class AuthdSimulator(SimulatorInterface):
         for every received message.
 
         Args:
-            received (Any): The received message from the agent.
+            _request (Any): The received message from the agent.
 
         Raises:
             ValueError: If the received message is empty.
@@ -129,7 +129,7 @@ class AuthdSimulator(SimulatorInterface):
         Returns:
             bytes: The response message to send back to the agent.
         """
-        if not received:
+        if not _request:
             raise ValueError('Received message is empty.')
 
         if self.mode == 'REJECT':
@@ -140,7 +140,7 @@ class AuthdSimulator(SimulatorInterface):
         self.agent_id += 1
 
         # Parse the received message and create the simulated response.
-        msg_sections = received.decode().split(' ')
+        msg_sections = _request.decode().split(' ')
         agent_info = self.__set_agent_info(msg_sections)
         response = f"OSSEC K:'{self.agent_id:03d} {agent_info['name']} {agent_info['ip']} {self.secret}'\n"
 
