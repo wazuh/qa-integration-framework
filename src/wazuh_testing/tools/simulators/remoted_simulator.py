@@ -183,7 +183,7 @@ class RemotedSimulator(SimulatorInterface):
         client_keys = keys.get_client_keys(self.keys_path)[0]
         client_keys.pop('ip')
 
-        return keys.create_encryption_key(**client_keys)
+        return SecureMessage.get_encryption_key(**client_keys)
 
     def __decrypt_received_message(self, message: bytes, key: bytes, algorithm: str) -> str:
         """
