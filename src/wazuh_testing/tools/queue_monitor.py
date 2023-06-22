@@ -46,8 +46,9 @@ class QueueMonitor:
 
         while time.time() - start_time < timeout:
             try:
-                msg = self.monitored_queue.get(block=True, timeout=0.5)
-                matches += self.__msg_matches(msg, callback)
+                item = self.monitored_queue.get(block=True, timeout=0.5)
+                msg = item[0] if type(item) is tuple else item
+                matches += self.__msg_matches(msg.decode() if isinstance(msg, bytes) else msg, callback)
                 # If it has triggered the callback the expected times, break and leave the loop
                 if matches >= accumulations:
                     break
