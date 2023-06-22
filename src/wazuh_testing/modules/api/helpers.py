@@ -73,7 +73,7 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
 def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
           timeout: int = session_parameters.default_timeout, login_attempts: int = 1, sleep_time: int = 0,
           host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, protocol: str = WAZUH_API_PROTOCOL) -> dict:
-    """Login to the API and get the token.
+    """Login to the API and get the token with the complete response.
 
     Args:
         user (str): User to login to the API.
@@ -88,7 +88,7 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         authentication_headers (dict): Headers required to make a future request.
 
     Raises:
-        RuntimeError: When the login was not successful after `login_attempts` every `sleep_time`
+        RuntimeError(msg, requests.Response): When could not login after `login_attempts` every `sleep_time`
     """
     url = f"{get_base_url(protocol=protocol, host=host, port=port)}{LOGIN_ROUTE}"
 
@@ -100,8 +100,8 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
                 'Content-Type': 'application/json',
                 'Authorization': f"Bearer {json.loads(response.content.decode())['data']['token']}"
             }
-            return authentication_headers
+            return authentication_headers, response
         else:
             time.sleep(sleep_time)
 
-    raise RuntimeError(API_LOGIN_ERROR_MSG, response.json())
+    raise RuntimeError(API_LOGIN_ERROR_MSG, response)

@@ -241,8 +241,32 @@ def delete_file(path: Union[str, os.PathLike]) -> None:
         os.remove(path)
 
 
+def create_parent_directories(path: os.PathLike) -> list:
+    """Create parent directories and return ONLY the created ones.
+
+    Args:
+        path (os.PathLike): Path of the file or directory with parents
+
+    Returns:
+        created_parents (list): List of created parents (maybe not all of the parents were created)
+    """
+    created_parents = []
+
+    for parent in reversed(path.parents):
+        # If the folder exist do not add it to the `created_files` list, otherwise add it
+        try:
+            parent.mkdir(exist_ok=False)
+            created_parents.append(parent)
+        except FileExistsError:
+            pass
+
+    return created_parents
+
+
 def create_files(files: list[Union[str, os.PathLike]]) -> list:
-    """Create multiple files. Return the list of created files/directories.
+    """Create multiple files/directories. Return the list of created files/directories.
+
+    If the list contains a file, it must have at least 1 suffix, for example: `file.txt`; else it's considered as dir.
 
     Args:
         files (list(str | os.PathLike)): Paths of files to be created.
@@ -261,14 +285,14 @@ def create_files(files: list[Union[str, os.PathLike]]) -> list:
         file = Path(file)
         if file.exists():
             raise FileExistsError(f"`{file}` already exists.")
-        # Create parent directories
-        for parent in reversed(file.parents):
-            # If the folder exist do not add it to the `created_files` list, otherwise add it
-            try:
-                parent.mkdir(exist_ok=False)
-                created_files.append(parent)
-            except FileExistsError:
-                pass
+
+        # If file does not have suffixes, consider it a directory
+        if file.suffixes == []:
+            # Add a dummy file to the target directory to create the directory
+            created_files.extend(create_parent_directories(Path(file).joinpath('dummy.file')))
+            return create_files
+
+        created_files.extend(create_parent_directories(file))
 
         write_file(file_path=file, data='')
         created_files.append(file)
