@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 import re
+from datetime import datetime
 
 
 def parse_date_time_format(date_time: str):
@@ -48,3 +49,12 @@ def time_to_seconds(time_value: str) -> int:
     units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400, 'w': 604800}
 
     return time_value * units[time_unit]
+
+
+def get_current_timestamp() -> int:
+    """Get the current timestamp. For example: 1627028708.303002
+
+    Returns:
+        int: current timestamp.
+    """
+    return datetime.now().timestamp()
