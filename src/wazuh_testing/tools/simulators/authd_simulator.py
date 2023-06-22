@@ -64,32 +64,6 @@ class AuthdSimulator(SimulatorInterface):
     # Properties
 
     @property
-    def mode(self) -> Literal['ACCEPT', 'REJECT']:
-        """
-        Get the mode of operation for the simulator.
-
-        Returns:
-            Literal['ACCEPT', 'REJECT']: The current mode of operation.
-        """
-        return self.__mode
-
-    @mode.setter
-    def mode(self, mode: Literal['ACCEPT', 'REJECT']) -> None:
-        """
-        Set the mode of operation for the simulator.
-
-        Args:
-            mode (Literal['ACCEPT', 'REJECT']): The mode of operation to set.
-
-        Raises:
-            ValueError: If the specified mode is not 'ACCEPT' or 'REJECT'.
-        """
-        if mode.upper() not in self.MODES:
-            raise ValueError('Invalid mode.')
-
-        self.__mode = mode.upper()
-
-    @property
     def queue(self) -> Queue:
         """
         Get the queue used for storing received messages.

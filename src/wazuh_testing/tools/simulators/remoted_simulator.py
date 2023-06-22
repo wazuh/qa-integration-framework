@@ -1,6 +1,6 @@
 from queue import Queue
 from struct import pack
-from typing import Any, Literal, List, Tuple
+from typing import Any, Literal, List, Tuple, Union
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
@@ -28,21 +28,11 @@ class RemotedSimulator(SimulatorInterface):
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
+
         self.special_response = None
         self.last_message_ctx = {}
 
     # Properties
-
-    @property
-    def mode(self):
-        return self.__mode
-
-    @mode.setter
-    def mode(self, mode) -> None:
-        if mode.upper() not in self.MODES:
-            raise ValueError('Invalid mode.')
-
-        self.__mode = mode.upper()
 
     @property
     def queue(self) -> Queue:
@@ -67,10 +57,10 @@ class RemotedSimulator(SimulatorInterface):
             return
         self.__mitm.shutdown()
         self.running = False
-        
-    def send(self, message: str) -> None:
-        key = self.__get_client_keys()
-        message = self.__encrypt_response_message(message.encode(), key, 'AES')
+
+    def send(self, message: Union[str, bytes]) -> None:
+        if not isinstance(message, bytes):
+            message.encode()
         self.special_response = message
 
     # Internal methods.
@@ -79,8 +69,6 @@ class RemotedSimulator(SimulatorInterface):
         if not received:
             self.__mitm.event.set()
             return b''
-        if self.special_response:
-            return self.special_response
         if b'#ping' in received:
             return b'#pong'
 
@@ -93,7 +81,9 @@ class RemotedSimulator(SimulatorInterface):
         received = self.__decrypt_received_message(received, key, algorithm)
 
         # Set the correct response message.
-        if self.mode == 'CONTROLLED':
+        if self.special_response and '#!-' not in received:
+            response = self.special_response
+        elif self.mode == 'CONTROLLED':
             if '#!-' not in received:
                 response = b''
             elif 'agent shutdown' in received:
