@@ -112,7 +112,7 @@ class AuthdSimulator(SimulatorInterface):
 
     # Internal methods.
 
-    def __authd_response_simulation(self, received: Any) -> None:
+    def __authd_response_simulation(self, received: Any) -> bytes:
         """
         Simulate an Authd response to an agent based on the received message and the mode
         of operation.

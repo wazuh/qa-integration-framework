@@ -9,6 +9,11 @@ from wazuh_testing.utils import keys
 
 from .simulator_interface import SimulatorInterface
 
+# Internal constants
+_RESPONSE_ACK = b'#!-agent ack '
+_RESPONSE_SHUTDOWN = b'#!-agent shutdown '
+_RESPONSE_EMPTY = b''
+
 
 class RemotedSimulator(SimulatorInterface):
     """
@@ -26,12 +31,12 @@ class RemotedSimulator(SimulatorInterface):
         special_response (bytes): A special response message to send to the server instead of the default one.
         last_message_ctx (dict): A dictionary that stores the context of the last received message.
     """
-    MODES = ['DUMMY', 'CONTROLLED', 'WRONG_KEY', 'INVALID_MSG']
+    MODES = ['ACCEPT', 'WRONG_KEY', 'INVALID_MSG']
 
     def __init__(self,
                  server_ip: str = '127.0.0.1',
                  port: int = 1514,
-                 mode='CONTROLLED',
+                 mode='ACCEPT',
                  protocol: Literal['udp', 'tcp'] = 'tcp',
                  keys_path: str = f'{BASE_CONF_PATH}/client.keys') -> None:
         """
@@ -40,7 +45,7 @@ class RemotedSimulator(SimulatorInterface):
         Args:
             server_ip (str, optional): The IP address of the Wazuh server. Defaults to '127.0.0.1'.
             port (int, optional): The port number of the Wazuh server. Defaults to 1514.
-            mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults to 'CONTROLLED'.
+            mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults to 'ACCEPT'.
             protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults to 'tcp'.
             keys_path (str, optional): The path to the file containing the client keys. Defaults to f'{BASE_CONF_PATH}/client.keys'.
         """
@@ -118,7 +123,7 @@ class RemotedSimulator(SimulatorInterface):
 
     # Internal methods.
 
-    def __remoted_response_simulation(self, received: Any) -> None:
+    def __remoted_response_simulation(self, request: Any) -> bytes:
         """
         Simulate a Remoted response to an agent based on the received message and the
         mode of operation.
@@ -133,40 +138,37 @@ class RemotedSimulator(SimulatorInterface):
             bytes: The response message to send back to the agent. If protocol is 'tcp', 
                    then it also includes a header with the length of the response.
         """
-        if not received:
+        if not request:
             self.__mitm.event.set()
-            return b''
-        if b'#ping' in received:
+            return _RESPONSE_EMPTY
+
+        if b'#ping' in request:
             return b'#pong'
 
-        # Get the decryption/encryption algorithm and key.
-        algorithm = SecureMessage.get_algorithm(received)
-        key = self.__get_client_keys()
         # Save message context.
-        self.__save_message_context(received, algorithm)
-        # Decrypt and decode the received message.
-        received = self.__decrypt_received_message(received, key, algorithm)
+        self.__set_encryption_values(request)
+        self.__save_message_context(request)
+        # Decrypt and decode the request message.
+        request = self.__decrypt_received_message(request)
 
         # Set the correct response message.
-        if self.special_response and '#!-' not in received:
+        if self.special_response and '#!-' not in request:
             response = self.special_response
-        elif self.mode == 'CONTROLLED':
-            if '#!-' not in received:
-                response = b''
-            elif 'agent shutdown' in received:
-                self.__mitm.event.set()
-                response = b'#!-agent shutdown '
-            else:
-                response = b'#!-agent ack '
-        elif self.mode == 'DUMMY':
-            response = b'#!-agent ack '
         elif self.mode == 'WRONG_KEY':
-            key = keys.create_encryption_key('inv', 'inv', 'inv')
-            response = b'#!-agent ack '
+            self.encryption_key = keys.create_encryption_key('a', 'b', 'c')
+            response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
+        elif '#!-' not in request:
+            response = _RESPONSE_EMPTY
+        elif 'agent shutdown' in request:
+            self.__mitm.event.set()
+            response = _RESPONSE_SHUTDOWN
+        else:  # By default send ack response.
+            response = _RESPONSE_ACK
 
-        response = self.__encrypt_response_message(response, key, algorithm)
+        # Encrypt the response.
+        response = self.__encrypt_response_message(response)
 
         if self.protocol == "tcp":
             return pack('<I', len(response)) + response
@@ -185,41 +187,42 @@ class RemotedSimulator(SimulatorInterface):
 
         return SecureMessage.get_encryption_key(**client_keys)
 
-    def __decrypt_received_message(self, message: bytes, key: bytes, algorithm: str) -> str:
+    def __decrypt_received_message(self, message: bytes) -> str:
         """
         Decrypt and decode a received message from the agent.
 
         Args:
             message (bytes): The received message from the agent.
-            key (bytes): The encryption key used to decrypt the message.
-            algorithm (str): The encryption algorithm used to decrypt the message.
 
         Returns:
             str: The decrypted and decoded message.
         """
-        payload = SecureMessage.get_payload(message, algorithm)
-        decrypted = SecureMessage.decrypt(payload, key, algorithm)
+        payload = SecureMessage.get_payload(message, self.algorithm)
+        decrypted = SecureMessage.decrypt(payload, self.encryption_key, self.algorithm)
 
         return SecureMessage.decode(decrypted)
 
-    def __encrypt_response_message(self, message: bytes, key: bytes, algorithm: str) -> str:
+    def __encrypt_response_message(self, message: bytes) -> str:
         """
         Encrypt and encode a response message to the agent.
 
         Args:
             message (bytes): The response message to the agent.
-            key (bytes): The encryption key used to encrypt the message.
-            algorithm (str): The encryption algorithm used to encrypt the message.
 
         Returns:
             bytes: The encrypted and encoded message with an algorithm header.
         """
         encoded = SecureMessage.encode(message)
-        payload = SecureMessage.encrypt(encoded, key, algorithm)
+        payload = SecureMessage.encrypt(encoded, self.encryption_key, self.algorithm)
 
-        return SecureMessage.set_algorithm_header(payload, algorithm)
+        return SecureMessage.set_algorithm_header(payload, self.algorithm)
 
-    def __save_message_context(self, message: bytes, algorithm: str) -> None:
+    def __set_encryption_values(self, message: bytes) -> None:
+        # Get the decryption/encryption algorithm and key.
+        self.algorithm = SecureMessage.get_algorithm(message)
+        self.encryption_key = self.__get_client_keys()
+
+    def __save_message_context(self, message: bytes) -> None:
         """
         Save the context of a received message from the agent.
 
@@ -227,11 +230,10 @@ class RemotedSimulator(SimulatorInterface):
 
         Args:
             message (bytes): The received message from the agent.
-            algorithm (str): The encryption algorithm used to decrypt the message.
         """
         if agent_id := SecureMessage.get_agent_id(message):
             self.last_message_ctx['id'] = agent_id
         else:
             self.last_message_ctx['ip'] = self.__mitm.listener.last_address[0]
 
-        self.last_message_ctx['algorithm'] = algorithm
+        self.last_message_ctx['algorithm'] = self.algorithm
