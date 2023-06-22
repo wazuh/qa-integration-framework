@@ -11,7 +11,11 @@ from .simulator_interface import SimulatorInterface
 
 class AuthdSimulator(SimulatorInterface):
     """
-    Simulates the behavior of an Authd server.
+    A class that simulates an Authd service.
+
+    This class inherits from SimulatorInterface and implements methods to send and receive messages
+    from a Wazuh server using a ManInTheMiddle object. It also allows to specify different modes of
+    operation to simulate different scenarios.
 
     Attributes:
         server_ip (str): The IP address of the Authd server. Defaults to '127.0.0.1'.
@@ -37,7 +41,7 @@ class AuthdSimulator(SimulatorInterface):
                  key_path: str = f'{BASE_CONF_PATH}/manager.key',
                  cert_path: str = f'{BASE_CONF_PATH}/manager.cert') -> None:
         """
-        Initializes the Authd simulator with the specified configuration parameters.
+        Initializes an AuthdSimulator object.
 
         Args:
             server_ip (str): The IP address of the Authd server.
@@ -77,11 +81,7 @@ class AuthdSimulator(SimulatorInterface):
 
     def start(self) -> None:
         """
-        Generates a certificate for the SSL server and starts MitM connection.
-
-        It prepares the SSL configuration for the MitM listener by specifying
-        he connection protocol as 'ssl.PROTOCOL_TLS_CLIENT' and providing the
-        generated certificate and keyfile paths.
+        Start the simulator and the MitM object.
         """
         if self.running:
             return
@@ -102,10 +102,9 @@ class AuthdSimulator(SimulatorInterface):
 
     def clear(self) -> None:
         """
-        Clear sockets after each response.
+        Clear the queue and the event of the MitM object.
 
-        By default, the sockets stop handling connections after one successful
-        connection, and they need to be cleared to be ready for the next connection.
+        This method removes all the messages from the queue and resets the event to False.
         """
         while not self.__mitm.queue.empty():
             self.__mitm.queue.get_nowait()
@@ -114,13 +113,21 @@ class AuthdSimulator(SimulatorInterface):
     # Internal methods.
 
     def __authd_response_simulation(self, received: Any) -> None:
-        """Simulates a Authd response for an agent request.
+        """
+        Simulate an Authd response to an agent based on the received message and the mode
+        of operation.
+
+        This method is passed as a callback function to the MitM object and is executed
+        for every received message.
 
         Args:
-            received (Any): The received message to process.
+            received (Any): The received message from the agent.
 
         Raises:
             ValueError: If the received message is empty.
+
+        Returns:
+            bytes: The response message to send back to the agent.
         """
         if not received:
             raise ValueError('Received message is empty.')
