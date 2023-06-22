@@ -242,6 +242,20 @@ def get_vulnerability_inventory_data(agent_id='000', name=None, status=None, cve
     return query_wdb(query)
 
 
+def get_triaged_value_from_inventory(package_name: str, agent_id: str = '000') -> str:
+    """Check the triaged of a vulnerability in the agent database table.
+
+    Args:
+        package_name (str): Package name.
+        agent_id (str): Agent ID.
+    """
+    query = f"agent {agent_id} sql SELECT triaged FROM sys_programs WHERE name='{package_name}'"
+
+    result = query_wdb(query)[0]['triaged']
+
+    return result
+
+
 # -----------------------------------------------------VDT Scan related -----------------------------------------------
 def update_last_full_scan(last_scan: int = 0, agent_id: str = '000'):
     """Update the last full scan of an agent.
