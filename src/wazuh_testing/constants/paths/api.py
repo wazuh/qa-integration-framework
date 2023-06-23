@@ -11,6 +11,8 @@ from wazuh_testing.constants.paths import WAZUH_PATH
 
 # Folders
 WAZUH_API_FOLDER_PATH = os.path.join(WAZUH_PATH, 'api')
+WAZUH_API_CONFIGURATION_FOLDER_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration')
+WAZUH_API_SECURITY_FOLDER_PATH = os.path.join(WAZUH_API_CONFIGURATION_FOLDER_PATH, 'security')
 WAZUH_API_SCRIPTS_FOLDER_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'scripts')
 
 # Logs paths
@@ -19,3 +21,6 @@ WAZUH_API_JSON_LOG_FILE_PATH = os.path.join(WAZUH_PATH, 'logs', 'api.json')
 
 # API scripts paths
 WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH, 'wazuh-apid.py')
+
+# Databases paths
+RBAC_DATABASE_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'rbac.db')
