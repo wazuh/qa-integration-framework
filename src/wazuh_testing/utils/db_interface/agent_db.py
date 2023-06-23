@@ -134,6 +134,20 @@ def insert_package(agent_id='000', scan_id=int(time()), format='rpm', name='cust
               f"{arguments['item_id']})")
 
 
+def update_package(version: str, package: str, agent_id: str='000') -> None:
+    """Update version of installed package in database.
+
+    Used to simulate upgrades and downgrades of the package given.
+
+    Args:
+        version (str): Package version.
+        package (str): Package name.
+        agent_id (str): Agent ID.
+    """
+    update_query_string = f'agent {agent_id} sql UPDATE sys_programs SET version="{version}" WHERE name="{package}"'
+    query_wdb(update_query_string)
+
+
 def delete_package(package: str, agent_id: str = '000'):
     """Remove package from database.
 

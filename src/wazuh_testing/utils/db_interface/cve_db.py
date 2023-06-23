@@ -105,6 +105,16 @@ def get_nvd_metadata_timestamp(year) -> str:
     return result[0]
 
 
+def update_nvd_metadata_vuldet(timestamp: int) -> None:
+    """Update the timestamp value of the nvd_metadata table.
+
+    Args:
+        timestamp (int): The new timestamp value to set.
+    """
+    query_string = f"UPDATE NVD_METADATA SET LAST_UPDATE={timestamp};"
+    make_sqlite_query(CVE_DB_PATH, [query_string])
+
+
 def get_metadata_timestamp(provider_os) -> str:
     """Get the timestamp data for a specific provider_os from metadata table.
 
