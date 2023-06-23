@@ -56,7 +56,9 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         """
         # Match the received line.
         match = re.match(regex, line)
+        #print("line: ", line)
         if match:
+        #    print("MATCHED: ")
             # Return the matched line or match groups.
             return line if len(match.groups()) == 0 else match.groups()
 
