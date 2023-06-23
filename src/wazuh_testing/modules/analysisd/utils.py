@@ -11,6 +11,7 @@ from jsonschema import validate, exceptions
 from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.keys.alerts import *
 from wazuh_testing.constants.keys.events import *
+from wazuh_testing.constants.paths.variables import ANALYSISD_STATE
 
 
 with open(os.path.join(DATA_PATH, 'analysis_alert.json'), 'r') as f:
@@ -117,7 +118,7 @@ def validate_mitre_event(event):
 
 
 class CallbackWithContext(object):
-    """Class to handle file_monitoring callbacks with variable arguments.
+    """Class to handle callbacks with variable arguments.
 
     Args:
         function (function): callback function.
@@ -135,7 +136,7 @@ class CallbackWithContext(object):
         return self.function(param, *self.ctxt)
 
 
-def callback_check_syscollector_alert(alert, expected_alert):
+def callback_check_alert(alert, expected_alert):
     """Check if an alert meet certain criteria and values.
     Args:
         line (str): alert (json) to check.
@@ -176,3 +177,20 @@ def callback_check_syscollector_alert(alert, expected_alert):
             return None
 
     return True
+
+
+def get_analysisd_state():
+    """Get the states values of wazuh-analysisd.state file
+
+    Returns:
+        dict: Dictionary with all analysisd state
+    """
+    data = ""
+    with open(ANALYSISD_STATE, 'r') as file:
+        for line in file.readlines():
+            if not line.startswith("#") and not line.startswith('\n'):
+                data = data + line.replace('\'', '')
+    data = data[:-1]
+    analysisd_state = dict((a.strip(), b.strip()) for a, b in (element.split('=') for element in data.split('\n')))
+
+    return analysisd_state

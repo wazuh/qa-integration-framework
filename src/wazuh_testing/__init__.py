@@ -5,6 +5,8 @@ from pathlib import Path
 
 from . import global_parameters
 
+
 DATA_PATH = Path(Path(__file__).parent, 'data')
+SCRIPTS_PATH = Path(Path(__file__).parent, 'scripts')
 
 session_parameters = global_parameters.GlobalParameters()

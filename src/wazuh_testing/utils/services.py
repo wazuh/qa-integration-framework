@@ -9,9 +9,9 @@ import sys
 import time
 
 from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
-from wazuh_testing.constants.paths import WAZUH_PATH
-from wazuh_testing.constants.paths.binaries import WAZUH_CONTROL_PATH
+from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
+from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
 
 from . import sockets
 
@@ -54,7 +54,7 @@ def get_version() -> str:
     """
 
     if platform.system() in ['Windows', 'win32']:
-        with open(os.path.join(WAZUH_PATH, 'VERSION'), 'r') as f:
+        with open(VERSION_FILE, 'r') as f:
             version = f.read()
             return version[:version.rfind('\n')]
 
@@ -121,7 +121,7 @@ def control_service(action, daemon=None, debug_mode=False):
                 for proc in psutil.process_iter():
                     try:
                         if daemon in [CLUSTER_DAEMON, API_DAEMON]:
-                            for file in os.listdir(f'{WAZUH_PATH}/var/run'):
+                            for file in os.listdir(VAR_RUN_PATH):
                                 if daemon in file:
                                     pid = file.split("-")
                                     pid = pid[2][0:-4]
@@ -144,7 +144,7 @@ def control_service(action, daemon=None, debug_mode=False):
 
                 sockets.delete_sockets(WAZUH_SOCKETS[daemon])
             else:
-                daemon_path = os.path.join(WAZUH_PATH, 'bin')
+                daemon_path = BIN_PATH
                 start_process = [
                     f'{daemon_path}/{daemon}'] if not debug_mode else [f'{daemon_path}/{daemon}', '-dd']
                 subprocess.check_call(start_process)

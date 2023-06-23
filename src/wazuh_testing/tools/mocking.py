@@ -8,6 +8,7 @@ from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH
 from wazuh_testing.utils import client_keys, file, services
 from wazuh_testing.utils.db_queries import global_db, agent_db
 
+
 def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1', internal_key='',
                         os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4', os_codename='centos-8',
                         os_build='4.18.0-147.8.1.el8_1.x86_64', os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020',
