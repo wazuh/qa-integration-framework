@@ -120,6 +120,11 @@ class RemotedSimulator(SimulatorInterface):
             message = message.encode()
 
         self.custom_message = message
+        self.custom_message_sent = False
+
+        # Block the execution until the request is sent.
+        while not self.custom_message_sent:
+            continue
 
     # Internal methods.
 
@@ -152,9 +157,7 @@ class RemotedSimulator(SimulatorInterface):
         _request = self.__decrypt_received_message(_request)
 
         # Set the correct response message.
-        if self.custom_message and '#!-' not in _request:
-            response = self.custom_message
-        elif self.mode == 'WRONG_KEY':
+        if self.mode == 'WRONG_KEY':
             self.encryption_key = keys.create_encryption_key('a', 'b', 'c')
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
@@ -162,8 +165,11 @@ class RemotedSimulator(SimulatorInterface):
         elif '#!-agent shutdown' in _request:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        elif '#!-' in _request:  # By default send ack response.
+        elif '#!-' in _request:
             response = _RESPONSE_ACK
+        elif self.custom_message and not self.custom_message_sent:
+            response = self.custom_message
+            self.custom_message_sent = True
         else:
             return _RESPONSE_EMPTY
 
