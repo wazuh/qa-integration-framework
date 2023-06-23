@@ -122,10 +122,6 @@ class RemotedSimulator(SimulatorInterface):
         self.custom_message = message
         self.custom_message_sent = False
 
-        # Block the execution until the request is sent.
-        while not self.custom_message_sent:
-            continue
-
     # Internal methods.
 
     def __remoted_response_simulation(self, _request: Any) -> bytes:

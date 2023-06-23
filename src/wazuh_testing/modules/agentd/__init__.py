@@ -1,0 +1,1 @@
+PREFIX = r'.*wazuh-agentd.*'
