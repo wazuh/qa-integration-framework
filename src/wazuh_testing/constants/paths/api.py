@@ -18,4 +18,4 @@ WAZUH_API_LOG_FILE_PATH = os.path.join(WAZUH_PATH, 'logs', 'api.log')
 WAZUH_API_JSON_LOG_FILE_PATH = os.path.join(WAZUH_PATH, 'logs', 'api.json')
 
 # API scripts paths
-WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH,'wazuh-apid.py')
+WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH, 'wazuh-apid.py')

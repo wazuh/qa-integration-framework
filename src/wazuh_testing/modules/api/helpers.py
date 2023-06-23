@@ -8,6 +8,7 @@ import time
 import requests
 from base64 import b64encode
 from copy import deepcopy
+from typing import Tuple
 from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
@@ -21,8 +22,8 @@ BASE_HEADERS = {'Content-Type': 'application/json'}
 
 disable_warnings(exceptions.InsecureRequestWarning)
 
-# Functions
 
+# Functions
 def generate_bearer_token(user: str = None, password: str = None) -> bytes:
     """Generate a Bearer token.
 
@@ -72,7 +73,8 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
 
 def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
           timeout: int = session_parameters.default_timeout, login_attempts: int = 1, sleep_time: int = 0,
-          host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, protocol: str = WAZUH_API_PROTOCOL) -> dict:
+          host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, protocol: str = WAZUH_API_PROTOCOL
+          ) -> Tuple[dict, requests.Response]:
     """Login to the API and get the token with the complete response.
 
     Args:
@@ -86,6 +88,7 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
 
     Returns:
         authentication_headers (dict): Headers required to make a future request.
+        response (requests.Response): Response object.
 
     Raises:
         RuntimeError(msg, requests.Response): When could not login after `login_attempts` every `sleep_time`
