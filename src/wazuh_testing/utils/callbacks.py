@@ -44,6 +44,7 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         new_callback (Callable): Searches for a match in a string given an specific regex.
     """
     regex = replace_values_in_dynamic_regex(regex, replacement)
+    print("regex: ", regex)
 
     def new_callback(line: str) -> Union[Tuple[str], None]:
         """Callback function that looks for the specified regular expression pattern in a string.
@@ -56,9 +57,7 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         """
         # Match the received line.
         match = re.match(regex, line)
-        #print("line: ", line)
         if match:
-        #    print("MATCHED: ")
             # Return the matched line or match groups.
             return line if len(match.groups()) == 0 else match.groups()
 

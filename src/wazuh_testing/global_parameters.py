@@ -42,16 +42,16 @@ class GlobalParameters:
             list (str): List of string with fim modes to be run
         """
         return self._fim_mode
-    
+
     @default_timeout.setter
     def fim_mode(self, value):
         """Setter method for the fim_mode property
 
         Args:
-            value (List(str)): List of string of fim modes. 
+            value (List(str)): List of string of fim modes.
         """
         self._fim_mode = value
-    
+
     @property
     def current_configuration(self):
         """Getter method for the current configuration property

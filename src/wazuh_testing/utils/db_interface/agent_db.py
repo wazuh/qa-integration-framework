@@ -134,7 +134,7 @@ def insert_package(agent_id='000', scan_id=int(time()), format='rpm', name='cust
               f"{arguments['item_id']})")
 
 
-def update_package(version: str, package: str, agent_id: str='000') -> None:
+def update_package(version: str, package: str, agent_id: str = '000') -> None:
     """Update version of installed package in database.
 
     Used to simulate upgrades and downgrades of the package given.

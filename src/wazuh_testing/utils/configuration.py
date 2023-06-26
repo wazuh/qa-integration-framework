@@ -10,7 +10,6 @@ from typing import List
 import xml.etree.ElementTree as ET
 from wazuh_testing.global_parameters import GlobalParameters as global_parameters
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
-
 from . import file
 
 
@@ -382,6 +381,7 @@ def get_test_cases_data(data_file_path):
             set_test_case_data()
 
     return configuration_parameters, configuration_metadata, test_cases_ids
+
 
 def update_feed_path_configurations(configurations: list, metadata: list, feeds_path: str) -> list:
     """Replace feed path tags in the configuration template, using the metadata information.
