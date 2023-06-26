@@ -52,6 +52,27 @@ def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1',
     database.query_wdb(query)
 
 
+def modify_agent_system(os_name='CentOS Linux', os_major='7', name='centos7', agent_id='000', os_minor='1',
+                        os_arch='x86_64', os_version='7.1', os_platform='centos', version='4.0'):
+    """Modify the manager or agent system.
+
+    Args:
+        os_name (str): OS complete name.
+        os_major (str): OS major version.
+        name (str): Os name.
+        agent_id (str): Agent ID.
+        os_minor (str): OS minor version.
+        os_arch (str): Host architecture.
+        os_version (str): OS version.
+        os_platform (str): Os platform e.g (centos, ubuntu, ...).
+        version (str): OS version.
+    """
+    query_string = f"global sql update AGENT set OS_NAME='{os_name}', OS_VERSION='{os_version}', " \
+                   f"OS_MAJOR='{os_major}', OS_MINOR='{os_minor}', OS_ARCH='{os_arch}', NAME='{name}', " \
+                   f"OS_PLATFORM='{os_platform}', VERSION='{version}' WHERE id='{int(agent_id)}'"
+    database.query_wdb(query_string)
+
+
 def get_last_agent_id():
     """Get the last agent ID registered in the global DB.
 

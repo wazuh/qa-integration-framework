@@ -1,6 +1,6 @@
 
 from wazuh_testing.constants.paths import CVE_DB_PATH
-from wazuh_testing.utils.db_interface.basic_queries import make_sqlite_query, get_sqlite_query_result
+from wazuh_testing.utils.database import make_sqlite_query, get_sqlite_query_result
 
 
 def get_tables() -> list:
