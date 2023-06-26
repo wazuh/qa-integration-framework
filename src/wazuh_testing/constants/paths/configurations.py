@@ -14,6 +14,7 @@ if sys.platform == WINDOWS:
 else:
     BASE_CONF_PATH = os.path.join(WAZUH_PATH, 'etc')
 
+<<<<<<< HEAD
 WAZUH_CLIENT_KEYS_PATH = os.path.join(BASE_CONF_PATH, 'client.keys')
 SHARED_CONFIGURATIONS_PATH = os.path.join(BASE_CONF_PATH, 'shared')
 WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'ossec.conf')
@@ -22,3 +23,7 @@ ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.con
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 CUSTOM_RULES_PATH = os.path.join(BASE_CONF_PATH, 'rules')
 CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+=======
+CUSTOM_RULES_PATH = os.path.join(CONF_PATH, 'rules')
+CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+>>>>>>> 85db009 (Added analysisd test required functions)
