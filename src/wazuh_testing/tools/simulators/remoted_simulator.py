@@ -4,7 +4,7 @@
 from queue import Queue
 from typing import Any, Literal, Union
 
-from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
+from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.utils.client_keys import get_client_keys
 from wazuh_testing.utils.secure_message import SecureMessage
@@ -41,7 +41,7 @@ class RemotedSimulator(SimulatorInterface):
                  port: int = 1514,
                  mode='ACCEPT',
                  protocol: Literal['udp', 'tcp'] = 'tcp',
-                 keys_path: str = f'{BASE_CONF_PATH}/client.keys') -> None:
+                 keys_path: str = WAZUH_CLIENT_KEYS_PATH) -> None:
         """
         Initialize a RemotedSimulator object.
 
@@ -50,7 +50,7 @@ class RemotedSimulator(SimulatorInterface):
             port (int, optional): The port number of the Wazuh server. Defaults: 1514.
             mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults: 'ACCEPT'.
             protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
-            keys_path (str, optional): The path to the file containing the client keys. Defaults: BASE_CONF_PATH/client.keys'.
+            keys_path (str, optional): The path to the wazuh client keys file. Defaults: BASE_CONF_PATH/client.keys'.
         """
         super().__init__(server_ip, port, False)
 
