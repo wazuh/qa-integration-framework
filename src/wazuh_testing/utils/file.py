@@ -4,6 +4,7 @@ Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
 import chardet
+import json
 import os
 import re
 import shutil
@@ -68,6 +69,18 @@ def read_yaml(file_path):
     """
     with open(file_path) as f:
         return yaml.safe_load(f)
+
+
+def read_json_file(file_path: Union[str, os.PathLike]) -> dict:
+    """Read a JSON file from a given path, return a dictionary with the JSON data
+
+    Args:
+        file_path (str): Path of the JSON file to be read.
+
+    Returns:
+       dict: JSON data.
+    """
+    return json.loads(read_file(file_path))
 
 
 def append_content_to_yaml(path: Union[str, os.PathLike], content: dict) -> None:

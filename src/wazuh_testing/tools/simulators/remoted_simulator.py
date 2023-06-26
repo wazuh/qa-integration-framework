@@ -1,11 +1,17 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 from queue import Queue
 from typing import Any, Literal, Union
+from Crypto.Cipher import AES, Blowfish
+from Crypto.Util.Padding import pad
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
+from wazuh_testing.tools.queue_monitor import Queue
+from wazuh_testing.tools.simulators.simulator_interface import SimulatorInterface
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.client_keys import get_client_keys
 
