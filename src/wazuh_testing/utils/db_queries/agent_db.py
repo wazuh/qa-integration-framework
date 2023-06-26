@@ -7,10 +7,11 @@ import time
 from wazuh_testing.utils import database
 
 
-def insert_os_info(agent_id='000', scan_id=int(time.time()), scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-                   hostname='centos8', architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='',
-                   os_major='8', os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux',
-                   release='', version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
+def insert_os_info(agent_id='000', scan_id=int(time.time()),
+                   scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), hostname='centos8',
+                   architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='', os_major='8',
+                   os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux', release='',
+                   version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
                    reference=''):
     """Insert the OS information in the agent database.
 
@@ -57,10 +58,11 @@ def delete_os_info(agent_id='000'):
     database.query_wdb(f"agent {agent_id} sql DELETE FROM sys_osinfo")
 
 
-def update_os_info(agent_id='000', scan_id=int(time.time()), scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
-                   hostname='centos8', architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='',
-                   os_major='8', os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux',
-                   release='', version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
+def update_os_info(agent_id='000', scan_id=int(time.time()),
+                   scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), hostname='centos8',
+                   architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='', os_major='8',
+                   os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux', release='',
+                   version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
                    reference=''):
     """Update the sys_osinfo data from a specific agent.
 

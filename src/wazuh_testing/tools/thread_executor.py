@@ -25,11 +25,9 @@ class ThreadExecutor(threading.Thread):
         self.parameters = parameters
         self._return = None
 
-
     def _run(self):
         """Run the target function with its parameters in the thread"""
         self._return = self.function(**self.parameters)
-
 
     def run(self):
         """Overwrite run function of threading Thread module.

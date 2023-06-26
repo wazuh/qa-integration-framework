@@ -29,15 +29,15 @@ WINEVT_SECURITY = "{\"Message\":\"System audit policy was changed.\r\n\r\nSubjec
           "<Data Name=\'SubcategoryGuid\'>{0cce9233-69ae-11d9-bed3-505054503030}</Data" \
           "><Data Name=\'AuditPolicyChanges\'>%%8449, %%8451</Data></EventData></Event>\"}"
 
-WINEVT_APPLICATION = "{\"Message\":\"The Desktop Window Manager has registered the session port.\",\"Event\":\"<Event " \
-                     "xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>" \
+WINEVT_APPLICATION = "{\"Message\":\"The Desktop Window Manager has registered the session port.\",\"Event\":\"" \
+                     "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>" \
                      "<Provider Name='Desktop Window Manager'/><EventID Qualifiers='16384'><random_int></EventID>" \
                      "<Level>4</Level><Task>0</Task><Keywords>0x80000000000000</Keywords><TimeCreated " \
                      "SystemTime='2021-03-26T09:41:26.382493000Z'/><EventRecordID>946</EventRecordID>" \
                      "<Channel>Application</Channel><Computer>vagrant-2016</Computer><Security/></System>" \
                      "<EventData></EventData></Event>\"}"
 
-WINEVT_SYSTEM= "{\"Message\":\"The sppsvc service entered the running state.\",\"Event\":\"<Event " \
+WINEVT_SYSTEM = "{\"Message\":\"The sppsvc service entered the running state.\",\"Event\":\"<Event " \
                   "xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>" \
                   "<Provider Name='Service Control Manager' Guid='{555908d1-a6d7-4695-8e1e-26931d2012f4}' " \
                   "EventSourceName='Service Control Manager'/><EventID Qualifiers='16384'><random_int></EventID>" \

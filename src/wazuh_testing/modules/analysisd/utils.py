@@ -71,16 +71,19 @@ def validate_analysis_alert_syscheck(alert, event, schema=LINUX):
 
                 value = win_perm_list
 
-            if SYSCHECK_ATTRIBUTES_TYPE_REGISTRY in str(syscheck_event) and attribute in [SYSCHECK_ATTRIBUTES_GROUP_NAME, SYSCHECK_ATTRIBUTES_MTIME]:
+            attrs = [SYSCHECK_ATTRIBUTES_GROUP_NAME, SYSCHECK_ATTRIBUTES_MTIME]
+            if SYSCHECK_ATTRIBUTES_TYPE_REGISTRY in str(syscheck_event) and attribute in attrs:
                 continue
 
-            attribute = '{}name'.format(attribute[0]) if attribute in [SYSCHECK_ATTRIBUTES_USER_NAME, SYSCHECK_ATTRIBUTES_GROUP_NAME] else attribute
+            attrs = [SYSCHECK_ATTRIBUTES_USER_NAME, SYSCHECK_ATTRIBUTES_GROUP_NAME]
+            attribute = '{}name'.format(attribute[0]) if attribute in attrs else attribute
 
             assert str(value) == str(syscheck_alert['{}_{}'.format(attribute, suffix)]), \
                 f"{value} not equal to {syscheck_alert['{}_{}'.format(attribute, suffix)]}"
 
         if SYSCHECK_TAGS in event[SYSCHECK_DATA]:
-            assert event[SYSCHECK_DATA][SYSCHECK_TAGS] == syscheck_alert[SYSCHECK_TAGS][0], 'Tags not in alert or with different value'
+            assert event[SYSCHECK_DATA][SYSCHECK_TAGS] == syscheck_alert[SYSCHECK_TAGS][0], 'Tags not in alert or ' \
+                                                                                            'with different value'
 
         if SYSCHECK_CONTENT_CHANGES in event[SYSCHECK_DATA]:
             assert event[SYSCHECK_DATA][SYSCHECK_CONTENT_CHANGES] == syscheck_alert[ALERTS_SYSCHECK_DIFF]
@@ -91,7 +94,8 @@ def validate_analysis_alert_syscheck(alert, event, schema=LINUX):
         raise e
     try:
         validate_attributes(deepcopy(alert[ALERTS_SYSCHECK]), deepcopy(event), SYSCHECK_ATTRIBUTES, 'after')
-        if event[SYSCHECK_DATA][SYSCHECK_TYPE] == SYSCHECK_TYPE_MODIFIED and SYSCHECK_ATTRIBUTES_TYPE_REGISTRY not in str(event):
+        if event[SYSCHECK_DATA][SYSCHECK_TYPE] == SYSCHECK_TYPE_MODIFIED and \
+           SYSCHECK_ATTRIBUTES_TYPE_REGISTRY not in str(event):
             validate_attributes(deepcopy(alert[ALERTS_SYSCHECK]), deepcopy(event), SYSCHECK_OLD_ATTRIBUTES, 'before')
     except KeyError:
         raise KeyError('Alert does not have the same keys as the event.')
