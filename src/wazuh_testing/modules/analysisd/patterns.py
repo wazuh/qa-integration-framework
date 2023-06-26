@@ -7,6 +7,15 @@ from . import PREFIX
 # Callback patterns to find events in log file.
 ANALYSISD_STARTED = fr"{PREFIX}Input message handler thread started."
 ANALYSISD_ERROR_MESSAGES = r'.* (?:DEBUG|ERROR): ((?:dbsync:|No member|No such member|Invalid) .*)'
+ANALYSISD_EPS_ENABLED = r".*INFO: EPS limit enabled, EPS: '{maximum}', timeframe: '{timeframe}'"
+ANALYSISD_EPS_DISABLED = r".*INFO: EPS limit disabled.*"
+ANALYSISD_EPS_MISSING_MAX = r".*WARNING: EPS limit disabled.*"
+ANALYSISD_EPS_QUEUES_FULL = r'.*{log_level}: Queues are full and no EPS credits, dropping events.*'
+ANALYSISD_EPS_QUEUES_NORMAL = r'.*{log_level}: Queues back to normal and EPS credits, no dropping events.*'
+ANALYSISD_CONFIGURATION_ERROR = r".* \(\d+\): Configuration error at.*"
+
+# Callback patterns to find events in alerts file.
+ANALYSISD_ALERT_STARTED = r'.*Ossec server started.*'
 
 # Callback patterns to find events in socket.
 ANALYSISD_QUEUE_DB_MESSSAGE = r"^agent (\d{3,}) \w+ (\w+) (.+)$"

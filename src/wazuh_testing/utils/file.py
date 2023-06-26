@@ -10,6 +10,8 @@ import sys
 import shutil
 import stat
 import json
+import re
+import shutil
 import time
 import yaml
 import xml.etree.ElementTree as ET
@@ -33,6 +35,21 @@ def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
     with open(file_path, 'w') as f:
         f.writelines(data)
+
+
+def read_file(path: str) -> str:
+    """
+    Read a file and return its content.
+
+    Args:
+        path (str): The path to the file to read.
+
+    Returns:
+        str: A string with the content of the file.
+    """
+    with open(path) as f:
+        data = f.read()
+    return data
 
 
 def read_file_lines(path: str) -> List[str]:
@@ -165,7 +182,30 @@ def truncate_file(file_path: str) -> None:
         f.truncate()
 
 
-def get_file_encoding(file_path: str) -> str:
+def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], file_path: str) -> None:
+    """Perform replacements in a file data according to the specified regex.
+
+    Args:
+        search_regex (List[str]): Search regex list.
+        replace_regex (List[str]): Replacements regex list.
+        file_path (str): File path to read and update.
+    """
+    if (len(search_regex) != len(replace_regex)):
+        raise ValueError('search_regex has to have the same number of items than replace_regex. '
+                         f"{len(search_regex)} != {len(replace_regex)}")
+
+    # Read the file content
+    file_data = read_file(file_path)
+
+    # Perform the replacements
+    for search, replace in zip(search_regex, replace_regex):
+        file_data = re.sub(search, replace, file_data)
+
+    # Write the file data
+    write_file(file_path, file_data)
+
+
+def get_file_encoding(file_path):
     """Detect and return the file encoding.
 
     Args:
@@ -316,3 +356,49 @@ def validate_xml_file(file_path: str) -> bool:
         return True
     except ET.ParseError:
         return False
+
+
+def on_write_error(function, path, exc_info):
+    """ Error handler for functions that try to modify a file. If the error is due to an access error (read only file),
+    it attempts to add write permission and then retries. If the error is for another reason it re-raises the error.
+
+    Args:
+        function (function): function that called the handler.
+        path (str): Path to the file the function is trying to modify
+        exc_info (object): function instance execution information. Passed in by function in runtime.
+
+    Example:
+        > shutil.rmtree(path, onerror=on_write_error)
+    """
+    import stat
+    # Check if the error is an access error for Write permissions.
+    if not os.access(path, os.W_OK):
+        # Add write permissions so file can be edited and execute function.
+        os.chmod(path, 0o0777)
+        function(path)
+    # If error is not Write access error, raise the error
+    else:
+        raise
+
+
+def delete_path_recursively(path: str) -> None:
+    '''Remove a directory recursively.
+
+    Args:
+        path (str): Directory path.
+    '''
+    if os.path.exists(path):
+        shutil.rmtree(path, onerror=on_write_error)
+
+
+def remove_file(file_path: str) -> None:
+    """Remove a file or a directory path.
+
+    Args:
+        file_path (str): File or directory path to remove.
+    """
+    if os.path.exists(file_path):
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        elif os.path.isdir(file_path):
+            delete_path_recursively(file_path)

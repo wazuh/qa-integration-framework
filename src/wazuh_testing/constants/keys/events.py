@@ -3,7 +3,6 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 # FIM events
-
 SYSCHECK_DATA = 'data'
 SYSCHECK_PATH = 'path'
 SYSCHECK_INDEX = 'index'

@@ -19,6 +19,6 @@ from wazuh_testing.utils import callbacks
 
 
 monitor = file_monitor.FileMonitor(WAZUH_LOG_PATH)
-monitor.start(callback=callbacks.generate_callback(patterns.SID_NOT_FOUND))
+monitor.start(callback=callbacks.generate_callback(patterns.ANALYSISD_STARTED))
 
 ```

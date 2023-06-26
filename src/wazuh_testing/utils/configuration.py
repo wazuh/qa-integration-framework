@@ -8,9 +8,19 @@ from copy import deepcopy
 from typing import List
 
 import xml.etree.ElementTree as ET
+from wazuh_testing import DATA_PATH
 from wazuh_testing.global_parameters import GlobalParameters as global_parameters
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
 from . import file
+
+
+def get_minimal_configuration():
+    """Get the wazuh minimal configuration data.
+
+    Returns:
+        List of str: Wazuh minimal configuration data.
+    """
+    return file.read_file_lines(os.path.join(DATA_PATH, 'all_disabled_ossec.conf'))
 
 
 def get_wazuh_conf() -> List[str]:
@@ -195,6 +205,38 @@ def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> 
     return to_str_list(wazuh_conf)
 
 
+def get_local_internal_options_dict():
+    """Return the local internal options in a dictionary.
+
+    Returns:
+        dict: Local internal options.
+    """
+    local_internal_option_dict = {}
+    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, 'r') as local_internal_option_file:
+        configuration_options = local_internal_option_file.readlines()
+        for configuration_option in configuration_options:
+            if not configuration_option.startswith('#') and not configuration_option == '\n':
+                try:
+                    option_name, option_value = configuration_option.split('=')
+                    local_internal_option_dict[option_name] = option_value
+                except ValueError:
+                    raise ValueError('Invalid local_internal_option')
+
+    return local_internal_option_dict
+
+
+def set_local_internal_options_dict(dict_local_internal_options):
+    """Set the local internal options using a dictionary.
+
+    Args:
+        local_internal_options_dict (dict): A dictionary containing local internal options.
+    """
+    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, 'w') as local_internal_option_file:
+        for option_name, option_value in dict_local_internal_options.items():
+            local_internal_configuration_string = f"{str(option_name)}={str(option_value)}\n"
+            local_internal_option_file.write(local_internal_configuration_string)
+
+
 def expand_placeholders(mutable_obj, placeholders=None):
     """
     Search for placeholders and replace them by a value inside mutable_obj.
@@ -259,38 +301,6 @@ def process_configuration(config, placeholders=None, metadata=None):
     add_metadata(new_config, metadata=metadata)
 
     return new_config
-
-
-def get_local_internal_options_dict():
-    """Return the local internal options in a dictionary.
-
-    Returns:
-        dict: Local internal options.
-    """
-    local_internal_option_dict = {}
-    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, 'r') as local_internal_option_file:
-        configuration_options = local_internal_option_file.readlines()
-        for configuration_option in configuration_options:
-            if not configuration_option.startswith('#') and not configuration_option == '\n':
-                try:
-                    option_name, option_value = configuration_option.split('=')
-                    local_internal_option_dict[option_name] = option_value
-                except ValueError:
-                    raise ValueError('Invalid local_internal_option')
-
-    return local_internal_option_dict
-
-
-def set_local_internal_options_dict(dict_local_internal_options):
-    """Set the local internal options using a dictionary.
-
-    Args:
-        local_internal_options_dict (dict): A dictionary containing local internal options.
-    """
-    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, 'w') as local_internal_option_file:
-        for option_name, option_value in dict_local_internal_options.items():
-            local_internal_configuration_string = f"{str(option_name)}={str(option_value)}\n"
-            local_internal_option_file.write(local_internal_configuration_string)
 
 
 def load_configuration_template(data_file_path, configuration_parameters=[], configuration_metadata=[]):

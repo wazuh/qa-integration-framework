@@ -1,6 +1,9 @@
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import random
 
-from wazuh_testing.constants.paths import CLIENT_KEYS_PATH
+from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 
 
 def add_client_keys_entry(agent_id: str, agent_name: str, agent_ip: str = 'any', agent_key: str = None) -> None:
@@ -19,7 +22,7 @@ def add_client_keys_entry(agent_id: str, agent_name: str, agent_ip: str = 'any',
         agent_key = ''.join(random.choice('0123456789abcdef') for i in range(64))
 
     # Read client keys data
-    with open(CLIENT_KEYS_PATH, 'r') as client_keys:
+    with open(WAZUH_CLIENT_KEYS_PATH, 'r') as client_keys:
         registered_client_key_entries_str = client_keys.readlines()
 
     # Process current client key entries
@@ -31,7 +34,7 @@ def add_client_keys_entry(agent_id: str, agent_name: str, agent_ip: str = 'any',
     registered_client_key_entries_dict[agent_id] = f"{agent_id} {agent_name} {agent_ip} {agent_key}"
 
     # Save new client keys content
-    with open(CLIENT_KEYS_PATH, 'w') as client_keys:
+    with open(WAZUH_CLIENT_KEYS_PATH, 'w') as client_keys:
         for _, client_key_entry in registered_client_key_entries_dict.items():
             client_keys.write(f"{client_key_entry}\n")
 
@@ -45,7 +48,7 @@ def delete_client_keys_entry(agent_id: str) -> None:
     registered_client_key_entries_dict = {}
 
     # Read client keys data
-    with open(CLIENT_KEYS_PATH, 'r') as client_keys:
+    with open(WAZUH_CLIENT_KEYS_PATH, 'r') as client_keys:
         registered_client_key_entries_str = client_keys.readlines()
 
     # Process current client key entries
@@ -57,6 +60,6 @@ def delete_client_keys_entry(agent_id: str) -> None:
     registered_client_key_entries_dict.pop(agent_id, None)
 
     # Save new client keys content
-    with open(CLIENT_KEYS_PATH, 'w') as client_keys:
+    with open(WAZUH_CLIENT_KEYS_PATH, 'w') as client_keys:
         for _, client_key_entry in registered_client_key_entries_dict.items():
             client_keys.write(f"{client_key_entry}\n")
