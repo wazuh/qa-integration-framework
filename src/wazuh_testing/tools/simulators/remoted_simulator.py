@@ -1,10 +1,13 @@
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from queue import Queue
 from typing import Any, Literal, Union
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.tools.secure_message import SecureMessage
-from wazuh_testing.utils import keys
+from wazuh_testing.utils.client_keys import get_client_keys
+from wazuh_testing.utils.secure_message import SecureMessage
 
 from .simulator_interface import SimulatorInterface
 
@@ -43,11 +46,11 @@ class RemotedSimulator(SimulatorInterface):
         Initialize a RemotedSimulator object.
 
         Args:
-            server_ip (str, optional): The IP address of the Wazuh server. Defaults to '127.0.0.1'.
-            port (int, optional): The port number of the Wazuh server. Defaults to 1514.
-            mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults to 'ACCEPT'.
-            protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults to 'tcp'.
-            keys_path (str, optional): The path to the file containing the client keys. Defaults to f'{BASE_CONF_PATH}/client.keys'.
+            server_ip (str, optional): The IP address of the Wazuh server. Defaults: '127.0.0.1'.
+            port (int, optional): The port number of the Wazuh server. Defaults: 1514.
+            mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults: 'ACCEPT'.
+            protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
+            keys_path (str, optional): The path to the file containing the client keys. Defaults: BASE_CONF_PATH/client.keys'.
         """
         super().__init__(server_ip, port, False)
 
@@ -136,7 +139,7 @@ class RemotedSimulator(SimulatorInterface):
             _request (Any): The received message from the agent.
 
         Returns:
-            bytes: The response message to send back to the agent. If protocol is 'tcp', 
+            bytes: The response message to send back to the agent. If protocol is 'tcp',
                    then it also includes a header with the length of the response.
         """
         if not _request:
@@ -154,7 +157,7 @@ class RemotedSimulator(SimulatorInterface):
 
         # Set the correct response message.
         if self.mode == 'WRONG_KEY':
-            self.encryption_key = keys.create_encryption_key('a', 'b', 'c')
+            self.encryption_key = SecureMessage.get_encryption_key('a', 'b', 'c')
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
@@ -184,7 +187,7 @@ class RemotedSimulator(SimulatorInterface):
         Returns:
             bytes: The encryption key derived from the client keys.
         """
-        client_keys = keys.get_client_keys(self.keys_path)[0]
+        client_keys = get_client_keys(self.keys_path)[0]
         client_keys.pop('ip')
 
         return SecureMessage.get_encryption_key(**client_keys)

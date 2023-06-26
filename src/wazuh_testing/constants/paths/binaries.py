@@ -10,6 +10,6 @@ if sys.platform == 'win32':
     BIN_PATH = WAZUH_PATH
 else:
     BIN_PATH = os.path.join(WAZUH_PATH, 'bin')
-    
+
 WAZUH_CONTROL_PATH = os.path.join(BIN_PATH, 'wazuh-control')
 AGENT_AUTH_PATH = os.path.join(BIN_PATH, 'agent-auth')

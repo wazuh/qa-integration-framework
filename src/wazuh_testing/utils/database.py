@@ -9,7 +9,7 @@ from typing import List
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
-from wazuh_testing.tools.secure_message import SecureMessage
+from wazuh_testing.utils.secure_message import SecureMessage
 from wazuh_testing.utils import services
 
 

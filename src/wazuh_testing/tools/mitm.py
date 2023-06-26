@@ -17,7 +17,7 @@ import threading
 from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
-from wazuh_testing.tools.secure_message import SecureMessage
+from wazuh_testing.utils.secure_message import SecureMessage
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):

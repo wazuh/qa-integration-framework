@@ -4,7 +4,7 @@
 import socket
 import ssl
 
-from wazuh_testing.tools.secure_message import SecureMessage
+from wazuh_testing.utils.secure_message import SecureMessage
 
 
 class SocketController:

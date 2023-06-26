@@ -1,10 +1,13 @@
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from queue import Queue
 import ssl
 from typing import List, Literal, Any
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.tools.certificate_controller import CertificateController
+from wazuh_testing.utils.certificate import Certificate
 
 from .simulator_interface import SimulatorInterface
 
@@ -18,18 +21,15 @@ class AuthdSimulator(SimulatorInterface):
     operation to simulate different scenarios.
 
     Attributes:
-        server_ip (str): The IP address of the Authd server. Defaults to '127.0.0.1'.
-        port (int): The port number of the Authd server. Defaults to 1515.
+        server_ip (str): The IP address of the Authd server. Defaults: '127.0.0.1'.
+        port (int): The port number of the Authd server. Defaults: 1515.
         running (bool): The actual status of the simulator. Initial state False.
-        secret (str): The secret key used by the Authd server. Defaults to 'SuperSecretKey'.
+        secret (str): The secret key used by the Authd server. Defaults: 'SuperSecretKey'.
         mode (Literal['ACCEPT', 'REJECT']): The mode of operation for the simulator. Valid values are 'ACCEPT'
-                                            and 'REJECT'. Defaults to 'ACCEPT'.
-        key_path (str): The file path for the SSL key used by the server. Defaults to 'BASE_CONF_PATH/manager.key'.
-        cert_path (str): The file path for the SSL certificate used by the server. Defaults to 'BASE_CONF_PATH/manager.cert'.
+                                            and 'REJECT'. Defaults: 'ACCEPT'.
+        key_path (str): The path for the SSL key used by the server. Defaults: 'BASE_CONF_PATH/manager.key'.
+        cert_path (str): The path for the SSL certificate used by the server. Defaults: 'BASE_CONF_PATH/manager.cert'.
         queue (Queue): The MitM Queue object used for storing received messages.
-
-    Note:
-        The `key_path` and `cert_path` parameters should be set to appropriate file paths prior to initializing the simulator.
     """
     MODES = ['ACCEPT', 'REJECT']
 
@@ -59,7 +59,7 @@ class AuthdSimulator(SimulatorInterface):
         self.cert_path = cert_path
 
         self.agent_id = 0
-        self.cert_controller = CertificateController()
+        self.cert_controller = Certificate()
 
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol='SSL',
@@ -181,9 +181,9 @@ class AuthdSimulator(SimulatorInterface):
     def __generate_certificates(self):
         """Generates and stores certificates for the root CA.
 
-        It signs the root CA certificate with the root CA private key using 
+        It signs the root CA certificate with the root CA private key using
         the specified digest algorithm.
-        The generated root CA certificate and private key are then stored 
+        The generated root CA certificate and private key are then stored
         at the provided paths.
         """
         self.cert_controller.root_ca_cert.sign(

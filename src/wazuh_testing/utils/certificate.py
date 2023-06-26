@@ -10,7 +10,7 @@ if platform.system() == 'Windows':
     import win32con
 
 
-class CertificateController:
+class Certificate:
     def __init__(self, message_digest: str = 'sha256WithRSAEncryption'):
         self.digest = message_digest
         self.root_ca_key = crypto.PKey()

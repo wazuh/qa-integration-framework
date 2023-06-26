@@ -151,7 +151,7 @@ class SecureMessage:
             message (bytes): The encrypted message.
 
         Returns:
-            Union[str, None]: The encryption algorithm name ('AES' or 'BLOWFISH') 
+            Union[str, None]: The encryption algorithm name ('AES' or 'BLOWFISH')
                               or None if no header is found.
         """
         if cls.algorithm_headers['AES'] in message:
@@ -164,7 +164,7 @@ class SecureMessage:
         """
         Extracts the agent ID from a given Wazuh message.
 
-        In Wazuh, the agent ID is sent within the message, enclosed between 
+        In Wazuh, the agent ID is sent within the message, enclosed between
         two exclamation marks '!'. Example: !001!: RestOfTheMsg...
 
         Args:
@@ -173,7 +173,7 @@ class SecureMessage:
         Returns:
             Union[str, None]: The ID as a string if it comes on the message. Otherwise None.
         """
-        if not b'!' in message:
+        if b'!' not in message:
             return None
 
         # Get the agent ID from the message. Example: !001!
