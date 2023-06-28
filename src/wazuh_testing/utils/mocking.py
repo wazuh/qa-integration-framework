@@ -3,13 +3,11 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 import os
-from time import sleep
+import time
 
-from wazuh_testing.utils.db_interface import global_db, agent_db
-from wazuh_testing.utils.services import control_service
-from wazuh_testing.utils import client_keys
-from wazuh_testing.utils.file import remove_file
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH
+from wazuh_testing.utils import client_keys, file, services
+from wazuh_testing.utils.db_queries import global_db, agent_db
 
 
 SYSTEM_DATA = {
@@ -224,11 +222,10 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
                                      sync_status=sync_status, connection_status=connection_status,
                                      disconnection_time=disconnection_time)
 
-    # Restart Wazuh-DB before creating new DB
-    control_service('restart', daemon='wazuh-db')
+    services.control_service('restart', daemon='wazuh-db')
 
     # sleep is needed since, without it, the agent database creation may fail
-    sleep(3)
+    time.sleep(3)
 
     # Add or update os_info related to the new created agent
     agent_db.update_os_info(agent_id=agent_id_str, hostname=hostname, architecture=os_arch, os_name=os_name,
@@ -250,7 +247,7 @@ def delete_mocked_agent(agent_id: int) -> None:
     global_db.delete_agent(agent_id)
 
     # Remove agent id DB file if exists
-    remove_file(os.path.join(QUEUE_DB_PATH, f"{agent_id}.db"))
+    file.remove_file(os.path.join(QUEUE_DB_PATH, f"{agent_id}.db"))
 
     # Remove entry from client keys
     client_keys.delete_client_keys_entry(agent_id)
