@@ -20,3 +20,14 @@ MANAGER_INFORMATION_ROUTE = '/manager/info'
 GROUPS_ROUTE = '/groups'
 CDB_LIST_ROUTE = '/lists/files'
 DAEMONS_STATS_ROUTE = '/manager/daemons/stats'
+# RBAC routes
+USERS_ROUTE = '/security/users'
+ROLES_ROUTE = '/security/roles'
+POLICIES_ROUTE = '/security/policies'
+RULES_ROUTE = '/security/rules'
+RESOURCE_ROUTE_MAP = {
+    'user_ids': USERS_ROUTE,
+    'role_ids': ROLES_ROUTE,
+    'policy_ids': POLICIES_ROUTE,
+    'rule_ids': RULES_ROUTE
+}

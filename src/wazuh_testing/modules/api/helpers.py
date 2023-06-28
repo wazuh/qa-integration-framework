@@ -8,12 +8,12 @@ import time
 import requests
 from base64 import b64encode
 from copy import deepcopy
-from typing import Tuple
+from typing import Tuple, Union
 from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
-                                        WAZUH_API_PASSWORD, LOGIN_ROUTE
+                                        WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP
 from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 
 
@@ -108,3 +108,52 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
             time.sleep(sleep_time)
 
     raise RuntimeError(API_LOGIN_ERROR_MSG, response)
+
+
+def allow_user_to_authenticate(user_id: str = None) -> requests.Response:
+    """Allow a user to perform an authentication in the API.
+
+    Args:
+        user_id (str): ID of the targer user.
+    """
+    authentication_headers = login()[0]
+    url = get_base_url() + USERS_ROUTE + f'/{user_id}/run_as'
+    params = '?allow_run_as=true'
+
+    response = requests.put(url + params, headers=authentication_headers, verify=False)
+
+    return response
+
+
+def manage_security_resources(method: str = 'get', resource: Union[dict, str] = None,
+                              params_values: dict = None) -> requests.Response:
+    """Get all information about a security resource.
+
+    Args:
+        method (str): Request method.
+        resource (dict or str): Resource to be managed. If dict, the value is the payload.
+        params_values (dict): Key-value variable where each key is a param.
+
+    Returns:
+        response (requests.Response): Response of the request performed.
+    """
+    try:
+        if len(params_values) > 1:
+            raise ValueError('params_values must contain only 1 element')
+    except TypeError:
+        pass
+
+    if isinstance(resource, dict):
+        key = list(resource.keys())[0]
+        payload = resource[key]
+    else:
+        key = resource if resource is not None else list(params_values.keys())[0]
+        payload = None
+
+    params = f"?{key}={params_values[key]}" if params_values is not None else ''
+    url = get_base_url() + RESOURCE_ROUTE_MAP[key] + params
+
+    authentication_headers = login()[0]
+    response = getattr(requests, method)(url, headers=authentication_headers, verify=False, json=payload)
+
+    return response

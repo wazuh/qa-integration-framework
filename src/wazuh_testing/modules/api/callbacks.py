@@ -4,16 +4,16 @@ Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
 import os
-from typing import Union
+from typing import Union, Tuple
 
 from wazuh_testing.constants.paths.api import WAZUH_API_LOG_FILE_PATH
-from wazuh_testing.constants.api import WAZUH_API_USER, LOGIN_ROUTE
-from wazuh_testing.modules.api.patterns import API_TIMEOUT_ERROR_MSG, API_LOGIN_REQUEST_MSG
+from wazuh_testing.constants.api import WAZUH_API_USER, LOGIN_ROUTE, WAZUH_API_PORT
+from wazuh_testing.modules.api.patterns import API_TIMEOUT_ERROR_MSG, API_LOGIN_REQUEST_MSG, API_STARTED_MSG
 from wazuh_testing.tools import file_monitor
 from wazuh_testing.utils.callbacks import generate_callback
 
 
-def search_timeout_error(file_to_monitor: Union[str, os.PathLike] = WAZUH_API_LOG_FILE_PATH) -> None:
+def search_timeout_error(file_to_monitor: Union[str, os.PathLike] = WAZUH_API_LOG_FILE_PATH) -> Tuple:
     """Search for API timeout error in logs.
 
     Args:
@@ -32,7 +32,7 @@ def search_timeout_error(file_to_monitor: Union[str, os.PathLike] = WAZUH_API_LO
 
 
 def search_login_request(file_to_monitor: Union[str, os.PathLike] = WAZUH_API_LOG_FILE_PATH, user: str = WAZUH_API_USER,
-                         host: str = '127.0.0.1') -> None:
+                         host: str = '127.0.0.1') -> Tuple:
     """Search for API timeout error in logs.
 
     Args:
@@ -55,3 +55,29 @@ def search_login_request(file_to_monitor: Union[str, os.PathLike] = WAZUH_API_LO
         raise RuntimeError('The login request message did not appear.')
 
     return monitor_login_request_message.callback_result
+
+
+def search_api_startup(file_to_monitor: str = WAZUH_API_LOG_FILE_PATH, host: str = '0.0.0.0',
+                       port: str = WAZUH_API_PORT) -> Tuple:
+    """Search for API startup message in logs.
+
+    Args:
+        file_to_monitor (str | os.PathLike): File in which to search for the message
+        user (str): Wazuh API user
+        host (str): Wazuh API host
+
+    Raises:
+        RuntimeError: When the log was not found.
+    """
+    monitor_start_message = file_monitor.FileMonitor(file_to_monitor)
+    monitor_start_message.start(
+        callback=generate_callback(API_STARTED_MSG, {
+            'host': str(host),
+            'port': str(port)
+        })
+    )
+
+    if monitor_start_message.callback_result is None:
+        raise RuntimeError('The API was not started as expected.')
+
+    return monitor_start_message.callback_result
