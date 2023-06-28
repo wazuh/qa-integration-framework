@@ -8,7 +8,7 @@ import time
 import requests
 from base64 import b64encode
 from copy import deepcopy
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
@@ -137,12 +137,6 @@ def manage_security_resources(method: str = 'get', resource: Union[dict, str] = 
     Returns:
         response (requests.Response): Response of the request performed.
     """
-    try:
-        if len(params_values) > 1:
-            raise ValueError('params_values must contain only 1 element')
-    except TypeError:
-        pass
-
     if isinstance(resource, dict):
         key = list(resource.keys())[0]
         payload = resource[key]
@@ -150,10 +144,109 @@ def manage_security_resources(method: str = 'get', resource: Union[dict, str] = 
         key = resource if resource is not None else list(params_values.keys())[0]
         payload = None
 
-    params = f"?{key}={params_values[key]}" if params_values is not None else ''
+    try:
+        if len(params_values) > 1:
+            raise ValueError('params_values must contain only 1 element')
+    except TypeError:
+        pass
+
+    params = ''
+    if isinstance(params_values, type(None)) and method == 'update':
+        raise ValueError('params_values must be a dict containing 1 element')
+    elif method != 'update':
+        params = f"?{key}={params_values[key]}" if params_values is not None else params
+    else:
+        method = 'put'
+        params = f"/{params_values[key]}"
+
     url = get_base_url() + RESOURCE_ROUTE_MAP[key] + params
 
     authentication_headers = login()[0]
     response = getattr(requests, method)(url, headers=authentication_headers, verify=False, json=payload)
 
     return response
+
+
+def add_resources(test_metadata: dict) -> dict:
+    """Add the security resources using the API.
+
+    Args:
+        test_metadata (dict): Test metadata.
+    """
+    resources = test_metadata['resources']
+
+    for resource in resources:
+        for payload in resources[resource]:
+            response = manage_security_resources('post', resource={resource: payload})
+            if response.status_code != 200 or response.json()['error'] != 0:
+                raise RuntimeError(f"Could not add {resource}.\nFull response: {response.text}")
+            resource_id = response.json()['data']['affected_items'][0]['id']
+            # Enable authentication for the new user
+            if resource == 'user_ids':
+                allow_user_to_authenticate(resource_id)
+            # Set the resource ID for the test to use it
+            test_metadata['resources_ids'][resource] = resource_id
+            # Catch exception if the test does not have target resource
+            try:
+                test_metadata['target_resource']['id'] = resource_id
+            except KeyError:
+                pass
+
+    return test_metadata
+
+
+def remove_resources(test_metadata: dict) -> None:
+    """Remove the security resources using the API.
+
+    Args:
+        test_metadata (dict): Test metadata.
+    """
+    resources = test_metadata['resources']
+
+    for resource in resources:
+        response = manage_security_resources('delete', params_values={resource: 'all'})
+        if response.status_code != 200 or response.json()['error'] != 0:
+            raise RuntimeError(f"Could not remove {resource}.\nFull response: {response.text}")
+
+
+def relate_resources(test_metadata: dict) -> None:
+    """Relate security resources.
+
+    Args:
+        get_base_request_data (fixture): Get authentication headers and base url.
+    """
+    resources_ids = test_metadata['resources_ids']
+    relationships = test_metadata['relationships']
+    target_route_map = {
+        'role_ids': 'roles',
+        'policy_ids': 'policies',
+        'rule_ids': 'rules'
+    }
+
+    for origin in relationships:
+        origin_id = resources_ids[origin]
+        target_param = relationships[origin]
+        target_value = resources_ids[target_param]
+        target_route = target_route_map[target_param]
+        url = get_base_url() + RESOURCE_ROUTE_MAP[origin] + f"/{origin_id}/{target_route}?{target_param}={target_value}"
+        # Relate the origin resource with the target resource
+        response = requests.post(url, headers=login()[0], verify=False)
+        if response.status_code != 200 or response.json()['error'] != 0:
+            raise RuntimeError(f"Could not relate {origin}: {origin_id} with {target_route}: {target_value}."
+                               f"\nResponse: {response.text}")
+
+
+def get_resource_admin_ids(response: requests.Response) -> List:
+    """Get the ID of each item (if it is an admin resource) in the response.
+
+    Args:
+        response (requests.Response): Response object.
+
+    Return:
+        item_ids (list): List of ids.
+    """
+    items = response.json()['data']['affected_items']
+
+    items_ids = [item['id'] for item in items if item['id'] < 100]
+
+    return items_ids
