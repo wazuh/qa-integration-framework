@@ -6,8 +6,8 @@ from typing import Any, Literal, Union
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
+from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.client_keys import get_client_keys
-from wazuh_testing.utils.secure_message import SecureMessage
 
 from .simulator_interface import SimulatorInterface
 
@@ -157,7 +157,7 @@ class RemotedSimulator(SimulatorInterface):
 
         # Set the correct response message.
         if self.mode == 'WRONG_KEY':
-            self.encryption_key = SecureMessage.get_encryption_key('a', 'b', 'c')
+            self.encryption_key = secure_message.get_encryption_key('a', 'b', 'c')
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
@@ -176,7 +176,7 @@ class RemotedSimulator(SimulatorInterface):
         response = self.__encrypt_response_message(response)
 
         if self.protocol == "tcp":
-            return SecureMessage.pack(len(response)) + response
+            return secure_message.pack(len(response)) + response
 
         return response
 
@@ -190,7 +190,7 @@ class RemotedSimulator(SimulatorInterface):
         client_keys = get_client_keys(self.keys_path)[0]
         client_keys.pop('ip')
 
-        return SecureMessage.get_encryption_key(**client_keys)
+        return secure_message.get_encryption_key(**client_keys)
 
     def __decrypt_received_message(self, message: bytes) -> str:
         """
@@ -202,10 +202,10 @@ class RemotedSimulator(SimulatorInterface):
         Returns:
             str: The decrypted and decoded message.
         """
-        payload = SecureMessage.get_payload(message, self.algorithm)
-        decrypted = SecureMessage.decrypt(payload, self.encryption_key, self.algorithm)
+        payload = secure_message.get_payload(message, self.algorithm)
+        decrypted = secure_message.decrypt(payload, self.encryption_key, self.algorithm)
 
-        return SecureMessage.decode(decrypted)
+        return secure_message.decode(decrypted)
 
     def __encrypt_response_message(self, message: bytes) -> str:
         """
@@ -217,14 +217,14 @@ class RemotedSimulator(SimulatorInterface):
         Returns:
             bytes: The encrypted and encoded message with an algorithm header.
         """
-        encoded = SecureMessage.encode(message)
-        payload = SecureMessage.encrypt(encoded, self.encryption_key, self.algorithm)
+        encoded = secure_message.encode(message)
+        payload = secure_message.encrypt(encoded, self.encryption_key, self.algorithm)
 
-        return SecureMessage.set_algorithm_header(payload, self.algorithm)
+        return secure_message.set_algorithm_header(payload, self.algorithm)
 
     def __set_encryption_values(self, message: bytes) -> None:
         # Get the decryption/encryption algorithm and key.
-        self.algorithm = SecureMessage.get_algorithm(message)
+        self.algorithm = secure_message.get_algorithm(message)
         self.encryption_key = self.__get_client_keys()
 
     def __save_message_context(self, message: bytes) -> None:
@@ -236,7 +236,7 @@ class RemotedSimulator(SimulatorInterface):
         Args:
             message (bytes): The received message from the agent.
         """
-        if agent_id := SecureMessage.get_agent_id(message):
+        if agent_id := secure_message.get_agent_id(message):
             self.last_message_ctx['id'] = agent_id
         else:
             self.last_message_ctx['ip'] = self.__mitm.listener.last_address[0]

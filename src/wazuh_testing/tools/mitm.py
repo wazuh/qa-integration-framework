@@ -17,7 +17,7 @@ import threading
 from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
-from wazuh_testing.utils.secure_message import SecureMessage
+from wazuh_testing.utils import secure_message
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
@@ -148,10 +148,10 @@ class StreamHandler(socketserver.BaseRequestHandler):
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as forwarded_sock:
             # Connect to server and send data
             forwarded_sock.connect(self.server.mitm.forwarded_socket_path)
-            forwarded_sock.sendall(SecureMessage.pack(len(data)) + data)
+            forwarded_sock.sendall(secure_message.pack(len(data)) + data)
 
             # Receive data from the server and shut down
-            size = SecureMessage.unpack(self.recvall_size(forwarded_sock, 4, socket.MSG_WAITALL))
+            size = secure_message.unpack(self.recvall_size(forwarded_sock, 4, socket.MSG_WAITALL))
             response = self.recvall_size(forwarded_sock, size, socket.MSG_WAITALL)
 
             return response
@@ -188,7 +188,7 @@ class StreamHandler(socketserver.BaseRequestHandler):
             header = self.recvall_size(self.request, 4, socket.MSG_WAITALL)
             if not header:
                 break
-            size = SecureMessage.unpack(header)
+            size = secure_message.unpack(header)
             data = self.recvall_size(self.request, size, socket.MSG_WAITALL)
             if not data:
                 break
@@ -197,7 +197,7 @@ class StreamHandler(socketserver.BaseRequestHandler):
 
             self.server.mitm.put_queue((data.rstrip(b'\x00'), response.rstrip(b'\x00')))
 
-            self.request.sendall(SecureMessage.pack(len(response)) + response)
+            self.request.sendall(secure_message.pack(len(response)) + response)
 
     def handle(self):
         """Overriden handle method for TCP MITM server."""

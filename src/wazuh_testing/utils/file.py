@@ -167,6 +167,18 @@ def wait_mtime(path, time_step=5, timeout=-1):
             raise TimeoutError("Reached timeout.")
 
 
+def exists_and_is_file(path: str) -> bool:
+    """Check if a file exists at the given path.
+
+    Args:
+        path (str): The path to the file.
+
+    Returns:
+        bool: True if the file exists and is a regular file, False otherwise.
+    """
+    return os.path.exists(path) and os.path.isfile(path)
+
+
 def on_write_error(function, path, exc_info):
     """ Error handler for functions that try to modify a file. If the error is due to an access error (read only file),
     it attempts to add write permission and then retries. If the error is for another reason it re-raises the error.
