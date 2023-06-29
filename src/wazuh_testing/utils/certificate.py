@@ -14,7 +14,16 @@ if platform.system() == 'Windows':
 
 
 class Certificate:
+    """A class for generating and storing certificates and private keys."""
+
     def __init__(self, message_digest: str = 'sha256WithRSAEncryption'):
+        """
+        Initialize a Certificate instance.
+
+        Args:
+            message_digest (str): The message digest algorithm to use. Defaults to 'sha256WithRSAEncryption'.
+        """
+
         self.digest = message_digest
         self.root_ca_key = crypto.PKey()
         self.root_ca_key.generate_key(crypto.TYPE_RSA, 4096)
@@ -22,6 +31,16 @@ class Certificate:
 
     def generate_agent_certificates(self, agent_key_path: str, agent_cert_path: str, agentname: str,
                                     key_bits: int = 4096, signed: bool = True) -> None:
+        """
+        Generate agent certificates and store them in the specified paths.
+
+        Args:
+            agent_key_path (str): The path to store the agent's private key.
+            agent_cert_path (str): The path to store the agent's certificate.
+            agentname (str): The name of the agent.
+            key_bits (int): The number of bits for the RSA key. Defaults to 4096.
+            signed (bool): Whether to sign the certificate with the root CA key. Defaults to True.
+        """
         key = crypto.PKey().generate_key(crypto.TYPE_RSA, key_bits)
         self._add_key_to_certificate(key)
         cert = self._create_ca_cert(key, subject=agentname)
@@ -36,6 +55,20 @@ class Certificate:
 
     def _create_ca_cert(self, pub_key: crypto.PKey, issuer: str = "Manager", subject: str = None,
                         version: int = 2, expiration_time: int = 0) -> crypto.X509:
+        """
+        Create a CA certificate using the provided public key.
+
+        Args:
+            pub_key (crypto.PKey): The public key for the certificate.
+            issuer (str): The issuer of the certificate. Defaults to "Manager".
+            subject (str): The subject of the certificate. If not provided, the issuer is used.
+            version (int): The version number of the certificate. Defaults to 2.
+            expiration_time (int): The expiration time of the certificate in seconds.
+                If not provided, it defaults to 10 years.
+
+        Returns:
+            crypto.X509: The created CA certificate.
+        """
         cert = crypto.X509()
         cert.set_serial_number(random.randint(500000, 1000000))
         cert.set_version(version)
@@ -54,6 +87,20 @@ class Certificate:
 
     @staticmethod
     def store_private_key(key: crypto.PKey, path: str) -> None:
+        """
+        Create a CA certificate using the provided public key.
+
+        Args:
+            pub_key (crypto.PKey): The public key for the certificate.
+            issuer (str): The issuer of the certificate. Defaults to "Manager".
+            subject (str): The subject of the certificate. If not provided, the issuer is used.
+            version (int): The version number of the certificate. Defaults to 2.
+            expiration_time (int): The expiration time of the certificate in seconds.
+                If not provided, it defaults to 10 years.
+
+        Returns:
+            crypto.X509: The created CA certificate.
+        """
         with open(path, 'wb') as f:
             f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
         if platform.system() != 'Windows':
@@ -61,5 +108,12 @@ class Certificate:
 
     @staticmethod
     def store_ca_certificate(cert: crypto.X509, path: str) -> None:
+        """
+        Store a CA certificate in the specified path.
+
+        Args:
+            cert (crypto.X509): The CA certificate to store.
+            path (str): The path to store the CA certificate.
+        """
         with open(path, 'wb') as f:
             f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
