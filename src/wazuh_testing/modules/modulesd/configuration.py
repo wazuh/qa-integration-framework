@@ -3,4 +3,4 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 # Internal configuration options
-LOCAL_INTERNAL_OPTIONS = 'wazuh_modules.debug'
+MODULESD_DEBUG = 'wazuh_modules.debug'
