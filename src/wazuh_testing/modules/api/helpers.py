@@ -13,7 +13,8 @@ from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
-                                        WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP
+                                        WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP, \
+                                        TARGET_ROUTE_MAP
 from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 
 
@@ -114,7 +115,7 @@ def allow_user_to_authenticate(user_id: str = None) -> requests.Response:
     """Allow a user to perform an authentication in the API.
 
     Args:
-        user_id (str): ID of the targer user.
+        user_id (str): ID of the target user.
     """
     authentication_headers = login()[0]
     url = get_base_url() + USERS_ROUTE + f'/{user_id}/run_as'
@@ -176,6 +177,7 @@ def add_resources(test_metadata: dict) -> dict:
     resources = test_metadata['resources']
 
     for resource in resources:
+        test_metadata['resources_ids'][resource] = list()
         for payload in resources[resource]:
             response = manage_security_resources('post', resource={resource: payload})
             if response.status_code != 200 or response.json()['error'] != 0:
@@ -185,10 +187,10 @@ def add_resources(test_metadata: dict) -> dict:
             if resource == 'user_ids':
                 allow_user_to_authenticate(resource_id)
             # Set the resource ID for the test to use it
-            test_metadata['resources_ids'][resource] = resource_id
-            # Catch exception if the test does not have target resource
+            test_metadata['resources_ids'][resource].append(resource_id)
             try:
-                test_metadata['target_resource']['id'] = resource_id
+                if test_metadata['target_resource']['name'] == resource:
+                    test_metadata['target_resource']['id'] = resource_id
             except KeyError:
                 pass
 
@@ -213,27 +215,58 @@ def relate_resources(test_metadata: dict) -> None:
     """Relate security resources.
 
     Args:
-        get_base_request_data (fixture): Get authentication headers and base url.
+        test_metadata (dict): Test metadata.
     """
     resources_ids = test_metadata['resources_ids']
     relationships = test_metadata['relationships']
-    target_route_map = {
-        'role_ids': 'roles',
-        'policy_ids': 'policies',
-        'rule_ids': 'rules'
-    }
+    # Continue if there are not extra params
+    try:
+        # Extra parameters must be the same length as the target values
+        extra_params = test_metadata['extra_params']
+    except KeyError:
+        extra_params = None
 
     for origin in relationships:
-        origin_id = resources_ids[origin]
+        # It is only allowed to relate 1 (one) origin with many targets
+        origin_id = resources_ids[origin][0]
         target_param = relationships[origin]
-        target_value = resources_ids[target_param]
-        target_route = target_route_map[target_param]
-        url = get_base_url() + RESOURCE_ROUTE_MAP[origin] + f"/{origin_id}/{target_route}?{target_param}={target_value}"
-        # Relate the origin resource with the target resource
-        response = requests.post(url, headers=login()[0], verify=False)
-        if response.status_code != 200 or response.json()['error'] != 0:
-            raise RuntimeError(f"Could not relate {origin}: {origin_id} with {target_route}: {target_value}."
-                               f"\nResponse: {response.text}")
+        target_values = resources_ids[target_param]
+        target_route = TARGET_ROUTE_MAP[target_param]
+        # Relate each target value with the origin
+        for idx, target_value in enumerate(target_values):
+            route_and_params = f"/{origin_id}/{target_route}?{target_param}={target_value}"
+            if extra_params is not None:
+                route_and_params += f"&{extra_params[idx]}"
+            url = get_base_url() + RESOURCE_ROUTE_MAP[origin] + route_and_params
+            # Relate the origin resource with the target resource
+            response = requests.post(url, headers=login()[0], verify=False)
+            if response.status_code != 200 or response.json()['error'] != 0:
+                raise RuntimeError(f"Could not relate {origin}: {origin_id} with {target_param}: {target_value}."
+                                   f"\nResponse: {response.text}")
+
+
+def remove_resources_relationship(origin_resource: dict = None, target_resource: dict = None) -> dict:
+    """Remove relationship between security resources.
+
+    Args:
+        origin_resource (str): Resource from where the relationship will be removed. E.g: {'user_ids': '1'}
+        target_resource (str): Relationship that will be removed. E.g: {'role_ids': '1'}
+    """
+    origin_name = list(origin_resource.keys())[0]
+    origin_id = origin_resource[origin_name]
+    origin_route = RESOURCE_ROUTE_MAP[origin_name]
+    target_name = list(target_resource.keys())[0]
+    target_id = target_resource[target_name]
+    target_route = TARGET_ROUTE_MAP[target_name]
+    route_and_params = f"/{origin_id}/{target_route}?{target_name}={target_id}"
+    url = get_base_url() + origin_route + route_and_params
+
+    # Remove relationship between the origin resource and the target resource
+    response = requests.delete(url, headers=login()[0], verify=False)
+    if response.status_code != 200 or response.json()['error'] != 0:
+        raise RuntimeError(f"Could not remove relationship between {origin_name}: {origin_id} "
+                            f"and {target_name}: {target_id}."
+                            f"\nResponse: {response.text}")
 
 
 def get_resource_admin_ids(response: requests.Response) -> List:

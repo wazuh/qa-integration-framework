@@ -31,3 +31,9 @@ RESOURCE_ROUTE_MAP = {
     'policy_ids': POLICIES_ROUTE,
     'rule_ids': RULES_ROUTE
 }
+TARGET_ROUTE_MAP = {
+    'user_ids': 'users',
+    'role_ids': 'roles',
+    'policy_ids': 'policies',
+    'rule_ids': 'rules'
+}
