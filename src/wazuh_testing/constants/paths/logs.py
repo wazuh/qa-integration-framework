@@ -13,7 +13,6 @@ if sys.platform == 'win32':
     BASE_LOGS_PATH = WAZUH_PATH
     ACTIVE_RESPONSE_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'active-response', 'active-responses.log')
 else:
-    WAZUH_LOG_PATH = os.path.join(BASWE_LOGS_PATH, 'ossec.log')
     ACTIVE_RESPONSE_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'active-responses.log')
 
 WAZUH_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'ossec.log')
