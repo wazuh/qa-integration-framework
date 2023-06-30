@@ -2,10 +2,13 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
+import sys
 import json
 import socket
 import time
+import sqlite3
 from typing import List
+from time import sleep
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
@@ -70,3 +73,55 @@ def query_wdb(command) -> List[str]:
         sock.close()
 
     return data
+
+
+def make_sqlite_query(db_path: str, query_list: List[str]) -> None:
+    """Make a query to the database for each passed query.
+    Args:
+        db_path (string): Path where is located the DB.
+        query_list (list): List with queries to run.
+    """
+    services.control_service('stop', daemon='wazuh-db')
+
+    try:
+        db_connection = sqlite3.connect(db_path)
+
+        for item in query_list:
+            cursor = db_connection.cursor()
+            execute_sqlite_query(cursor, item)
+            cursor.close()
+
+        db_connection.commit()
+    finally:
+        db_connection.close()
+        services.control_service('start', daemon='wazuh-db')
+
+
+def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
+    """Execute a query in a given database and return the result.
+    Args:
+        db_path (str): Path where is located the DB.
+        query (str): SQL query. e.g(SELECT * ..).
+    Returns:
+        result (List[list]): Each row is the query result row and each column is the query field value.
+    """
+    services.control_service('stop', daemon='wazuh-db')
+
+    try:
+        db_connection = sqlite3.connect(db_path)
+        try:
+            cursor = db_connection.cursor()
+
+            execute_sqlite_query(cursor, query)
+            records = cursor.fetchall()
+            result = []
+
+            for row in records:
+                result.append(', '.join([f"{item}" for item in row]))
+
+            return result
+        finally:
+            cursor.close()
+    finally:
+        db_connection.close()
+        services.control_service('start', daemon='wazuh-db')
