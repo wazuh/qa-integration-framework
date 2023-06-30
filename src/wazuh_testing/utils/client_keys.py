@@ -6,7 +6,7 @@ import random
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 
 
-def add_client_keys_entry(agent_id, agent_name, agent_ip='any', agent_key=None) -> None:
+def add_client_keys_entry(agent_id: str, agent_name: str, agent_ip: str = 'any', agent_key: str = None) -> None:
     """Add new entry to client keys file. If the agent_id already exists, this will be overwritten.
 
     Args:
@@ -39,7 +39,7 @@ def add_client_keys_entry(agent_id, agent_name, agent_ip='any', agent_key=None) 
             client_keys.write(f"{client_key_entry}\n")
 
 
-def delete_client_keys_entry(agent_id) -> None:
+def delete_client_keys_entry(agent_id: str) -> None:
     """Delete an entry from client keys file.
 
     Args:
