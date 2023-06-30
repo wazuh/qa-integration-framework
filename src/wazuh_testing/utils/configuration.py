@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
 import sys
+import json
 from copy import deepcopy
 from typing import List
 
@@ -355,3 +356,23 @@ def get_test_cases_data(data_file_path):
         test_cases_ids.append(test_case['name'])
 
     return configuration_parameters, configuration_metadata, test_cases_ids
+
+
+def update_configuration_template(configurations, old_values, new_values):
+    """Update the configuration templates with specific values. Useful for setting the configuration dynamically.
+    Args:
+        configurations (list(dict)): Configuration templates.
+        old_values (list)): Values to be replace.
+        new_values (list): New values.
+    Raises:
+        ValueError: If the number of values to replace are not the same.
+    """
+    if len(configurations) != len(old_values) != len(new_values):
+        raise ValueError('The number of configuration and values items should be the same.')
+
+    configurations_to_update = json.dumps(configurations)
+
+    for old_value, new_value in zip(old_values, new_values):
+        configurations_to_update = configurations_to_update.replace(old_value, new_value)
+
+    return json.loads(configurations_to_update)
