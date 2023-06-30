@@ -7,7 +7,7 @@ from typing import List, Literal, Any
 
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.utils.certificate import Certificate
+from wazuh_testing.tools.certificate_controller import CertificateController
 
 from .simulator_interface import SimulatorInterface
 
@@ -59,7 +59,7 @@ class AuthdSimulator(SimulatorInterface):
         self.cert_path = cert_path
 
         self.agent_id = 0
-        self.cert_controller = Certificate()
+        self.cert_controller = CertificateController()
 
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol='SSL',

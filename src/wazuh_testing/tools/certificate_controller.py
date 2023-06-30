@@ -13,12 +13,12 @@ if platform.system() == 'Windows':
     import win32con
 
 
-class Certificate:
+class CertificateController:
     """A class for generating and storing certificates and private keys."""
 
     def __init__(self, message_digest: str = 'sha256WithRSAEncryption'):
         """
-        Initialize a Certificate instance.
+        Initialize a CertificateController instance.
 
         Args:
             message_digest (str): The message digest algorithm to use. Defaults to 'sha256WithRSAEncryption'.
