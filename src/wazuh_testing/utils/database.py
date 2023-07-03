@@ -1,15 +1,16 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-import os
 import json
+import os
 import socket
 import time
+
 from typing import List
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
-from wazuh_testing.utils import messages, services
+from wazuh_testing.utils import services, secure_message
 
 
 def delete_dbs():
@@ -53,12 +54,12 @@ def query_wdb(command) -> List[str]:
 
     try:
         # Send the query request
-        sock.send(messages.wazuh_pack(len(command)) + command.encode())
+        sock.send(secure_message.pack(len(command)) + command.encode())
 
         rcv = sock.recv(4)
 
         if len(rcv) == 4:
-            data_len = messages.wazuh_unpack(rcv)
+            data_len = secure_message.unpack(rcv)
 
             data = sock.recv(data_len).decode()
 

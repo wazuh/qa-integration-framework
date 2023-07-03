@@ -14,13 +14,21 @@ import socketserver
 import ssl
 import threading
 
-from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
+from typing import Union
 
-from wazuh_testing.utils import messages
+from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
+from wazuh_testing.utils import secure_message
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
-    pass
+
+    def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
+                        client_addres: tuple[str | bytes | bytearray, int]) -> None:
+        """
+        overrides process_request and saves `last_address`.
+        """
+        self.last_address = client_addres
+        super().process_request(request, client_addres)
 
 
 class StreamServerPortV6(StreamServerPort):
@@ -140,10 +148,10 @@ class StreamHandler(socketserver.BaseRequestHandler):
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as forwarded_sock:
             # Connect to server and send data
             forwarded_sock.connect(self.server.mitm.forwarded_socket_path)
-            forwarded_sock.sendall(messages.wazuh_pack(len(data)) + data)
+            forwarded_sock.sendall(secure_message.pack(len(data)) + data)
 
             # Receive data from the server and shut down
-            size = messages.wazuh_unpack(self.recvall_size(forwarded_sock, 4, socket.MSG_WAITALL))
+            size = secure_message.unpack(self.recvall_size(forwarded_sock, 4, socket.MSG_WAITALL))
             response = self.recvall_size(forwarded_sock, size, socket.MSG_WAITALL)
 
             return response
@@ -180,7 +188,7 @@ class StreamHandler(socketserver.BaseRequestHandler):
             header = self.recvall_size(self.request, 4, socket.MSG_WAITALL)
             if not header:
                 break
-            size = messages.wazuh_unpack(header)
+            size = secure_message.unpack(header)
             data = self.recvall_size(self.request, size, socket.MSG_WAITALL)
             if not data:
                 break
@@ -189,7 +197,7 @@ class StreamHandler(socketserver.BaseRequestHandler):
 
             self.server.mitm.put_queue((data.rstrip(b'\x00'), response.rstrip(b'\x00')))
 
-            self.request.sendall(messages.wazuh_pack(len(response)) + response)
+            self.request.sendall(secure_message.pack(len(response)) + response)
 
     def handle(self):
         """Overriden handle method for TCP MITM server."""

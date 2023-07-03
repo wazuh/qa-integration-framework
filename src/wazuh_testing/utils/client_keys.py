@@ -2,8 +2,10 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import random
+from typing import List
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
+from wazuh_testing.utils import file
 
 
 def add_client_keys_entry(agent_id, agent_name, agent_ip='any', agent_key=None) -> None:
@@ -63,3 +65,25 @@ def delete_client_keys_entry(agent_id) -> None:
     with open(WAZUH_CLIENT_KEYS_PATH, 'w') as client_keys:
         for _, client_key_entry in registered_client_key_entries_dict.items():
             client_keys.write(f"{client_key_entry}\n")
+
+
+def get_client_keys(path: str = WAZUH_CLIENT_KEYS_PATH) -> List[dict]:
+    """Get client keys from a file.
+
+    Args:
+        path (str, optional): Path to the file containing the client keys.
+            Defaults to WAZUH_CLIENT_KEYS_PATH.
+
+    Returns:
+        List[dict]: A list of dictionaries representing the client keys.
+            Each dictionary contains the following keys: 'id', 'name', 'ip', and 'key'.
+    """
+    if not file.exists_and_is_file(path):
+        return [{'id': 100, 'name': 'ubuntu-agent', 'ip': 'any', 'key': 'TopSecret'}]
+
+    keys = []
+    for line in file.read_file_lines(path):
+        (id, name, ip, key) = line.replace('\n', '').split(' ')
+        keys.append({'id': id, 'name': name, 'ip': ip, 'key': key})
+
+    return keys
