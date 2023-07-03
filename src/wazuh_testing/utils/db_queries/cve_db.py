@@ -1,4 +1,6 @@
-
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from wazuh_testing.constants.paths.databases import CVE_DB_PATH
 from wazuh_testing.utils.database import make_sqlite_query, get_sqlite_query_result
 

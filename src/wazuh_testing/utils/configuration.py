@@ -375,3 +375,37 @@ def update_configuration_template(configurations, old_values, new_values):
         configurations_to_update = configurations_to_update.replace(old_value, new_value)
 
     return json.loads(configurations_to_update)
+
+
+def update_feed_path_configurations(configurations, metadata, feeds_path):
+    """Replace feed path tags in the configuration template, using the metadata information.
+
+    Args:
+        configurations (list(dict)): List of configuration templates.
+        metadata (list(dict)): List of configuration templates metadata.
+        feeds_path (str): Absolute path where the feeds are located.
+
+    Returns:
+        list(dict): List of configurations with the feeds path updated.
+    """
+    new_configurations = deepcopy(configurations)
+
+    for index, _ in enumerate(configurations):
+        if 'json_feed' in metadata[index] and metadata[index]['json_feed'] is not None:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['json_feed_tag'],
+                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
+                                                                metadata[index]['json_feed'])))
+
+        if 'oval_feed' in metadata[index] and metadata[index]['oval_feed'] is not None:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['oval_feed_tag'],
+                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
+                                                                metadata[index]['oval_feed'])))
+
+        if 'nvd_feed_tag' in metadata[index] and 'nvd_feed' in metadata[index]:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['nvd_feed_tag'],
+                                                   os.path.join(feeds_path, 'nvd', metadata[index]['nvd_feed'])))
+
+    return new_configurations
