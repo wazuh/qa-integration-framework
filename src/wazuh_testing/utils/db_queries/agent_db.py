@@ -125,14 +125,16 @@ def insert_package(agent_id='000', scan_id=int(time.time()), format='rpm', name=
             if value != 'NULL':
                 arguments[key] = f"'{value}'"
 
-    query_wdb(f"agent {agent_id} sql INSERT INTO sys_programs (scan_id, scan_time, format, name, priority, section, "
-              f"size, vendor, install_time, version, architecture, multiarch, source, description, location, triaged,"
-              f"checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, {arguments['format']},"
-              f"{arguments['name']}, {arguments['priority']}, {arguments['section']}, {arguments['size']},"
-              f"{arguments['vendor']}, {arguments['install_time']}, {arguments['version']},"
-              f"{arguments['architecture']}, {arguments['multiarch']}, {arguments['source']}, "
-              f"{arguments['description']}, {arguments['location']}, {arguments['triaged']}, {arguments['checksum']},"
-              f"{arguments['item_id']})")
+    query_string = f"agent {agent_id} sql INSERT INTO sys_programs (scan_id, scan_time, format, name, priority, "
+                   f"section, size, vendor, install_time, version, architecture, multiarch, source, description, "
+                   f"location, triaged, checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, "
+                   f"{arguments['format']}, {arguments['name']}, {arguments['priority']}, {arguments['section']}, "
+                   f"{arguments['size']}, {arguments['vendor']}, {arguments['install_time']}, {arguments['version']},"
+                   f"{arguments['architecture']}, {arguments['multiarch']}, {arguments['source']}, "
+                   f"{arguments['description']}, {arguments['location']}, {arguments['triaged']}, "
+                   f"{arguments['checksum']}, {arguments['item_id']})"
+    
+    database.query_wdb(query_string)
 
 
 def update_package(version: str, package: str, agent_id: str = '000') -> None:
@@ -144,7 +146,7 @@ def update_package(version: str, package: str, agent_id: str = '000') -> None:
         agent_id (str): Agent ID.
     """
     update_query_string = f'agent {agent_id} sql UPDATE sys_programs SET version="{version}" WHERE name="{package}"'
-    query_wdb(update_query_string)
+    database.query_wdb(update_query_string)
 
 
 def delete_package(package: str, agent_id: str = '000') -> None:
@@ -155,7 +157,7 @@ def delete_package(package: str, agent_id: str = '000') -> None:
         agent_id (str): Agent ID.
     """
     delete_query_string = f'agent {agent_id} sql DELETE FROM sys_programs WHERE name="{package}"'
-    query_wdb(delete_query_string)
+    database.query_wdb(delete_query_string)
 
 
 def update_sync_info(agent_id: str = '000', component: str = 'syscollector-packages', last_attempt: int = 1,
@@ -171,9 +173,9 @@ def update_sync_info(agent_id: str = '000', component: str = 'syscollector-packa
         n_completions (int): Number of completion packets.
         last_agent_checksum (str): Checksum of the last agent registered.
     """
-    query_wdb(f"agent {agent_id} sql UPDATE sync_info SET last_attempt = {last_attempt},"
-              f"last_completion = {last_completion}, n_attempts = {n_attempts}, n_completions = {n_completions},"
-              f"last_agent_checksum = '{last_agent_checksum}' where component = '{component}'")
+    database.query_wdb(f"agent {agent_id} sql UPDATE sync_info SET last_attempt = {last_attempt},"
+                       f"last_completion = {last_completion}, n_attempts = {n_attempts}, n_completions = {n_completions},"
+                       f"last_agent_checksum = '{last_agent_checksum}' where component = '{component}'")
 
 
 def insert_vulnerability_in_agent_inventory(agent_id='000', name='', version='', architecture='', cve='',
@@ -200,11 +202,12 @@ def insert_vulnerability_in_agent_inventory(agent_id='000', name='', version='',
         published (str): Vulnerability published.
         updated (str): Vulnerability updated.
     """
-    query_wdb(f"agent {agent_id} sql INSERT OR REPLACE INTO vuln_cves (name, version, architecture, cve, "
-              f"detection_time, severity, cvss2_score, cvss3_score, reference, type, status, external_references,"
-              f" condition, title, published, updated) VALUES ('{name}', '{version}', '{architecture}', '{cve}', "
-              f"'{detection_time}', '{severity}', {cvss2_score}, {cvss3_score},'{reference}', '{type}', '{status}', "
-              f"'{external_references}', '{condition}', '{title}', '{published}', '{updated}')")
+    database.query_wdb(f"agent {agent_id} sql INSERT OR REPLACE INTO vuln_cves (name, version, architecture, cve, "
+                       f"detection_time, severity, cvss2_score, cvss3_score, reference, type, status, "
+                       f" external_references, condition, title, published, updated) VALUES ('{name}', '{version}', "
+                       f"'{architecture}', '{cve}', '{detection_time}', '{severity}', {cvss2_score}, {cvss3_score},"
+                       f"'{reference}', '{type}', '{status}', '{external_references}', '{condition}', '{title}', "
+                       f"'{published}', '{updated}')")
 
 
 def get_vulnerability_inventory_data(agent_id='000', name=None, status=None, cve=None, version=None, type=None,
@@ -245,7 +248,7 @@ def get_vulnerability_inventory_data(agent_id='000', name=None, status=None, cve
             else:
                 query += f" AND {item}={formated_value}"
 
-    return query_wdb(query)
+    return database.query_wdb(query)
 
 
 def get_triaged_value_from_inventory(package_name: str, agent_id: str = '000') -> str:
@@ -256,7 +259,7 @@ def get_triaged_value_from_inventory(package_name: str, agent_id: str = '000') -
     """
     query = f"agent {agent_id} sql SELECT triaged FROM sys_programs WHERE name='{package_name}'"
 
-    result = query_wdb(query)[0]['triaged']
+    result = database.query_wdb(query)[0]['triaged']
 
     return result
 
@@ -269,4 +272,4 @@ def update_last_full_scan(last_scan: int = 0, agent_id: str = '000'):
         agent_id (str): Agent ID.
     """
     query_string = f"agent {agent_id} sql UPDATE vuln_metadata SET LAST_FULL_SCAN={last_scan}"
-    query_wdb(query_string)
+    database.query_wdb(query_string)
