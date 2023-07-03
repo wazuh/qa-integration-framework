@@ -125,13 +125,13 @@ def insert_package(agent_id='000', scan_id=int(time.time()), format='rpm', name=
             if value != 'NULL':
                 arguments[key] = f"'{value}'"
 
-    query_string = f"agent {agent_id} sql INSERT INTO sys_programs (scan_id, scan_time, format, name, priority, "
-                   f"section, size, vendor, install_time, version, architecture, multiarch, source, description, "
-                   f"location, triaged, checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, "
-                   f"{arguments['format']}, {arguments['name']}, {arguments['priority']}, {arguments['section']}, "
-                   f"{arguments['size']}, {arguments['vendor']}, {arguments['install_time']}, {arguments['version']},"
-                   f"{arguments['architecture']}, {arguments['multiarch']}, {arguments['source']}, "
-                   f"{arguments['description']}, {arguments['location']}, {arguments['triaged']}, "
+    query_string = f"agent {agent_id} sql INSERT INTO sys_programs (scan_id, scan_time, format, name, priority, "\
+                   f"section, size, vendor, install_time, version, architecture, multiarch, source, description, "\
+                   f"location, triaged, checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, "\
+                   f"{arguments['format']}, {arguments['name']}, {arguments['priority']}, {arguments['section']}, "\
+                   f"{arguments['size']}, {arguments['vendor']}, {arguments['install_time']}, {arguments['version']},"\
+                   f"{arguments['architecture']}, {arguments['multiarch']}, {arguments['source']}, "\
+                   f"{arguments['description']}, {arguments['location']}, {arguments['triaged']}, "\
                    f"{arguments['checksum']}, {arguments['item_id']})"
     
     database.query_wdb(query_string)
