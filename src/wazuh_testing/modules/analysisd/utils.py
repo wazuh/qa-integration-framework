@@ -12,6 +12,7 @@ from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.keys.alerts import *
 from wazuh_testing.constants.keys.events import *
 from wazuh_testing.constants.paths.variables import ANALYSISD_STATE
+from wazuh_testing.constants.platforms import LINUX, WINDOWS
 
 
 with open(os.path.join(DATA_PATH, 'analysis_alert.json'), 'r') as f:
@@ -21,21 +22,21 @@ with open(os.path.join(DATA_PATH, 'analysis_alert_windows.json'), 'r') as f:
     win32_schema = json.load(f)
 
 
-def validate_analysis_alert(alert, schema='linux'):
+def validate_analysis_alert(alert, schema=LINUX):
     """Check if an Analysis event is properly formatted.
 
     Args:
         alert (dict): Dictionary that represent an alert
         schema (str, optional): String with the platform to validate the alert from. Default `linux`
     """
-    if schema == 'win32':
+    if schema == WINDOWS:
         _schema = win32_schema
     else:
         _schema = linux_schema
     validate(schema=_schema, instance=alert)
 
 
-def validate_analysis_alert_syscheck(alert, event, schema='linux'):
+def validate_analysis_alert_syscheck(alert, event, schema=LINUX):
     """Check if an Analysis alert is properly formatted in reference to its Syscheck event.
 
     Args:
@@ -48,7 +49,7 @@ def validate_analysis_alert_syscheck(alert, event, schema='linux'):
         for attribute, value in syscheck_event[SYSCHECK_DATA][event_field].items():
             # Skip certain attributes since their alerts will not have them
             if attribute in [SYSCHECK_ATTRIBUTES_TYPE, SYSCHECK_ATTRIBUTES_CHECKSUM, SYSCHECK_ATTRIBUTES, SYSCHECK_VALUE_TYPE] or \
-                            (SYSCHECK_ATTRIBUTES_INODE in attribute and schema == 'win32'):
+                            (SYSCHECK_ATTRIBUTES_INODE in attribute and schema == WINDOWS):
                 continue
             # Change `mtime` format to match with alerts
             elif attribute == SYSCHECK_ATTRIBUTES_MTIME:
@@ -57,7 +58,7 @@ def validate_analysis_alert_syscheck(alert, event, schema='linux'):
             elif SYSCHECK_ATTRIBUTES_HASH in attribute:
                 attribute = attribute.split('_')[-1]
             # `perm` attribute has a different format on Windows
-            elif SYSCHECK_ATTRIBUTES_PERM in attribute and schema == 'win32':
+            elif SYSCHECK_ATTRIBUTES_PERM in attribute and schema == WINDOWS:
                 if SYSCHECK_ATTRIBUTES_TYPE_REGISTRY in str(syscheck_event):
                     continue
 

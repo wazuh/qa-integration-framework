@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
+from wazuh_testing.constants.platforms import MACOS
 
 from . import file
 
@@ -323,8 +324,8 @@ def load_configuration_template(data_file_path, configuration_parameters=[], con
 
     configuration = file.read_yaml(data_file_path)
 
-    if sys.platform == 'darwin':
-        configuration = set_correct_prefix(configuration, PREFIX)
+    if sys.platform == MACOS:
+        configuration = set_correct_prefix(configuration, PREFIX) # TODO: FIX THIS.
 
     return [process_configuration(configuration[0], placeholders=replacement, metadata=meta)
             for replacement, meta in zip(configuration_parameters, configuration_metadata)]

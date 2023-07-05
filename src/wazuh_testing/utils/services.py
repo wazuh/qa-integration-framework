@@ -12,6 +12,7 @@ from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AG
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
+from wazuh_testing.constants.platforms import MACOS, SOLARIS, WINDOWS
 
 from . import sockets
 
@@ -29,7 +30,7 @@ def get_service() -> str:
                                        subprocess to obtain the service name.
 
     """
-    if platform.system() in ['Windows', 'win32']:
+    if platform.system() in ['Windows', WINDOWS]:
         return WAZUH_AGENT
 
     else:  # Linux, sunos5, darwin, aix...
@@ -53,7 +54,7 @@ def get_version() -> str:
                                        subprocess to obtain the version.
     """
 
-    if platform.system() in ['Windows', 'win32']:
+    if platform.system() in ['Windows', WINDOWS]:
         with open(VERSION_FILE, 'r') as f:
             version = f.read()
             return version[:version.rfind('\n')]
@@ -81,7 +82,7 @@ def control_service(action, daemon=None, debug_mode=False):
     if action not in valid_actions:
         raise ValueError(f'action {action} is not one of {valid_actions}')
 
-    if sys.platform == 'win32':
+    if sys.platform == WINDOWS:
         if action == 'restart':
             control_service('stop')
             control_service('start')
@@ -104,7 +105,7 @@ def control_service(action, daemon=None, debug_mode=False):
                         break
     else:  # Default Unix
         if daemon is None:
-            if sys.platform == 'darwin' or sys.platform == 'sunos5':
+            if sys.platform == MACOS or sys.platform == SOLARIS:
                 result = subprocess.run(
                     [WAZUH_CONTROL_PATH, action]).returncode
             else:
@@ -174,7 +175,7 @@ def check_daemon_status(target_daemon=None, running_condition=True, timeout=10, 
     elapsed_time = 0
 
     while elapsed_time < timeout and not condition_met:
-        if sys.platform == 'win32':
+        if sys.platform == WINDOWS:
             condition_met = check_if_process_is_running(WAZUH_AGENT_WIN) == running_condition
         else:
             control_status_output = subprocess.run([WAZUH_CONTROL_PATH, 'status'],

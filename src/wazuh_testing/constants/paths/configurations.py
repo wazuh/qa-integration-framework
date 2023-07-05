@@ -4,10 +4,12 @@
 import os
 import sys
 
+from wazuh_testing.constants.platforms import WINDOWS
+
 from . import WAZUH_PATH
 
 
-if sys.platform == 'win32':
+if sys.platform == WINDOWS:
     BASE_CONF_PATH = WAZUH_PATH
 else:
     BASE_CONF_PATH = os.path.join(WAZUH_PATH, 'etc')

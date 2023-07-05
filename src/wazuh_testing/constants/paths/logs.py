@@ -4,12 +4,14 @@
 import os
 import sys
 
+from wazuh_testing.constants.platforms import WINDOWS
+
 from . import WAZUH_PATH
 
 
 BASE_LOGS_PATH = os.path.join(WAZUH_PATH, 'logs')
 
-if sys.platform == 'win32':
+if sys.platform == WINDOWS:
     BASE_LOGS_PATH = WAZUH_PATH
     ACTIVE_RESPONSE_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'active-response', 'active-responses.log')
 else:

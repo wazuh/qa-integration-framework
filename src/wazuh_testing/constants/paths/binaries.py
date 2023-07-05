@@ -4,9 +4,11 @@
 import os
 import sys
 
+from psutil import WINDOWS
+
 from . import WAZUH_PATH
 
-if sys.platform == 'win32':
+if sys.platform == WINDOWS:
     BIN_PATH = WAZUH_PATH
 else:
     BIN_PATH = os.path.join(WAZUH_PATH, 'bin')
