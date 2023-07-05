@@ -4,7 +4,7 @@
 import os
 import sys
 
-from psutil import WINDOWS
+from wazuh_testing.constants.platforms import WINDOWS
 
 from . import WAZUH_PATH
 
