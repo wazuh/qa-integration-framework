@@ -5,7 +5,7 @@ import sys
 
 from collections import defaultdict
 
-from wazuh_testing.constants.platforms import LINUX, MACOS
+from wazuh_testing.constants.platforms import LINUX, MACOS, WINDOWS
 
 
 class GlobalParameters:
@@ -15,6 +15,7 @@ class GlobalParameters:
         timeouts = defaultdict(lambda: 10)
         timeouts[LINUX] = 5
         timeouts[MACOS] = 5
+        timeouts[WINDOWS] = 60
         self._default_timeout = timeouts[sys.platform]
 
     @property
