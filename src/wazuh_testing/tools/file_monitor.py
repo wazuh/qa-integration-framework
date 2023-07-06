@@ -52,7 +52,7 @@ class FileMonitor:
         if not os.access(self.monitored_file, os.R_OK):
             raise PermissionError(f"{self.monitored_file} is not readable.")
 
-    def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1, only_new_events: bool = False) -> None:
+    def start(self, callback: Callable, timeout: int = 30, accumulations: int = 1, only_new_events: bool = False) -> None:
         """
         Start monitoring the target file using the instance provided regex and accumulate matches.
 

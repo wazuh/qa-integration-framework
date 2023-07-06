@@ -4,12 +4,14 @@
 import sys
 import os
 
+from wazuh_testing.constants.platforms import MACOS, WINDOWS
 
-if sys.platform == 'win32':
+
+if sys.platform == WINDOWS:
     WAZUH_PATH = os.path.join("C:", os.sep, "Program Files (x86)", "ossec-agent")
     ROOT_PREFIX = os.path.join('c:', os.sep)
 
-elif sys.platform == 'darwin':
+elif sys.platform == MACOS:
     WAZUH_PATH = os.path.join("/", "Library", "Ossec")
     ROOT_PREFIX = os.path.join('/', 'private', 'var', 'root')
 

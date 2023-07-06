@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
 import time
+from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH
 from wazuh_testing.utils import client_keys, file, services
@@ -80,7 +81,7 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
                                      disconnection_time=disconnection_time)
 
     # Restart Wazuh-DB before creating new DB
-    services.control_service('restart', daemon='wazuh-db')
+    services.control_service('restart', daemon=WAZUH_DB_DAEMON)
 
     # sleep is needed since, without it, the agent database creation may fail
     time.sleep(3)
