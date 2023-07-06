@@ -10,7 +10,6 @@ import xml.etree.ElementTree as ET
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
-from wazuh_testing.constants.platforms import MACOS
 
 from . import file
 
