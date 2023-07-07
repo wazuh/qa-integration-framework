@@ -40,7 +40,7 @@ class QueueMonitor(BaseMonitor):
         Returns:
             None
         """
-        self.__clear_results()
+        self._clear_results()
         matches = 0
 
         # Start count to set the timeout.
@@ -50,8 +50,8 @@ class QueueMonitor(BaseMonitor):
             try:
                 item = self.monitored_object.get(block=True, timeout=0.5)
                 msg = item[0] if type(item) is tuple else item
-                matches += self.__match(msg.decode()
-                                        if isinstance(msg, bytes) else msg, callback)
+                matches += self._match(msg.decode()
+                                       if isinstance(msg, bytes) else msg, callback)
                 # If it has triggered the callback the expected times, break and leave the loop
                 if matches >= accumulations:
                     break

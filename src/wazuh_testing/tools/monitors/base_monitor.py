@@ -26,7 +26,7 @@ class BaseMonitor(ABC):
         """
         pass
 
-    def __clear_results(self) -> None:
+    def _clear_results(self) -> None:
         """
         Clear the callback_result the Monitor.
 
@@ -34,7 +34,7 @@ class BaseMonitor(ABC):
         """
         self.callback_result = None
 
-    def __match(self, message: str, callback: Callable) -> bool:
+    def _match(self, message: str, callback: Callable) -> bool:
         """Determine if a given message matches the current pattern using the callback function.
 
         Args:
