@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 class BaseSimulator(ABC):
     """
-    An abstract base class that defines the interface for a simulator.
+    A base class that defines the interface for a simulator.
 
     A simulator is a class that can simulate the behavior of a Wazuh component
     by sending and receiving messages through a socket.

@@ -7,12 +7,23 @@ from typing import Any, Callable
 
 
 class BaseMonitor(ABC):
+    """
+    A base class that defines the interface for a monitor.
+
+    A monitor is a class that checks for a message to appear on the monitored object
+    until the timeout is reached.
+
+    Attributes:
+        monitored_object (Any): The object to be monitored.
+        callback_result (Tuple): The result of the callback function.
+    """
 
     def __init__(self, monitored_object: Any) -> None:
         """
         Initialize a BaseMonitor object.
 
         Args:
+            monitored_object (Any): The object to be monitored.
         """
         self.monitored_object: Any = monitored_object
         self.callback_result: Tuple = None
@@ -28,9 +39,7 @@ class BaseMonitor(ABC):
 
     def _clear_results(self) -> None:
         """
-        Clear the callback_result the Monitor.
-
-        This method should be implemented by subclasses to clear the saved results.
+        Clear the monitor's callback_result.
         """
         self.callback_result = None
 
