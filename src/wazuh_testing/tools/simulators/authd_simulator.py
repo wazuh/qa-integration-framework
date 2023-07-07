@@ -9,14 +9,14 @@ from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.tools.certificate_controller import CertificateController
 
-from .simulator_interface import SimulatorInterface
+from .base_simulator import BaseSimulator
 
 
-class AuthdSimulator(SimulatorInterface):
+class AuthdSimulator(BaseSimulator):
     """
     A class that simulates an Authd service.
 
-    This class inherits from SimulatorInterface and implements methods to send and receive messages
+    This class inherits from BaseSimulator and implements methods to send and receive messages
     from a Wazuh server using a ManInTheMiddle object. It also allows to specify different modes of
     operation to simulate different scenarios.
 

@@ -6,24 +6,25 @@ import time
 
 from typing import Callable, Tuple
 
+from .base_monitor import BaseMonitor
 
-class QueueMonitor:
+
+class QueueMonitor(BaseMonitor):
     """Class to monitor a queue and check if the content matches with the specified callback.
 
     Attributes:
-        monitored_queue (Queue): Queue to monitor.
+        monitored_object (Queue): Queue to monitor.
         callback_result (*): It will store the result returned by the callback call if it is not None.
         """
 
-    def __init__(self, monitored_queue: queue.Queue) -> None:
+    def __init__(self, monitored_object: queue.Queue) -> None:
         """
         Initialize the QueueMonitor class.
 
         Args:
-            monitored_queue (queue.Queue): Queue to monitor.
+            monitored_object (queue.Queue): Queue to monitor.
         """
-        self.monitored_queue: queue.Queue = monitored_queue
-        self.callback_result: Tuple = None
+        super().__init__(monitored_object=monitored_object)
 
     def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1) -> None:
         """
@@ -39,6 +40,7 @@ class QueueMonitor:
         Returns:
             None
         """
+        self.__clear_results()
         matches = 0
 
         # Start count to set the timeout.
@@ -46,27 +48,12 @@ class QueueMonitor:
 
         while time.time() - start_time < timeout:
             try:
-                item = self.monitored_queue.get(block=True, timeout=0.5)
+                item = self.monitored_object.get(block=True, timeout=0.5)
                 msg = item[0] if type(item) is tuple else item
-                matches += self.__msg_matches(msg.decode() if isinstance(msg, bytes) else msg, callback)
+                matches += self.__match(msg.decode()
+                                        if isinstance(msg, bytes) else msg, callback)
                 # If it has triggered the callback the expected times, break and leave the loop
                 if matches >= accumulations:
                     break
             except queue.Empty:
                 pass
-
-    def __msg_matches(self, msg: str, callback: Callable) -> bool:
-        """Determine if a given msg matches the current pattern using the callback function.
-
-        Args:
-            msg (str): The msg to search for a match.
-
-        Returns:
-            bool: 'True' if the msg matches the pattern, 'False' otherwise.
-        """
-        result = callback(msg)
-
-        # Update match result only if it's not None (i.e., there was a match)
-        self.callback_result = result if result else self.callback_result
-
-        return bool(result)

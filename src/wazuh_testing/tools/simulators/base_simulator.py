@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 
 
-class SimulatorInterface(ABC):
+class BaseSimulator(ABC):
     """
     An abstract base class that defines the interface for a simulator.
 
@@ -23,7 +23,7 @@ class SimulatorInterface(ABC):
 
     def __init__(self, server_ip: str, port: int, running: bool) -> None:
         """
-        Initialize a SimulatorInterface object.
+        Initialize a BaseSimulator object.
 
         Args:
             server_ip (str): The IP address of the Wazuh server.
