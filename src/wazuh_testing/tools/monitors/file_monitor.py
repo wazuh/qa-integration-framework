@@ -8,24 +8,25 @@ from typing import Callable, Tuple
 
 from wazuh_testing.utils import file
 
+from .base_monitor import BaseMonitor
 
-class FileMonitor:
+
+class FileMonitor(BaseMonitor):
     """Class to monitor a file and check if the content matches with the specified callback.
 
     Attributes:
-        monitored_file (str): File path to monitor.
+        monitored_object (str): File path to monitor.
         callback_result (*): It will store the result returned by the callback call if it is not None.
         """
 
-    def __init__(self, monitored_file: str) -> None:
+    def __init__(self, monitored_object: str) -> None:
         """
         Initialize the FileMonitor class.
 
         Args:
-            monitored_file: File path to monitor.
+            monitored_object: File path to monitor.
         """
-        self.monitored_file: str = monitored_file
-        self.callback_result: Tuple = None
+        super().__init__(monitored_object=monitored_object)
 
         self.__validate_parameters()
 
@@ -41,16 +42,16 @@ class FileMonitor:
             PermissionError: If the monitored file is not readable.
         """
         # Check that the monitored file exists
-        if not os.path.exists(self.monitored_file):
-            raise ValueError(f"File {self.monitored_file} does not exist.")
+        if not os.path.exists(self.monitored_object):
+            raise ValueError(f"File {self.monitored_object} does not exist.")
 
         # Check that the monitored file is a file
-        if not os.path.isfile(self.monitored_file):
-            raise TypeError(f"{self.monitored_file} is not a file.")
+        if not os.path.isfile(self.monitored_object):
+            raise TypeError(f"{self.monitored_object} is not a file.")
 
         # Check that the program can read the content of the file
-        if not os.access(self.monitored_file, os.R_OK):
-            raise PermissionError(f"{self.monitored_file} is not readable.")
+        if not os.access(self.monitored_object, os.R_OK):
+            raise PermissionError(f"{self.monitored_object} is not readable.")
 
     def start(self, callback: Callable, timeout: int = 30, accumulations: int = 1, only_new_events: bool = False) -> None:
         """
@@ -67,14 +68,15 @@ class FileMonitor:
         Returns:
             None
         """
+        self._clear_results()
         matches = 0
-        encoding = file.get_file_encoding(self.monitored_file)
+        encoding = file.get_file_encoding(self.monitored_object)
 
         # Check if current file content lines triggers the callback (only when new events has False value)
         if not only_new_events:
-            with open(self.monitored_file, encoding=encoding) as _file:
+            with open(self.monitored_object, encoding=encoding) as _file:
                 for line in _file:
-                    matches += self.__line_matches(line, callback)
+                    matches += self._match(line, callback)
                     if matches >= accumulations:
                         return
 
@@ -82,7 +84,7 @@ class FileMonitor:
         start_time = time.time()
 
         # Start the file regex monitoring from the last line.
-        with open(self.monitored_file, encoding=encoding) as _file:
+        with open(self.monitored_object, encoding=encoding) as _file:
             # Go to the end of the file.
             _file.seek(0, 2)
             while time.time() - start_time < timeout:
@@ -94,23 +96,7 @@ class FileMonitor:
                     time.sleep(0.1)
                 # If we have a new line, check if it matches with the callback.
                 else:
-                    matches += self.__line_matches(line, callback)
+                    matches += self._match(line, callback)
                     # If it has triggered the callback the expected times, break and leave the loop.
                     if matches >= accumulations:
                         return
-
-    def __line_matches(self, line: str, callback: Callable) -> bool:
-        """Determine if a given line matches the current pattern using the callback function.
-
-        Args:
-            line (str): The line to search for a match.
-
-        Returns:
-            bool: 'True' if the line matches the pattern, 'False' otherwise.
-        """
-        result = callback(line)
-
-        # Update match result only if it's not None (i.e., there was a match)
-        self.callback_result = result if result else self.callback_result
-
-        return bool(result)

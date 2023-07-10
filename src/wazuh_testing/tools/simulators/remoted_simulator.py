@@ -9,7 +9,7 @@ from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.client_keys import get_client_keys
 
-from .simulator_interface import SimulatorInterface
+from .base_simulator import BaseSimulator
 
 
 # Internal constants
@@ -18,11 +18,11 @@ _RESPONSE_SHUTDOWN = b'#!-agent shutdown '
 _RESPONSE_EMPTY = b''
 
 
-class RemotedSimulator(SimulatorInterface):
+class RemotedSimulator(BaseSimulator):
     """
     A class that simulates a Remoted service.
 
-    This class inherits from SimulatorInterface and implements methods to send and receive messages
+    This class inherits from BaseSimulator and implements methods to send and receive messages
     from a Wazuh server using a ManInTheMiddle object. It also allows to specify different modes of
     operation to simulate different scenarios.
 
