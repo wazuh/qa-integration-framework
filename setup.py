@@ -17,7 +17,12 @@ package_data_list = [
     'data/analysis_alert_windows.json',
     'data/mitre_event.json',
     'data/keepalives.txt',
-    'data/rootcheck.txt'
+    'data/rootcheck.txt',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-analysisd_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-db_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-remoted_template.json'
 ]
 
 # Entry point scripts.
