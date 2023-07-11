@@ -94,27 +94,18 @@ class SSLStreamServerPort(socketserver.ThreadingTCPServer):
             raise Exception('SSL configuration needs to be set in SSLStreamServer')
 
         try:
+            context = ssl.SSLContext(self.ssl_version)
             if self.options:
-                context = ssl.SSLContext(self.ssl_version)
                 context.options = self.options
-                if self.certfile:
-                    context.load_cert_chain(self.certfile, self.keyfile)
-                if self.ca_cert is None:
-                    context.verify_mode = ssl.CERT_NONE
-                else:
-                    context.verify_mode = self.cert_reqs
-                    context.load_verify_locations(cafile=self.ca_cert)
-                context.set_ciphers(self.ciphers)
-                connstream = context.wrap_socket(newsocket, server_side=True)
+            if self.certfile:
+                context.load_cert_chain(self.certfile, self.keyfile)
+            if self.ca_cert is None:
+                context.verify_mode = ssl.CERT_NONE
             else:
-                connstream = ssl.wrap_socket(newsocket,
-                                             server_side=True,
-                                             certfile=self.certfile,
-                                             keyfile=self.keyfile,
-                                             ssl_version=self.ssl_version,
-                                             ciphers=self.ciphers,
-                                             cert_reqs=self.cert_reqs,
-                                             ca_certs=self.ca_cert)
+                context.verify_mode = self.cert_reqs
+                context.load_verify_locations(cafile=self.ca_cert)
+            context.set_ciphers(self.ciphers)
+            connstream = context.wrap_socket(newsocket, server_side=True)
         except OSError as err:
             print(err)
             raise
