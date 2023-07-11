@@ -14,11 +14,11 @@ You can just import it from the test suite as any other python library
 ```python
 from wazuh_testing.constants.paths.logs import WAZUH_LOG_PATH
 from wazuh_testing.modules.analysisd import patterns
-from wazuh_testing.tools import file_monitor
+from wazuh_testing.tools.monitors.file_monitor import FileMonitor
 from wazuh_testing.utils import callbacks
 
 
-monitor = file_monitor.FileMonitor(WAZUH_LOG_PATH)
+monitor = FileMonitor(WAZUH_LOG_PATH)
 monitor.start(callback=callbacks.generate_callback(patterns.ANALYSISD_STARTED))
 
 ```
