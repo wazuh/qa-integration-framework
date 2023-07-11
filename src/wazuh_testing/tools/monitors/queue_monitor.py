@@ -5,6 +5,7 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import queue
 import time
+from typing import Callable
 
 from .base_monitor import BaseMonitor
 

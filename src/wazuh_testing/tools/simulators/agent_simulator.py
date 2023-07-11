@@ -31,7 +31,7 @@ from time import mktime, localtime, sleep, time
 import wazuh_testing.constants.syscollector as syscollector
 import wazuh_testing.constants.winevt as winevt
 from wazuh_testing.tools.queue_monitor import Queue
-from wazuh_testing.tools.simulators.remoted_simulator import Cipher
+from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
 from wazuh_testing.utils.messages import wazuh_unpack
@@ -350,11 +350,7 @@ class Agent:
                 \\xb52<\\x9d\\xc8\\x83=o1U\\x1a\\xb3\\xf1\\xf5\\xde\\xe0\\x8bV\\xe99\\x9ej}#\\xf1\\x99V\\x12NP^T
                 \\xa0\\rYs\\xa2n\\xe8\\xa5\\xb1\\r[<V\\x16%q\\xfc"
         """
-        encrypted_event = None
-        if self.cypher == "aes":
-            encrypted_event = Cipher(padded_event, self.encryption_key).encrypt_aes()
-        if self.cypher == "blowfish":
-            encrypted_event = Cipher(padded_event, self.encryption_key).encrypt_blowfish()
+        encrypted_event = secure_message.encrypt(padded_event, self.encryption_key, self.cypher)
         return encrypted_event
 
     def headers(self, agent_id, encrypted_event):
@@ -420,17 +416,18 @@ class Agent:
                 except Exception:
                     return
             else:
-                buffer_array, client_address = sender.socket.recvfrom(65536)
+                buffer_array, _ = sender.socket.recvfrom(65536)
             index = buffer_array.find(b'!')
             if index == 0:
                 index = buffer_array[1:].find(b'!')
                 buffer_array = buffer_array[index + 2:]
             if self.cypher == "aes":
                 msg_remove_header = bytes(buffer_array[5:])
-                msg_decrypted = Cipher(msg_remove_header, self.encryption_key).decrypt_aes()
             else:
                 msg_remove_header = bytes(buffer_array[1:])
-                msg_decrypted = Cipher(msg_remove_header, self.encryption_key).decrypt_blowfish()
+
+            msg_decrypted = secure_message.decrypt(msg_remove_header, self.encryption_key, self.cypher)
+
             try:
                 padding = 0
                 while msg_decrypted:
