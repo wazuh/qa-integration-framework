@@ -10,7 +10,7 @@ from typing import List
 
 from wazuh_testing.constants.api import AGENTS_ROUTE
 from wazuh_testing.constants.paths import WAZUH_PATH
-from wazuh_testing.modules.api.helpers import login, get_base_url
+from wazuh_testing.modules.api.utils import login, get_base_url
 from wazuh_testing.utils.database import query_wdb
 
 
