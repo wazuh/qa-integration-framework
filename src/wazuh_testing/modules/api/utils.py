@@ -101,10 +101,10 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         response = requests.post(url, headers=set_authorization_header(user, password), verify=False, timeout=timeout)
 
         if response.status_code == 200:
-            authentication_headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f"Bearer {json.loads(response.content.decode())['data']['token']}"
-            }
+            token = json.loads(response.content.decode())['data']['token']
+            authentication_headers = deepcopy(BASE_HEADERS)
+            authentication_headers['Authorization'] = f"Bearer {token}"
+
             return authentication_headers, response
         else:
             time.sleep(sleep_time)

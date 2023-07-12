@@ -5,10 +5,8 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import os
 import json
-import os
 import socket
 import time
-
 from typing import List, Union
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
