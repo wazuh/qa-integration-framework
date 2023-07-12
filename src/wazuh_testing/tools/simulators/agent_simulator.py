@@ -10,17 +10,15 @@
 
 # Python 3.7 or greater
 # Dependencies: pip3 install pycryptodome
-
-import hashlib
 import json
 import logging
 import os
 import socket
 import ssl
 import threading
-import zlib
 from datetime import date
 from itertools import cycle
+from queue import Queue
 from random import randint, sample, choice, getrandbits
 from stat import S_IFLNK, S_IFREG, S_IRWXU, S_IRWXG, S_IRWXO
 from string import ascii_letters, digits
@@ -28,22 +26,159 @@ from struct import pack
 from sys import getsizeof
 from time import mktime, localtime, sleep, time
 
-import wazuh_testing.constants.templates.syscollector as syscollector
-import wazuh_testing.constants.templates.winevt as winevt
-from wazuh_testing.tools.queue_monitor import Queue
+from wazuh_testing import DATA_PATH
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
-from wazuh_testing.utils.messages import wazuh_unpack
 from wazuh_testing.utils.network import TCP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
 
 
-_data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
-
 os_list = ["debian7", "debian8", "debian9", "debian10", "ubuntu12.04",
            "ubuntu14.04", "ubuntu16.04", "ubuntu18.04", "mojave", "solaris11"]
 agent_count = 1
+
+SYSCOLLECTOR_HEADER = '{"type":"<syscollector_type>",' \
+                      '"ID":<random_int>,"timestamp":"<timestamp>"'
+
+SYSCOLLECTOR_OS_EVENT_TEMPLATE = ',"inventory":{"os_name":"<random_string>",' \
+                                 '"os_major":"8","os_minor":"3","os_version":"8.3",' \
+                                 '"os_platform":"centos","sysname":"Linux",' \
+                                 '"hostname":"centos3","release":"4.18.0-240.1.1.el8_3.x86_64",' \
+                                 '"version":"#1 SMP Thu Nov 19 17:20:08 UTC 2020","architecture":"x86_64"}}'
+
+SYSCOLLECTOR_HARDWARE_EVENT_TEMPLATE = ',"inventory":{"board_serial":"0",' \
+                                       '"cpu_name":"AMD Ryzen 7 3750H with Radeon Vega Mobile Gfx",' \
+                                       '"cpu_cores":<random_int>,"cpu_MHz":2295.686,"ram_total":828084,' \
+                                       '"ram_free":60488,"ram_usage":93}}'
+
+SYSCOLLECTOR_PACKAGES_EVENT_TEMPLATE = ',"program":{"format":"rpm","name":"<random_string>",' \
+                                       '"description":"JSON::XS compatible pure-Perl module",' \
+                                       '"size":126,"vendor":"CentOS","group":"Unspecified",' \
+                                       '"architecture":"noarch","source":"perl-JSON-PP-2.97.001-3.el8.src.rpm",' \
+                                       '"install_time":"2021/03/12 12:23:17"' \
+                                       ',"version":"1:2.97.001-3.el8"}}'
+
+SYSCOLLECTOR_PROCESS_EVENT_TEMPLATE = ',"process":{"pid":3150,"name":"<random_string>","state":"R",' \
+                                      '"ppid":2965,"utime":58,' \
+                                      '"stime":2,"cmd":"rpm","argvs":["-qa","xorg-x11*"],' \
+                                      '"euser":"root","ruser":"root","suser":"root","egroup":"ossec",' \
+                                      '"rgroup":"ossec","sgroup":"ossec",' \
+                                      '"fgroup":"ossec","priority":30,' \
+                                      '"nice":10,"size":22681,"vm_size":90724,' \
+                                      '"resident":5626,"share":2262,' \
+                                      '"start_time":21863,"pgrp":3150,' \
+                                      '"session":3150,"nlwp":1,' \
+                                      '"tgid":3150,"tty":0,"processor":0}}'
+
+SYSCOLLECTOR_NETWORK_EVENT_TEMPLATE = ',"iface":{"name":"<random_string>","type":"ethernet","state":"up",' \
+                                      '"MAC":"08:00:27:be:ce:3a","tx_packets":2135,' \
+                                      '"rx_packets":9091,"tx_bytes":210748,' \
+                                      '"rx_bytes":10134272,"tx_errors":0,' \
+                                      '"rx_errors":0,"tx_dropped":0,"rx_dropped":0,' \
+                                      '"MTU":1500,"IPv4":{"address":["10.0.2.15"],' \
+                                      '"netmask":["255.255.255.0"],"broadcast":["10.0.2.255"],' \
+                                      '"metric":100,"gateway":"10.0.2.2","DHCP":"enabled"}}}'
+
+SYSCOLLECTOR_PORT_EVENT_TEMPLATE = ',"port":{"protocol":"tcp","local_ip":"0.0.0.0",' \
+                                   '"local_port":<random_int>,"remote_ip":"0.0.0.0",' \
+                                   '"remote_port":0,"tx_queue":0,' \
+                                   '"rx_queue":0,"inode":22273,"state":"listening"}}'
+
+SYSCOLLECTOR_HOTFIX_EVENT_TEMPLATE = ',"hotfix":"<random_string>"}'
+
+WINEVT_SECURITY = "{\"Message\":\"System audit policy was changed.\r\n\r\nSubject:\r\n\t" \
+                  "Security ID:\t\tS-1-5-21-1331263578-1683884876-2739179494-500\r\n\t" \
+                  "Account Name:\t\tAdministrator\r\n\tAccount Domain:\t\tWIN-ACL01C4DS88\r\n\t" \
+                  "Logon ID:\t\t0x372C7\r\n\r\nAudit Policy Change:\r\n\t" \
+                  "Category:\t\tPolicy Change\r\n\tSubcategory:\t\t" \
+                  "Filtering Platform Policy Change\r\n\t" \
+                  "Subcategory GUID:\t{0cce9233-69ae-11d9-bed3-505054503030}\r\n\t" \
+                  "Changes:\t\tSuccess Added, Failure added\"," \
+                  "\"Event\":\"<Event xmlns=\'http://schemas.microsoft.com/win/2004/08/events/event\'>" \
+                  "<System><Provider Name=\'Microsoft-Windows-Security-Auditing\' " \
+                  "Guid=\'{54849625-5478-4994-a5ba-3e3b0328c30d}\'/>" \
+                  f"<EventID><random_int></EventID><Version>0</Version><Level>0</Level>" \
+                  "<Task>13568</Task><Opcode>0</Opcode><Keywords>0x8020000000000000</Keywords>" \
+                  "<TimeCreated SystemTime=\'2019-05-28T09:29:41.443963000Z\'/><EventRecordID>965047" \
+                  "</EventRecordID><Correlation ActivityID=\'{1115b961-1535-0000-8bbb-15113515d501}\'/>" \
+                  "<Execution ProcessID=\'556\' ThreadID=\'6024\'/><Channel>Security</Channel>" \
+                  "<Computer>WIN-ACL01C4DS88</Computer><Security/></System><EventData>" \
+                  "<Data Name=\'SubjectUserSid\'>S-1-5-21-1331263578-1683884876-2739179494-500</Data>" \
+                  "<Data Name=\'SubjectUserName\'>Administrator</Data>" \
+                  "<Data Name=\'SubjectDomainName\'>WIN-ACL01C4DS88</Data>" \
+                  "<Data Name=\'SubjectLogonId\'>0x372c7</Data>" \
+                  "<Data Name=\'CategoryId\'>%%8277" \
+                  "</Data><Data Name=\'SubcategoryId\'>%%13572</Data>" \
+                  "<Data Name=\'SubcategoryGuid\'>{0cce9233-69ae-11d9-bed3-505054503030}</Data" \
+                  "><Data Name=\'AuditPolicyChanges\'>%%8449, %%8451</Data></EventData></Event>\"}"
+
+WINEVT_APPLICATION = "{\"Message\":\"The Desktop Window Manager has registered the session port.\",\"Event\":\"" \
+                     "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>" \
+                     "<Provider Name='Desktop Window Manager'/><EventID Qualifiers='16384'><random_int></EventID>" \
+                     "<Level>4</Level><Task>0</Task><Keywords>0x80000000000000</Keywords><TimeCreated " \
+                     "SystemTime='2021-03-26T09:41:26.382493000Z'/><EventRecordID>946</EventRecordID>" \
+                     "<Channel>Application</Channel><Computer>vagrant-2016</Computer><Security/></System>" \
+                     "<EventData></EventData></Event>\"}"
+
+WINEVT_SYSTEM = "{\"Message\":\"The sppsvc service entered the running state.\",\"Event\":\"<Event " \
+                  "xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>" \
+                  "<Provider Name='Service Control Manager' Guid='{555908d1-a6d7-4695-8e1e-26931d2012f4}' " \
+                  "EventSourceName='Service Control Manager'/><EventID Qualifiers='16384'><random_int></EventID>" \
+                  "<Version>0</Version><Level>4</Level><Task>0</Task><Opcode>0</Opcode><Keywords>0x8080000000000000" \
+                  "</Keywords><TimeCreated SystemTime='2021-03-25T15:01:00.656299500Z'/><EventRecordID>3946" \
+                  "</EventRecordID><Correlation/><Execution ProcessID='572' ThreadID='652'/><Channel>" \
+                  "System</Channel><Computer>vagrant-2016</Computer><Security/></System><EventData>" \
+                  "<Data Name='param1'>sppsvc</Data><Data Name='param2'>running</Data><Binary>" \
+                  "7300700070007300760063002F0034000000</Binary></EventData></Event>\"}"
+
+WINEVT_SYSMON = "{\"Message\":\"File creation time changed:\r\nRuleName: T1099\r\nUtcTime: " \
+                "2021-03-25 15:04:03.302\r\nProcessGuid: {A5A24D70-A630-605C-8C00-000000000F00}\r\nProcessId: " \
+                r"2020\r\nImage: C:\\Users\\Administrator\\AppData\\Local\\Programs\\Opera\\74.0.3911.232\\opera.exe" \
+                "\r\nTargetFilename: " r"C:\\Users\\Administrator\\AppData\\Roaming\\Opera Software\\Opera Stable" \
+                r"\\" "bc0808a3-2f49-487c-8ae3-325cf7658646.tmp\r\nCreationUtcTime: 2021-03-23 07:56:11.597" \
+                "\r\nPreviousCreationUtcTime: 2021-03-25 15:04:03.302\",\"Event\":\"<Event " \
+                "xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>" \
+                "<System><Provider Name='Microsoft-Windows-Sysmon' " \
+                "Guid='{5770385F-C22A-43E0-BF4C-06F5698FFBD9}'/>" \
+                "<EventID><random_int></EventID><Version>5</Version><Level>4</Level><Task>2</Task>" \
+                "<Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords><TimeCreated " \
+                "SystemTime='2021-03-25T15:04:03.320848900Z'/><EventRecordID>4033</EventRecordID>" \
+                "<Correlation/><Execution ProcessID='2044' ThreadID='2692'/>" \
+                "<Channel>Microsoft-Windows-Sysmon/Operational</Channel>" \
+                "<Computer>vagrant-2016</Computer><Security UserID='S-1-5-18'/>" \
+                "</System><EventData><Data Name='RuleName'>T1099</Data><Data Name='UtcTime'>2021-03-25 " \
+                "15:04:03.302</Data><Data Name='ProcessGuid'>{A5A24D70-A630-605C-8C00-000000000F00}" \
+                "</Data><Data Name='ProcessId'>2020</Data><Data Name='Image'>" \
+                r"C:\\Users\\Administrator\\AppData\\Local\\Programs\\Opera\\74.0.3911.232\\opera.exe" \
+                r"</Data><Data Name='TargetFilename'>C:\\Users\\Administrator\\AppData\\Roaming\\Opera Software\\" \
+                r"Opera Stable\\bc0808a3-2f49-487c-8ae3-325cf7658646.tmp</Data><Data Name='CreationUtcTime'>" \
+                "2021-03-23 07:56:11.597</Data><Data Name='PreviousCreationUtcTime'>2021-03-25 15:04:03.302" \
+                "</Data></EventData></Event>\"}"
+
+WINEVT_WINDOWS_DEFENDER = "{\"Message\":\"Windows Defender scan has started.\r\n \tScan ID: " \
+                           "{6E6187EE-21DF-4CC6-B0FA-42E2ADF201DE}\r\n \tScan Type: " \
+                           "Antimalware\r\n \tScan Parameters: Quick Scan\r\n \tScan " \
+                           r"Resources: \r\n \tUser: VAGRANT-2016\\Administrator" "\"," \
+                           "\"Event\":\"<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>" \
+                           "<System><Provider Name='Microsoft-Windows-Windows Defender' " \
+                           "Guid='{11CD958A-C507-4EF3-B3F2-5FD9DFBD2C78}'/><EventID><random_int>" \
+                           "</EventID><Version>0</Version><Level>4</Level>" \
+                           "<Task>0</Task><Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords>" \
+                           "<TimeCreated SystemTime='2021-03-25T15:07:51.586512400Z'/>" \
+                           "<EventRecordID>76</EventRecordID><Correlation/>" \
+                           "<Execution ProcessID='1856' ThreadID='3960'/>" \
+                           "<Channel>Microsoft-Windows-Windows Defender/Operational" \
+                           "</Channel><Computer>vagrant-2016</Computer><Security UserID='S-1-5-18'/></System>" \
+                           "<EventData><Data Name='Product Name'>%%827</Data>" \
+                           "<Data Name='Product Version'>4.10.14393.1198</Data>" \
+                           "<Data Name='Scan ID'>{6E6187EE-21DF-4CC6-B0FA-42E2ADF201DE}</Data>" \
+                           "<Data Name='Scan Type Index'>1</Data><Data Name='Scan Type'>%%802" \
+                           "</Data><Data Name='Scan Parameters Index'>1</Data>" \
+                           "<Data Name='Scan Parameters'>%%806</Data>" \
+                           "<Data Name='Domain'>VAGRANT-2016</Data><Data Name='User'>Administrator</Data>" \
+                           "<Data Name='SID'>S-1-5-21-3914780927-2846412080-4247273094-500</Data>" \
+                           "<Data Name='Scan Resources'></Data></EventData></Event>\"}"
 
 
 class Agent:
@@ -105,7 +240,7 @@ class Agent:
         stop_receive (int): Flag to determine when to activate and deactivate the agent event listener.
         stage_disconnect (str): WPK process state variable.
         rcv_msg_limit (int): max elements for the received message queue.
-        rcv_msg_queue (monitoring.Queue): Queue to store received messages in the agent.
+        rcv_msg_queue (queue.Queue): Queue to store received messages in the agent.
         disable_all_modules (boolean): Disable all simulated modules for this agent.
         rootcheck_frequency (int): frequency to run rootcheck scans. 0 to continuously send rootcheck events.
         syscollector_frequency (int): frequency to run syscollector scans. 0 to continuously send syscollector events.
@@ -204,7 +339,7 @@ class Agent:
         elif any([self.id, self.name, self.key]) and not all([self.id, self.name, self.key]):
             raise ValueError("All the parameters [id, name, key] have to be specified together")
 
-        self.create_encryption_key()
+        self.encryption_key = secure_message.get_encryption_key(self.id, self.name, self.key)
         self.create_keep_alive()
         self.create_hc_startup()
         self.initialize_modules(disable_all_modules)
@@ -282,77 +417,6 @@ class Agent:
         else:
             self._register_helper()
 
-    @staticmethod
-    def wazuh_padding(compressed_event):
-        """Add the Wazuh custom padding to each event sent.
-        Args:
-            compressed_event (bytes): Compressed event with zlib.
-        Returns:
-            bytes: Padded event.
-        Examples:
-            >>> wazuh_padding(b'x\\x9c\\x15\\xc7\\xc9\\r\\x00 \\x08\\x04\\xc0\\x96\\\\\\x94\\xcbn0H\\x03\\xda\\x7f
-                               \\x8c\\xf3\\x1b\\xd9e\\xec\\nJ[\\x04N\\xcf\\xa8\\xa6\\xa8\\x12\\x8d\\x08!\\xfe@}\\xb0
-                               \\xa89\\xe6\\xef\\xbc\\xfb\\xdc\\x07\\xb7E\\x0f\\x1b)
-                b'!!!!!!!!x\\x9c\\x15\\xc7\\xc9\\r\\x00 \\x08\\x04\\xc0\\x96\\\\\\x94\\xcbn0H\\x03\\xda\\x7f\\x8c\\xf3
-                \\x1b\\xd9e\\xec\\nJ[\\x04N\\xcf\\xa8\\xa6\\xa8\\x12\\x8d\\x08!\\xfe@}\\xb0\\xa89\\xe6\\xef\\xbc\\xfb
-                \\xdc\\x07\\xb7E\\x0f\\x1b'
-        """
-        padding = 8
-        extra = len(compressed_event) % padding
-        if extra > 0:
-            padded_event = (b'!' * (padding - extra)) + compressed_event
-        else:
-            padded_event = (b'!' * padding) + compressed_event
-        return padded_event
-
-    def create_encryption_key(self):
-        """Generate encryption key (using agent metadata and key)."""
-        agent_id = self.id.encode()
-        name = self.name.encode()
-        key = self.key.encode()
-        sum1 = (hashlib.md5((hashlib.md5(name).hexdigest().encode()
-                             + hashlib.md5(agent_id).hexdigest().encode())).hexdigest().encode())
-        sum1 = sum1[:15]
-        sum2 = hashlib.md5(key).hexdigest().encode()
-        key = sum2 + sum1
-        self.encryption_key = key
-
-    @staticmethod
-    def compose_event(message):
-        """Compose event from raw message.
-        Returns:
-            bytes: Composed event.
-        Examples:
-            >>> compose_event('test')
-            b'6ef859712d8b215d9daf071ff67aaa62555551234567891:5555:test'
-        """
-        message = message.encode()
-        random_number = b'55555'
-        global_counter = b'1234567891'
-        split = b':'
-        local_counter = b'5555'
-        msg = random_number + global_counter + split + local_counter + split + message
-        msg_md5 = hashlib.md5(msg).hexdigest()
-        event = msg_md5.encode() + msg
-        return event
-
-    def encrypt(self, padded_event):
-        """Encrypt event using AES or Blowfish encryption.
-        Args:
-            padded_event (bytes): Padded event.
-        Returns:
-            bytes: Encrypted event.
-        Examples:
-            >>> agent.encrypt(b'!!!!!!!!x\\x9c\\x15\\xc7\\xc9\\r\\x00 \\x08\\x04\\xc0\\x96\\\\\\x94\\xcbn0H\\x03\\xda
-                               \\x7f\\x8c\\xf3\\x1b\\xd9e\\xec\\nJ[\\x04N\\xcf\\xa8\\xa6\\xa8\\x12\\x8d\\x08!\\xfe@}
-                               \\xb0\\xa89\\xe6\\xef\\xbc\\xfb\\xdc\\x07\\xb7E\\x0f\\x1b')
-                b"\\xf8\\x8af[\\xfc'\\xf6j&1\\xd5\\xe1t|\\x810\\xe70G\\xe3\\xbc\\x8a\\xdbV\\x94y\\xa3A\\xb5q\\xf7
-                \\xb52<\\x9d\\xc8\\x83=o1U\\x1a\\xb3\\xf1\\xf5\\xde\\xe0\\x8bV\\xe99\\x9ej}#\\xf1\\x99V\\x12NP^T
-                \\xa0\\rYs\\xa2n\\xe8\\xa5\\xb1\\r[<V\\x16%q\\xfc"
-        """
-        encrypted_event = secure_message.encrypt(padded_event, self.encryption_key, self.cypher)
-        return encrypted_event
-
     def headers(self, agent_id, encrypted_event):
         """
         Add event headers for AES or Blowfish Cyphers.
@@ -374,21 +438,16 @@ class Agent:
         Args:
             message (str): Raw message.
         Returns:
-            bytes: Built event (compressed, padded, enceypted and with headers).
+            bytes: Built event (compressed, padded, encrypted and with headers).
         Examples:
             >>> create_event('test message')
             b'!005!#AES:\\xab\\xfa\\xcc2;\\x87\\xab\\x7fUH\\x03>_J\\xda=I\\x96\\xb5\\xa4\\x89\\xbe\\xbf`\\xd0\\xad
             \\x03\\x06\\x1aN\\x86 \\xc2\\x98\\x93U\\xcc\\xf5\\xe3@%\\xabS!\\xd3\\x9d!\\xea\\xabR\\xf9\\xd3\\x0b\\
             xcc\\xe8Y\\xe31*c\\x17g\\xa6M\\x0b&\\xc0>\\xc64\\x815\\xae\\xb8[bg\\xe3\\x83\\x0e'
         """
-        # Compose event
-        event = self.compose_event(message)
-        # Compress
-        compressed_event = zlib.compress(event)
-        # Padding
-        padded_event = self.wazuh_padding(compressed_event)
+        encoded_message = secure_message.encode(message.encode())
         # Encrypt
-        encrypted_event = self.encrypt(padded_event)
+        encrypted_event = secure_message.encrypt(encoded_message, self.encryption_key, self.cypher)
         # Add headers
         headers_event = self.headers(self.id, encrypted_event)
 
@@ -404,7 +463,7 @@ class Agent:
                 try:
                     rcv = sender.socket.recv(4)
                     if len(rcv) == 4:
-                        data_len = wazuh_unpack(rcv)
+                        data_len = secure_message.unpack(rcv)
                         buffer_array = sender.socket.recv(data_len)
                         if data_len != len(buffer_array):
                             continue
@@ -428,19 +487,8 @@ class Agent:
 
             msg_decrypted = secure_message.decrypt(msg_remove_header, self.encryption_key, self.cypher)
 
-            try:
-                padding = 0
-                while msg_decrypted:
-                    if msg_decrypted[padding] == 33:
-                        padding += 1
-                    else:
-                        break
-                msg_remove_padding = msg_decrypted[padding:]
-                msg_decompress = zlib.decompress(msg_remove_padding)
-                msg_decoded = msg_decompress.decode('ISO-8859-1')
-                self.process_message(sender, msg_decoded)
-            except zlib.error:
-                logging.error("Corrupted message from the manager. Continuing.")
+            msg_decoded = secure_message.decode(msg_decrypted)
+            self.process_message(sender, msg_decoded)
 
     def stop_receiver(self):
         """Stop Agent listener."""
@@ -585,7 +633,7 @@ class Agent:
 
     def create_keep_alive(self):
         """Set the keep alive event from keepalives operating systemd data."""
-        with open(os.path.join(_data_path, 'keepalives.txt'), 'r') as fp:
+        with open(os.path.join(DATA_PATH, 'keepalives.txt'), 'r') as fp:
             line = fp.readline()
             while line:
                 if line.strip("\n") == self.os:
@@ -764,21 +812,21 @@ class GeneratorSyscollector:
         Returns:
             str: the generated syscollector event message.
         """
-        message = syscollector.SYSCOLLECTOR_HEADER
+        message = SYSCOLLECTOR_HEADER
         if message_type == 'network':
-            message += syscollector.SYSCOLLECTOR_NETWORK_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_NETWORK_EVENT_TEMPLATE
         elif message_type == 'process':
-            message += syscollector.SYSCOLLECTOR_PROCESS_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_PROCESS_EVENT_TEMPLATE
         elif message_type == 'port':
-            message += syscollector.SYSCOLLECTOR_PORT_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_PORT_EVENT_TEMPLATE
         elif message_type == 'packages':
-            message += syscollector.SYSCOLLECTOR_PACKAGES_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_PACKAGES_EVENT_TEMPLATE
         elif message_type == 'OS':
-            message += syscollector.SYSCOLLECTOR_OS_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_OS_EVENT_TEMPLATE
         elif message_type == 'hardware':
-            message += syscollector.SYSCOLLECTOR_HARDWARE_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_HARDWARE_EVENT_TEMPLATE
         elif message_type == 'hotfix':
-            message += syscollector.SYSCOLLECTOR_HOTFIX_EVENT_TEMPLATE
+            message += SYSCOLLECTOR_HOTFIX_EVENT_TEMPLATE
         elif 'end' in message_type:
             message += '}'
 
@@ -946,9 +994,9 @@ class Rootcheck:
     def setup(self):
         """Initialized the list of rootcheck messages, using `rootcheck_sample` and agent information."""
         if self.rootcheck_sample is None:
-            self.rootcheck_path = os.path.join(_data_path, 'rootcheck.txt')
+            self.rootcheck_path = os.path.join(DATA_PATH, 'rootcheck.txt')
         else:
-            self.rootcheck_path = os.path.join(_data_path, self.rootcheck_sample)
+            self.rootcheck_path = os.path.join(DATA_PATH, self.rootcheck_sample)
 
         with open(self.rootcheck_path) as fp:
             line = fp.readline()
@@ -1115,11 +1163,11 @@ class GeneratorWinevt:
         self.winevent_mq = 'f'
         self.winevent_tag = 'Eventchannel'
         self.winevent_sources = {
-            'system': winevt.WINEVT_SYSTEM,
-            'security': winevt.WINEVT_SECURITY,
-            'windows-defender': winevt.WINEVT_WINDOWS_DEFENDER,
-            'application': winevt.WINEVT_APPLICATION,
-            'sysmon': winevt.WINEVT_SYSMON
+            'system': WINEVT_SYSTEM,
+            'security': WINEVT_SECURITY,
+            'windows-defender': WINEVT_WINDOWS_DEFENDER,
+            'application': WINEVT_APPLICATION,
+            'sysmon': WINEVT_SYSMON
         }
 
         self.current_event_key = None

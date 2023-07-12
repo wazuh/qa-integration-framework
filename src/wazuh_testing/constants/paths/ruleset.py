@@ -5,7 +5,7 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import os
 
-from wazuh_testing.constants.paths import WAZUH_PATH
+from . import WAZUH_PATH
 
 
 # Paths that are mainly used by the Analysisd module but serves to other modules too
