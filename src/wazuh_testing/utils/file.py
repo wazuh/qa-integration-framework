@@ -483,3 +483,13 @@ def get_list_of_content_yml(file_path, separator='_'):
         value_list.append(yaml.safe_load(f), file_path.split(separator)[0])
 
     return value_list
+
+
+def create_folder(path: str) -> None:
+    if not os.path.exists(path):
+        os.mkdir(path, mode=0o0777)
+
+
+def remove_folder(path: str) -> None:
+    if os.path.exists(path):
+        shutil.rmtree(path, onerror=on_write_error)
