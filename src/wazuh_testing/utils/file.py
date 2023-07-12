@@ -244,16 +244,6 @@ def exists_and_is_file(path: str) -> bool:
     return os.path.exists(path) and os.path.isfile(path)
 
 
-def delete_file(path: Union[str, os.PathLike]) -> None:
-    """Delete a regular file.
-
-    Args:
-        path (str | PathLike): File path of the file to be deleted.
-    """
-    if os.path.exists(path):
-        os.remove(path)
-
-
 def create_parent_directories(path: os.PathLike) -> list:
     """Create parent directories and return ONLY the created ones.
 
@@ -320,4 +310,4 @@ def delete_files(files: list[Union[str, os.PathLike]]) -> None:
         files (list(str | os.PathLike)): Paths of files to be deleted.
     """
     for file in files:
-        delete_file(file)
+        remove_file(file)

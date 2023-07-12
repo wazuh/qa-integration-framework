@@ -7,7 +7,7 @@ from pathlib import Path
 
 from wazuh_testing.constants.paths.configurations import WAZUH_API_CONFIGURATION_PATH, WAZUH_SECURITY_CONFIGURATION_PATH
 from wazuh_testing.constants.api import CONFIGURATION_TYPES
-from wazuh_testing.utils.file import read_yaml, append_content_to_yaml, delete_file, truncate_file, write_file
+from wazuh_testing.utils.file import read_yaml, append_content_to_yaml, remove_file, truncate_file, write_file
 
 
 def check_configuration_type(configuration_type: str) -> None:
@@ -76,4 +76,4 @@ def delete_configuration_file(configuration_type: str = 'base') -> None:
     Args:
         configuration_type (str): Choose configuration file to be removed.
     """
-    delete_file(set_target_configuration_file(configuration_type))
+    remove_file(set_target_configuration_file(configuration_type))
