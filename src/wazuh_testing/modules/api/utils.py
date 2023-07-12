@@ -11,17 +11,16 @@ from base64 import b64encode
 from copy import deepcopy
 from jsonschema import validate
 from typing import Tuple, Union, List
-from urllib3 import disable_warnings, exceptions
 
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
                                         WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP, \
                                         TARGET_ROUTE_MAP
+from wazuh_testing.constants.paths.api import WAZUH_API_CERTIFICATE
 from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 from wazuh_testing.utils.file import read_json_file
 
 
-disable_warnings(exceptions.InsecureRequestWarning)
 # Variables
 BASE_HEADERS = {'Content-Type': 'application/json'}
 
@@ -98,7 +97,7 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
     url = f"{get_base_url(protocol=protocol, host=host, port=port)}{LOGIN_ROUTE}"
 
     for _ in range(login_attempts):
-        response = requests.post(url, headers=set_authorization_header(user, password), verify=False, timeout=timeout)
+        response = requests.post(url, headers=set_authorization_header(user, password), verify=WAZUH_API_CERTIFICATE, timeout=timeout)
 
         if response.status_code == 200:
             token = json.loads(response.content.decode())['data']['token']
@@ -122,7 +121,7 @@ def allow_user_to_authenticate(user_id: str = None) -> requests.Response:
     url = get_base_url() + USERS_ROUTE + f'/{user_id}/run_as'
     params = '?allow_run_as=true'
 
-    response = requests.put(url + params, headers=authentication_headers, verify=False)
+    response = requests.put(url + params, headers=authentication_headers, verify=WAZUH_API_CERTIFICATE)
 
     return response
 
@@ -164,7 +163,7 @@ def manage_security_resources(method: str = 'get', resource: Union[dict, str] = 
     url = get_base_url() + RESOURCE_ROUTE_MAP[key] + params
 
     authentication_headers = login()[0]
-    response = getattr(requests, method)(url, headers=authentication_headers, verify=False, json=payload)
+    response = getattr(requests, method)(url, headers=authentication_headers, verify=WAZUH_API_CERTIFICATE, json=payload)
 
     return response
 
@@ -240,7 +239,7 @@ def relate_resources(test_metadata: dict) -> None:
                 route_and_params += f"&{extra_params[idx]}"
             url = get_base_url() + RESOURCE_ROUTE_MAP[origin] + route_and_params
             # Relate the origin resource with the target resource
-            response = requests.post(url, headers=login()[0], verify=False)
+            response = requests.post(url, headers=login()[0], verify=WAZUH_API_CERTIFICATE)
             if response.status_code != 200 or response.json()['error'] != 0:
                 raise RuntimeError(f"Could not relate {origin}: {origin_id} with {target_param}: {target_value}."
                                    f"\nResponse: {response.text}")
@@ -263,7 +262,7 @@ def remove_resources_relationship(origin_resource: dict = None, target_resource:
     url = get_base_url() + origin_route + route_and_params
 
     # Remove relationship between the origin resource and the target resource
-    response = requests.delete(url, headers=login()[0], verify=False)
+    response = requests.delete(url, headers=login()[0], verify=WAZUH_API_CERTIFICATE)
     if response.status_code != 200 or response.json()['error'] != 0:
         raise RuntimeError(f"Could not remove relationship between {origin_name}: {origin_id} "
                             f"and {target_name}: {target_id}."

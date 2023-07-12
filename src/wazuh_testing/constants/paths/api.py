@@ -20,3 +20,6 @@ WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH, 'wazuh-apid.py')
 
 # Databases paths
 RBAC_DATABASE_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'rbac.db')
+
+# SSL paths
+WAZUH_API_CERTIFICATE = os.path.join(WAZUH_API_CONFIGURATION_FOLDER_PATH, 'ssl', 'server.crt')
