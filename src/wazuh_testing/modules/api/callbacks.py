@@ -6,8 +6,8 @@ This program is free software; you can redistribute it and/or modify it under th
 import os
 from typing import Union, Tuple
 
-from wazuh_testing.constants.paths.api import WAZUH_API_LOG_FILE_PATH
 from wazuh_testing.constants.api import WAZUH_API_USER, LOGIN_ROUTE, WAZUH_API_PORT
+from wazuh_testing.constants.paths.logs import WAZUH_API_LOG_FILE_PATH
 from wazuh_testing.modules.api.patterns import API_TIMEOUT_ERROR_MSG, API_LOGIN_REQUEST_MSG, API_STARTED_MSG
 from wazuh_testing.tools import file_monitor
 from wazuh_testing.utils.callbacks import generate_callback
