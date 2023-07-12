@@ -28,8 +28,8 @@ from struct import pack
 from sys import getsizeof
 from time import mktime, localtime, sleep, time
 
-import wazuh_testing.constants.syscollector as syscollector
-import wazuh_testing.constants.winevt as winevt
+import wazuh_testing.constants.templates.syscollector as syscollector
+import wazuh_testing.constants.templates.winevt as winevt
 from wazuh_testing.tools.queue_monitor import Queue
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.database import query_wdb
