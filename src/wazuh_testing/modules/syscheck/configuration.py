@@ -3,4 +3,4 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 # Internal configuration options
-EXECD_DEBUG = 'execd.debug'
+SYSCHECK_DEBUG = 'syscheck.debug'
