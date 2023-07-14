@@ -1,18 +1,21 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import chardet
+import json
 import os
 import re
 import shutil
 import time
 import yaml
-
+from pathlib import Path
 from typing import Union, List
 from datetime import datetime
 
 
-def write_file(file_path: str, data: Union[List[str], str] = ''):
+def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
     Write the specified data to the specified file.
 
@@ -20,9 +23,6 @@ def write_file(file_path: str, data: Union[List[str], str] = ''):
         file_path (str): The path to the file to write to.
         data (List[str], str): The data to write to the file. This can either
                                be a string or a list of strings.
-
-    Returns:
-        None
     """
     with open(file_path, 'w') as f:
         f.writelines(data)
@@ -62,7 +62,7 @@ def read_yaml(file_path):
     """Read a YAML file from a given path, return a dictionary with the YAML data
 
     Args:
-        file_path (str): Path of the YAML file to be readed
+        file_path (str): Path of the YAML file to be read.
 
     Returns:
        dict: Yaml structure.
@@ -71,15 +71,34 @@ def read_yaml(file_path):
         return yaml.safe_load(f)
 
 
+def read_json_file(file_path: Union[str, os.PathLike]) -> dict:
+    """Read a JSON file from a given path, return a dictionary with the JSON data
+
+    Args:
+        file_path (str): Path of the JSON file to be read.
+
+    Returns:
+       dict: JSON data.
+    """
+    return json.loads(read_file(file_path))
+
+
+def append_content_to_yaml(path: Union[str, os.PathLike], content: dict) -> None:
+    """Write content at the end of a file or clear its content if `content` is None.
+
+    Args:
+        path (str | PathLike): Path to the target file.
+    """
+    with open(path, 'w+') as file:
+        yaml.dump(content, file)
+
+
 def truncate_file(file_path: str) -> None:
     """
     Truncates the specified file.
 
     Args:
         file_path (str): The path to the file to be truncated.
-
-    Returns:
-        None
     """
     with open(file_path, "w") as f:
         f.truncate()
@@ -108,14 +127,14 @@ def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], fil
     write_file(file_path, file_data)
 
 
-def get_file_encoding(file_path):
+def get_file_encoding(file_path: Union[str, os.PathLike]) -> str:
     """Detect and return the file encoding.
 
     Args:
         file_path (str): File path to check.
 
     Returns:
-        str: File encoding.
+        encoding (str): File encoding.
 
     Raises:
         ValueError: If could not find the file_path or is not a file.
@@ -223,3 +242,72 @@ def exists_and_is_file(path: str) -> bool:
         bool: True if the file exists and is a regular file, False otherwise.
     """
     return os.path.exists(path) and os.path.isfile(path)
+
+
+def create_parent_directories(path: os.PathLike) -> list:
+    """Create parent directories and return ONLY the created ones.
+
+    Args:
+        path (os.PathLike): Path of the file or directory with parents
+
+    Returns:
+        created_parents (list): List of created parents (maybe not all of the parents were created)
+    """
+    created_parents = []
+
+    for parent in reversed(path.parents):
+        # If the folder exist do not add it to the `created_files` list, otherwise add it
+        try:
+            parent.mkdir(exist_ok=False)
+            created_parents.append(parent)
+        except FileExistsError:
+            pass
+
+    return created_parents
+
+
+def create_files(files: list[Union[str, os.PathLike]]) -> list:
+    """Create multiple files/directories. Return the list of created files/directories.
+
+    If the list contains a file, it must have at least 1 suffix, for example: `file.txt`; else it's considered as dir.
+
+    Args:
+        files (list(str | os.PathLike)): Paths of files to be created.
+
+    Returns:
+        created_files (list): List of files/directories created during the process.
+
+    Raises:
+        FileExistsError: When a file already exists.
+    """
+    if not isinstance(file, list):
+        raise TypeError(f"`file` should be a 'list', not a '{type(file)}'")
+
+    created_files = []
+    for file in files:
+        file = Path(file)
+        if file.exists():
+            raise FileExistsError(f"`{file}` already exists.")
+
+        # If file does not have suffixes, consider it a directory
+        if file.suffixes == []:
+            # Add a dummy file to the target directory to create the directory
+            created_files.extend(create_parent_directories(Path(file).joinpath('dummy.file')))
+            return create_files
+
+        created_files.extend(create_parent_directories(file))
+
+        write_file(file_path=file, data='')
+        created_files.append(file)
+
+    return created_files
+
+
+def delete_files(files: list[Union[str, os.PathLike]]) -> None:
+    """Delete a list of files.
+
+    Args:
+        files (list(str | os.PathLike)): Paths of files to be deleted.
+    """
+    for file in files:
+        remove_file(file)

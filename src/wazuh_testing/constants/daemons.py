@@ -39,12 +39,12 @@ WAZUH_MANAGER_DAEMONS = [AGENTLESS_DAEMON,
                          SYSCHECK_DAEMON,
                          WAZUH_DB_DAEMON]
 
-API_DAEMONS_REQUIREMENTS = [ANALYSISD_DAEMON,
-                            API_DAEMON,
+API_DAEMONS_REQUIREMENTS = [API_DAEMON,
+                            WAZUH_DB_DAEMON,
                             EXEC_DAEMON,
-                            MODULES_DAEMON,
+                            ANALYSISD_DAEMON,
                             REMOTE_DAEMON,
-                            WAZUH_DB_DAEMON]
+                            MODULES_DAEMON]
 
 WAZUH_AGENT = 'wazuh-agent'
 WAZUH_MANAGER = 'wazuh-manager'

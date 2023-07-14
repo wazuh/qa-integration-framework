@@ -2,7 +2,6 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
-import sys
 from copy import deepcopy
 from typing import List
 
@@ -344,6 +343,8 @@ def get_test_cases_data(data_file_path):
     test_cases_ids = []
 
     for test_case in test_cases_data:
+        if test_case.get('metadata') is None:
+            test_case['metadata'] = deepcopy(test_case['configuration_parameters'])
         configuration_parameters.append(test_case['configuration_parameters'])
         metadata_parameters = {
             'name': test_case['name'], 'description': test_case['description']}

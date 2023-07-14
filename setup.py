@@ -1,6 +1,8 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import shutil
 
 from pathlib import Path
@@ -13,7 +15,14 @@ package_data_list = [
     'data/all_disabled_ossec.conf',
     'data/analysis_alert.json',
     'data/analysis_alert_windows.json',
-    'data/mitre_event.json'
+    'data/mitre_event.json',
+    'data/keepalives.txt',
+    'data/rootcheck.txt',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-analysisd_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-db_template.json',
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-remoted_template.json'
 ]
 
 # Entry point scripts.

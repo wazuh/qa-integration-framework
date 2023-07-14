@@ -1,10 +1,11 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import queue
 import time
-
-from typing import Callable, Tuple
+from typing import Callable
 
 from .base_monitor import BaseMonitor
 
@@ -15,7 +16,7 @@ class QueueMonitor(BaseMonitor):
     Attributes:
         monitored_object (Queue): Queue to monitor.
         callback_result (*): It will store the result returned by the callback call if it is not None.
-        """
+    """
 
     def __init__(self, monitored_object: queue.Queue) -> None:
         """
@@ -27,8 +28,7 @@ class QueueMonitor(BaseMonitor):
         super().__init__(monitored_object=monitored_object)
 
     def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1) -> None:
-        """
-        Start monitoring the target queue using the instance provided regex and accumulate matches.
+        """Start monitoring the target queue using the instance provided regex and accumulate matches.
 
         This method monitors the target queue using the regex provided during object instantiation.
         It accumulates the matches and stops monitoring when the number of matches reaches the number

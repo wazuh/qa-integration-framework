@@ -1,15 +1,17 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-import json
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import os
+import json
 import socket
 import time
-
-from typing import List
+from typing import List, Union
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
+from wazuh_testing.tools.db_administrator import DatabaseAdministrator
 from wazuh_testing.utils import services, secure_message
 
 
@@ -71,3 +73,14 @@ def query_wdb(command) -> List[str]:
         sock.close()
 
     return data
+
+
+def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os.PathLike, str]) -> None:
+    """Run SQL script in a database.
+
+    Args:
+        database_path (os.PathLike or str): Path to the SQLite database.
+        script_path (os.PathLike or str): SQL script to be executed.
+    """
+    with DatabaseAdministrator(database_path) as db:
+        db.execute_script(script_path)

@@ -1,12 +1,15 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import os
 import sys
 
 from wazuh_testing.constants.platforms import WINDOWS
 
 from . import WAZUH_PATH
+from wazuh_testing.constants.paths.api import WAZUH_API_FOLDER_PATH, WAZUH_API_SECURITY_FOLDER_PATH
 
 
 if sys.platform == WINDOWS:
@@ -22,3 +25,7 @@ ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.con
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 CUSTOM_RULES_PATH = os.path.join(BASE_CONF_PATH, 'rules')
 CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+
+# Wazuh API configurations path
+WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration', 'api.yaml')
+WAZUH_SECURITY_CONFIGURATION_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'security.yaml')
