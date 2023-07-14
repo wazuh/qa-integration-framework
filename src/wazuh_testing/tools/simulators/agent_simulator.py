@@ -418,19 +418,17 @@ class Agent:
             self._register_helper()
 
     def headers(self, agent_id, encrypted_event):
-        """
-        Add event headers for AES or Blowfish Cyphers.
+        """Add event headers for AES or Blowfish Cyphers.
+
         Args:
             agent_id (str): Agent id.
-            encrypted_event (str): Encrypted event.
+            encrypted_event (bytes): Encrypted event.
         Returns:
             bytes: Encrypted event with headers.
         """
-        header = None
-        if self.cypher == "aes":
-            header = "!{0}!#AES:".format(agent_id).encode()
-        if self.cypher == "blowfish":
-            header = "!{0}!:".format(agent_id).encode()
+        header = secure_message.ALGORITHM_HEADERS[self.cypher.upper()]
+        header = f"!{agent_id}!{header.decode()}".encode()
+
         return header + encrypted_event
 
     def create_event(self, message):
