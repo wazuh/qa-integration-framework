@@ -223,3 +223,8 @@ def exists_and_is_file(path: str) -> bool:
         bool: True if the file exists and is a regular file, False otherwise.
     """
     return os.path.exists(path) and os.path.isfile(path)
+
+
+def create_folder(path: str) -> None:
+    if not os.path.exists(path):
+        os.mkdir(path, mode=0o0777)
