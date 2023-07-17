@@ -9,3 +9,4 @@ REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodat
 SENDING_FIM_EVENT =  r'.*Sending FIM event:.*'
 WHODATA_ADDED_EVENT = fr"{SENDING_FIM_EVENT}added.*"
 WHODATA_DELETED_EVENT = fr"{SENDING_FIM_EVENT}deleted.*"
+WHODATA_NOT_STARTED = r'.*Who-data engine could not start. Switching who-data to real-time.'
