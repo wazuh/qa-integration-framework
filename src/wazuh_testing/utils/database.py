@@ -7,6 +7,7 @@ import os
 import json
 import socket
 import sqlite3
+import sys
 import time
 from typing import List, Union
 
@@ -108,7 +109,7 @@ def execute_sqlite_query(cursor, query):
         except sqlite3.OperationalError:
             _, exception_message, _ = sys.exc_info()
             if str(exception_message) == 'database is locked':
-                sleep(0.5)
+                time.sleep(0.5)
                 retries += 1
 
     # If the database is locked after the maximum number of retries, then raise the exception
