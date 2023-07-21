@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from wazuh_testing import WAZUH_PATH
+from wazuh_testing.constants.paths import WAZUH_PATH
 
 AWS_MODULE_PATH = Path(WAZUH_PATH, 'wodles', 'aws')
 S3_CLOUDTRAIL_DB_PATH = Path(AWS_MODULE_PATH, 's3_cloudtrail.db')
