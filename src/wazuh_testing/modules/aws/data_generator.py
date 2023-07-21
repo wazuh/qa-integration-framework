@@ -7,7 +7,7 @@ from os.path import join
 from uuid import uuid4
 
 from wazuh_testing.modules import aws as cons
-from wazuh_testing.tools.utils import get_random_ip, get_random_port, get_random_string
+from wazuh_testing.utils.random import get_random_ip, get_random_port, get_random_string
 
 
 def get_random_interface_id():
