@@ -32,3 +32,7 @@ DEFAULT_AUTHD_PASS_PATH = os.path.join(BASE_CONF_PATH, 'authd.pass')
 # Wazuh API configurations path
 WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration', 'api.yaml')
 WAZUH_SECURITY_CONFIGURATION_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'security.yaml')
+
+# Directories
+TEMPLATE_DIR = 'configuration_template'
+TEST_CASES_DIR = 'test_cases'
