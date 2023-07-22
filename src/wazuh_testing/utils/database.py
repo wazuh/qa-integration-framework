@@ -93,7 +93,8 @@ def execute_sqlite_query(cursor, query):
     Args:
         cursor (sqlite3.Cursor): Sqlite cursor object.
         query (str): Query to execute.
-
+    Returns:
+        result (List[list]): Each row is the query result row and each column is the query field value.
     Raises:
         sqlite3.OperationalError if database is locked after max retries
     """
@@ -115,6 +116,8 @@ def execute_sqlite_query(cursor, query):
     # If the database is locked after the maximum number of retries, then raise the exception
     if retries == max_retries:
         raise sqlite3.OperationalError('database is locked')
+    else:
+        return cursor.fetchall()
 
 def get_sqlite_query_result(db_path, query):
     """Get a query result.
@@ -126,19 +129,16 @@ def get_sqlite_query_result(db_path, query):
     Returns:
         result (List[list]): Each row is the query result row and each column is the query field value.
     """
-    services.control_service('stop', daemon='wazuh-db')
-
+    # services.control_service('stop', daemon='wazuh-db')
+    records = []
     try:
         db_connection = sqlite3.connect(db_path)
         try:
             cursor = db_connection.cursor()
-
-            execute_sqlite_query(cursor, query)
-            records = cursor.fetchall()
-
-            return records
+            records = execute_sqlite_query(cursor, query)
         finally:
             cursor.close()
     finally:
         db_connection.close()
-        services.control_service('start', daemon='wazuh-db')
+        # services.control_service('start', daemon='wazuh-db')
+        return records
