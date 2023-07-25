@@ -57,7 +57,7 @@ class QueueMonitor(BaseMonitor):
                     for msg in item:
                         check_match(self, msg)
                         # If it has triggered the callback the expected times, break and leave the loop
-                        if self.matches >= accumulations:
+                        if self.self.matches >= accumulations:
                             break
                 else:
                     check_match(self, item)
