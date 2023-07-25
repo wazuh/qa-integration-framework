@@ -2,15 +2,14 @@ chardet==3.0.4
 jsonschema==3.2.0
 psutil>=5.6.6
 py~=1.10.0
-pycryptodome==3.18.0
+pycryptodome>=3.18.0
 pyOpenSSL>=19.1.0
 pytest-html==3.1.1
 pytest==6.2.2 ; python_version <= "3.9"
 pytest==7.1.2 ; python_version >= "3.10"
-pyyaml==6.0
+pyyaml>=6.0.1
 requests>=2.23.0
 pywin32>=305; sys_platform == "win32"
 setuptools>=56.0.0
 lockfile>=0.10
 urllib3<1.27,>=1.26.2
-pycryptodome
