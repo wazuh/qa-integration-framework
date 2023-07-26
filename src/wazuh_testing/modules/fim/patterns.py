@@ -30,3 +30,4 @@ FILE_LIMIT_AMOUNT = r".*Maximum number of files to be monitored: '(\d+)'"
 
 LINKS_SCAN_FINALIZED = r'.*Links check finalized.*'
 AUDIT_RULES_RELOADED = r'.*Audit rules reloaded\. Rules loaded: (.+)'
+EXTRACT_FIM_EVENT_JSON =  r'.*Sending FIM event: (.+)$'
