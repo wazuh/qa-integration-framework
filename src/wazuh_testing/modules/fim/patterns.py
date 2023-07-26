@@ -8,8 +8,8 @@ IGNORING_DUE_TO_PATTERN = r".*?Ignoring path '(.*)' due to pattern '(.*)'.*"
 REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodata engine started.*'
 MONITORING_PATH = r'.*Monitoring path:.*'
 SENDING_FIM_EVENT =  r'.*Sending FIM event: .*"type":"event".*'
-WHODATA_ADDED_EVENT = fr"{SENDING_FIM_EVENT}added.*"
-WHODATA_DELETED_EVENT = fr"{SENDING_FIM_EVENT}deleted.*"
+FIM_ADDED_EVENT = r'.*Sending FIM event: .*"type":"added".*'
+FIM_DELETED_EVENT = r'.*Sending FIM event: .*"type":"deleted".*'
 WHODATA_NOT_STARTED = r'.*Who-data engine could not start. Switching who-data to real-time.'
 
 EXTRACT_FIM_EVENT_JSON =  r'.*Sending FIM event: (.+)$'
