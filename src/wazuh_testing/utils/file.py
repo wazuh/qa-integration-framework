@@ -104,7 +104,7 @@ def read_yaml(file_path):
        dict: Yaml structure.
     """
     with open(file_path) as f:
-        return yaml.safe_load(f)
+        return yaml.load(f,  yaml.Loader)
 
 
 def read_json_file(file_path: Union[str, os.PathLike]) -> dict:
