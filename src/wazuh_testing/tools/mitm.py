@@ -22,8 +22,8 @@ from wazuh_testing.utils import secure_message
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
 
-    def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
-                        client_addres: tuple[str | bytes | bytearray, int]) -> None:
+    def process_request(self, request ,
+                        client_addres) -> None:
         """
         overrides process_request and saves `last_address`.
         """
