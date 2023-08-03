@@ -10,7 +10,7 @@ MONITORING_PATH = r'.*Monitoring path:.*'
 SENDING_FIM_EVENT =  r'.*Sending FIM event: .*"type":"event".*'
 ADDED_EVENT = r'.*"type":"added".*'
 DELETED_EVENT = r'.*"type":"deleted".*'
-INODE_ENTRIES =  r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
+INODE_ENTRIES_PATH_COUNT =  r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 WHODATA_NOT_STARTED = r'.*Who-data engine could not start. Switching who-data to real-time.'
 
 EXTRACT_EVENT_JSON =  r'.*Sending FIM event: (.+)$'
