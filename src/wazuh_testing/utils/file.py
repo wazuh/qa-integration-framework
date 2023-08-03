@@ -423,7 +423,8 @@ def create_files(files: list[Union[str, os.PathLike]]) -> list:
         # If file does not have suffixes, consider it a directory
         if file.suffixes == []:
             # Add a dummy file to the target directory to create the directory
-            created_files.extend(create_parent_directories(Path(file).joinpath('dummy.file')))
+            created_files.extend(create_parent_directories(
+                Path(file).joinpath('dummy.file')))
             return create_files
 
         created_files.extend(create_parent_directories(file))

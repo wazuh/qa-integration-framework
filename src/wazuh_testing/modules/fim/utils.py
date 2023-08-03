@@ -1,7 +1,7 @@
 import json
 import re
 
-from .patterns import EXTRACT_FIM_EVENT_JSON
+from .patterns import EXTRACT_EVENT_JSON
 
 
 def get_fim_event_data(message: str) -> dict:
@@ -14,5 +14,5 @@ def get_fim_event_data(message: str) -> dict:
     Returns:
         dict: The JSON data of the FIM event.
     """
-    to_json = re.match(EXTRACT_FIM_EVENT_JSON, message)
+    to_json = re.match(EXTRACT_EVENT_JSON, message)
     return json.loads(to_json.group(1)).get('data')
