@@ -521,3 +521,19 @@ def delete_files_in_folder(folder_path):
                 shutil.rmtree(file_path)
         except Exception as e:
             print(f'Failed to delete {file_path}. Reason: {e}')
+
+
+def move_folder(source_path: str, destination_path: str) -> None:
+    try:
+        # Check if the source path exists
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(f"Source path '{source_path}' does not exist.")
+
+        # Check if the destination path exists
+        if os.path.exists(destination_path):
+            raise FileExistsError(f"Destination path '{destination_path}' already exists.")
+
+        # Move the folder
+        shutil.move(source_path, destination_path)
+    except Exception as e:
+        print(f"An error occurred: {e}")
