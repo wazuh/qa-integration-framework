@@ -16,7 +16,7 @@ ANALYSISD_STATE = os.path.join(VAR_RUN_PATH, 'wazuh-analysisd.state')
 
 if sys.platform == WINDOWS:
     VERSION_FILE = os.path.join(WAZUH_PATH, 'VERSION')
-    AGENTD_STATE = os.path.join(WAZUH_PATH, 'wazuh-agent.state')
+    AGENTD_STATE = os.path.join(WAZUH_PATH, 'wazuh-agentd.state')
 else:
     VERSION_FILE = ''
-    AGENTD_STATE = os.path.join(VAR_RUN_PATH, 'wazuh-agent.state')
+    AGENTD_STATE = os.path.join(VAR_RUN_PATH, 'wazuh-agentd.state')
