@@ -257,19 +257,6 @@ def decompress_file(file_path, dest_file_path, compression_type="gzip") -> None:
             dest.write(bz2.decompress(source.read()))
 
 
-def read_json_file(file_path: str) -> str:
-    """
-    Write dict data to JSON file
-
-    Args:
-        file_path (str): File path where is located the JSON file to write.
-
-    Returns:
-        str: JSON file data.
-    """
-    return json.loads(read_file(file_path))
-
-
 def write_json_file(file_path: str, data: dict[str, str], ensure_ascii: bool = False) -> None:
     """
     Write dict data to JSON file
