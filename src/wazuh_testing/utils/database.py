@@ -76,34 +76,6 @@ def query_wdb(command) -> List[str]:
     return data
 
 
-def execute_sqlite_query(cursor, query: str) -> None:
-    """Execute a sqlite query, retrying in case the database is locked.
-    Args:
-        cursor (sqlite3.Cursor): Sqlite cursor object.
-        query (str): Query to execute.
-    Raises:
-        sqlite3.OperationalError if database is locked after max retries
-    """
-    retries = 0
-    max_retries = 10
-    make_query = True
-
-    # Execute the query, retrying it if necessary up to a maximum number of times.
-    while make_query and retries < max_retries:
-        try:
-            cursor.execute(query)
-            make_query = False
-        except sqlite3.OperationalError:
-            _, exception_message, _ = sys.exc_info()
-            if str(exception_message) == 'database is locked':
-                sleep(0.5)
-                retries += 1
-
-    # If the database is locked after the maximum number of retries, then raise the exception
-    if retries == max_retries:
-        raise sqlite3.OperationalError('database is locked')
-
-
 def make_sqlite_query(db_path: str, query_list: List[str]) -> None:
     """Make a query to the database for each passed query.
     Args:
