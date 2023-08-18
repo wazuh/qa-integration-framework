@@ -4,7 +4,7 @@ import gzip
 
 import boto3
 from botocore.exceptions import ClientError
-from wazuh_testing import logger
+from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
 
 session = boto3.Session(profile_name='qa')
