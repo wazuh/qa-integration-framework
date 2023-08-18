@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from wazuh_testing import logger
+from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws import AWS_MODULE_PATH
 from wazuh_testing.modules.aws.exceptions import OutputAnalysisError
 
