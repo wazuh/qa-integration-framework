@@ -13,5 +13,6 @@ DELETED_EVENT = r'.*"type":"deleted".*'
 INODE_ENTRIES_PATH_COUNT =  r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 WHODATA_NOT_STARTED = r'.*Who-data engine could not start. Switching who-data to real-time.'
 EMPTY_DIRECTORIES_TAG = r'.*Empty directories tag found in the configuration.*'
+FILE_LIMIT_PERCENTAGE = r'.*File database is (\d+)% full.'
 
 EXTRACT_EVENT_JSON =  r'.*Sending FIM event: (.+)$'
