@@ -1,7 +1,9 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import re
 import os
+
 from copy import deepcopy
 from typing import List
 
@@ -353,3 +355,26 @@ def get_test_cases_data(data_file_path):
         test_cases_ids.append(test_case['name'])
 
     return configuration_parameters, configuration_metadata, test_cases_ids
+
+def change_internal_options(param, value, value_regex='[0-9]*'):
+    """Change the value of a given parameter in local_internal_options.
+
+    Args:
+        param (str): parameter to change.
+        value (obj): new value.
+        value_regex (str, optional): regex to match value in local_internal_options.conf. Default '[0-9]*'
+    """
+    add_pattern = True
+    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, "r") as sources:
+        lines = sources.readlines()
+
+    with open(WAZUH_LOCAL_INTERNAL_OPTIONS, "w") as sources:
+        for line in lines:
+            sources.write(
+                re.sub(f'{param}={value_regex}', f'{param}={value}', line))
+            if param in line:
+                add_pattern = False
+
+    if add_pattern:
+        with open(WAZUH_LOCAL_INTERNAL_OPTIONS, "a") as sources:
+            sources.write(f'\n\n{param}={value}')
