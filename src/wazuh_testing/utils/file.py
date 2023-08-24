@@ -347,7 +347,7 @@ def remove_file(file_path: str) -> None:
         file_path (str): File or directory path to remove.
     """
     if os.path.exists(file_path):
-        if os.path.isfile(file_path):
+        if os.path.isfile(file_path) or os.path.islink(file_path):
             os.remove(file_path)
         elif os.path.isdir(file_path):
             delete_path_recursively(file_path)
@@ -556,9 +556,6 @@ def rename(source_path: str, destination_path: str) -> None:
 
 
 def modify_symlink_target(target:str, link_path: str) -> None:
-    if sys.platform == LINUX:
-        commands.run(['ln', '-sfn', target, link_path])
-    else:
-        if os.path.exists(link_path):
-            os.remove(link_path)
-        os.symlink(target, link_path)
+    if os.path.exists(link_path):
+        os.remove(link_path)
+    Path(link_path).symlink_to(target)
