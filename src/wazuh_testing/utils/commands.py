@@ -22,3 +22,15 @@ def run_local_command_returning_output(command):
         run = subprocess.Popen(['/bin/bash', '-c', command], stdout=subprocess.PIPE)
 
     return run.stdout.read().decode()
+
+
+def run_with_output(commands: list) -> bytes:
+    return subprocess.check_output(commands)
+
+
+def run(commands: list) -> int:
+    return subprocess.call(commands)
+
+
+def get_rules_path():
+    return str(run_with_output(['auditctl', '-l']))

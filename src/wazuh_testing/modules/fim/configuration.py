@@ -4,3 +4,4 @@
 
 # Internal configuration options
 SYSCHECK_DEBUG = 'syscheck.debug'
+SYMLINK_SCAN_INTERVAL = 'syscheck.symlink_scan_interval'

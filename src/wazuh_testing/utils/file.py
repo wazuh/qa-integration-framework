@@ -2,6 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
+import sys
 import bz2
 import gzip
 import json
@@ -22,6 +23,11 @@ import filetype
 import requests
 import yaml
 from wazuh_testing.constants import platforms
+from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.platforms import LINUX
+
+from wazuh_testing.utils import commands
+
 
 def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
@@ -547,3 +553,12 @@ def rename(source_path: str, destination_path: str) -> None:
 
     # Rename the file or folder
     os.rename(source_path, destination_path)
+
+
+def modify_symlink_target(target:str, link_path: str) -> None:
+    if sys.platform == LINUX:
+        commands.run(['ln', '-sfn', target, link_path])
+    else:
+        if os.path.exists(link_path):
+            os.remove(link_path)
+        os.symlink(target, link_path)
