@@ -566,9 +566,12 @@ def rename(source_path: str, destination_path: str) -> None:
 
 
 def modify_symlink_target(target:str, link_path: str) -> None:
-    if os.path.exists(link_path):
-        os.remove(link_path)
-    Path(link_path).symlink_to(target)
+    if sys.platform == LINUX:
+        commands.run(['ln', '-sfn', target, link_path])
+    else:
+        if os.path.exists(link_path):
+            os.remove(link_path)
+        os.symlink(target, link_path)
 
 
 def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
@@ -593,3 +596,5 @@ def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
 
 def exists(path:str) -> bool:
     return os.path.exists(path) or os.path.islink(path)
+
+
