@@ -11,6 +11,7 @@ MONITORING_PATH = r'.*Monitoring path:.*'
 # Events
 SENDING_FIM_EVENT = r'.*Sending FIM event: .*"type":"event".*'
 EVENT_TYPE_ADDED = r'.*"type":"added".*'
+EVENT_TYPE_MODIFIED = r'.*"type":"modified".*'
 EVENT_TYPE_DELETED = r'.*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 
