@@ -1687,9 +1687,12 @@ class InjectorThread(threading.Thread):
                         break
 
                 event = self.agent.create_event(event_msg)
-                self.sender.send_event(event)
-                self.totalMessages += 1
-                sent_messages += 1
+                try:
+                    self.sender.send_event(event)
+                    self.totalMessages += 1
+                    sent_messages += 1
+                except Exception as e:
+                    logging.debug(f"Send a module message - {e}")
                 if self.totalMessages % eps == 0:
                     sleep(1.0 - ((time() - start_time) % 1.0))
 
