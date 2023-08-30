@@ -1,7 +1,0 @@
-# Copyright (C) 2015-2023, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-
-# Internal configuration options
-SYSCHECK_DEBUG = 'syscheck.debug'
-SYMLINK_SCAN_INTERVAL = 'syscheck.symlink_scan_interval'
