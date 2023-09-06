@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
 
+from wazuh_testing.tools.socket_controller import SocketController
 from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
                                                   MODULESD_C_INTERNAL_SOCKET_PATH
 
@@ -27,3 +28,18 @@ def delete_sockets(path=None):
                 os.remove(item)
     except FileNotFoundError:
         pass
+
+def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
+    """Send queries request to socket in the argument.
+
+    Args:
+        query (str): query request command. For example `agent {agent.id} rootcheck delete`.
+        socket_path (str): by default use wdb socket.
+    Returns:
+        list: Query response data.
+    """
+
+    controller = SocketController(socket_path)
+    controller.send(query, size=True)
+    response = controller.receive(size=True)
+    return response
