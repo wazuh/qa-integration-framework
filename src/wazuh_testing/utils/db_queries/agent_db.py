@@ -91,3 +91,19 @@ def update_os_info(agent_id='000', scan_id=int(time.time()),
     """
     delete_os_info(agent_id)
     insert_os_info(**locals())
+
+
+def update_pm_event(agent_id: str = '000'):
+    """Update the pm_events of an agent.
+    Args:
+        agent_id (str): Agent ID.
+    """
+    database.query_wdb(f"agent {agent_id} sql SELECT * FROM pm_event")
+
+
+def rootcheck_delete(agent_id: str = '000'):
+    """Remove roocheck events.
+    Args:
+        agent_id (str): Agent ID.
+    """
+    database.query_wdb(f"agent {agent_id} rootcheck delete")
