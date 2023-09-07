@@ -38,8 +38,9 @@ def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
     Returns:
         list: Query response data.
     """
-
     controller = SocketController(socket_path)
     controller.send(query, size=True)
     response = controller.receive(size=True)
+    controller.close()
+
     return response

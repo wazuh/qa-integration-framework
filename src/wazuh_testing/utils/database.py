@@ -84,27 +84,3 @@ def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os
     """
     with DatabaseAdministrator(database_path) as db:
         db.execute_script(script_path)
-
-
-def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
-    """Execute a query in a given database and return the result.
-    Args:
-        db_path (str): Path where is located the DB.
-        query (str): SQL query. e.g(SELECT * ..).
-    Returns:
-        result (List[list]): Each row is the query result row and each column is the query field value.
-    """
-    services.control_service('stop', daemon=WAZUH_DB_DAEMON)
-
-    try:
-        with DatabaseAdministrator(db_path) as db:
-            records = db.execute_query(query)
-            result = []
-
-            for row in records:
-                result.append(', '.join([f"{item}" for item in row]))
-
-            return result
-    finally:
-        services.control_service('start', daemon=WAZUH_DB_DAEMON)
-
