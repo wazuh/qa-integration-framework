@@ -4,4 +4,5 @@
 
 # Internal configuration options
 AGENTD_WINDOWS_DEBUG = 'windows.debug'
-AGENTD_DEBUG= 'agent.debug'
+AGENTD_DEBUG = 'agent.debug'
+AGENTD_TIMEOUT = 'agent.recv_timeout'
