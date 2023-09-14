@@ -215,8 +215,7 @@ class RemotedSimulator(BaseSimulator):
             str: The decrypted and decoded message.
         """
         payload = secure_message.get_payload(message, self.algorithm)
-        decrypted = secure_message.decrypt(
-            payload, self.encryption_key, self.algorithm)
+        decrypted = secure_message.decrypt(payload, self.encryption_key, self.algorithm)
 
         return secure_message.decode(decrypted)
 
@@ -240,7 +239,7 @@ class RemotedSimulator(BaseSimulator):
         self.algorithm = secure_message.get_algorithm(message)
         self.encryption_key = self.__get_client_keys()
 
-    def __save_message_context(self, request: bytes, message: str, response: str) -> None:
+    def __save_message_context(self, request: bytes, message: str, response: bytes) -> None:
         """
         Save the context of a received request from the agent.
 
