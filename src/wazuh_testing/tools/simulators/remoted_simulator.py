@@ -247,6 +247,8 @@ class RemotedSimulator(BaseSimulator):
 
         Args:
             request (bytes): The received request from the agent.
+            message (str): The decrypted and decoded message.
+            response (str): The response message to the agent.
         """
         if agent_id := secure_message.get_agent_id(request):
             self.last_message_ctx['id'] = agent_id
