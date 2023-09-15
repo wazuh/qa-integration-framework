@@ -35,6 +35,7 @@ class RemotedSimulator(BaseSimulator):
         keys_path (str): The path to the file containing the client keys.
         custom_message (bytes): A custom response message to send to the server instead of the default one.
         last_message_ctx (dict): A dictionary that stores the context of the last received message.
+        request_counter (int): A counter that keeps track of the number of requests sent to the server.
     """
     MODES = ['ACCEPT', 'WRONG_KEY', 'INVALID_MSG']
 
@@ -65,6 +66,7 @@ class RemotedSimulator(BaseSimulator):
 
         self.custom_message = None
         self.last_message_ctx = {}
+        self.request_counter = 0
 
     # Properties
 
@@ -129,7 +131,7 @@ class RemotedSimulator(BaseSimulator):
 
     # Internal methods.
 
-    def __remoted_response_simulation(self, _request: Any) -> bytes:
+    def __remoted_response_simulation(self, request: Any) -> bytes:
         """
         Simulate a Remoted response to an agent based on the received message and the
         mode of operation.
@@ -144,18 +146,19 @@ class RemotedSimulator(BaseSimulator):
             bytes: The response message to send back to the agent. If protocol is 'tcp',
                    then it also includes a header with the length of the response.
         """
-        if not _request:
+        self.request_counter += 1
+
+        if not request:
             self.__mitm.event.set()
             return _RESPONSE_EMPTY
 
-        if b'#ping' in _request:
+        if b'#ping' in request:
             return b'#pong'
 
-        # Save message context.
-        self.__set_encryption_values(_request)
-        self.__save_message_context(_request)
+        # Save header values.
+        self.__save_encryption_values(request)
         # Decrypt and decode the request message.
-        _request = self.__decrypt_received_message(_request)
+        message = self.__decrypt_received_message(request)
 
         # Set the correct response message.
         if self.mode == 'WRONG_KEY':
@@ -163,16 +166,23 @@ class RemotedSimulator(BaseSimulator):
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
-        elif '#!-agent shutdown' in _request:
+        elif '#!-agent shutdown' in message:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        elif '#!-' in _request:
+        elif '#!-' in message:
             response = _RESPONSE_ACK
         elif self.custom_message and not self.custom_message_sent:
             response = self.custom_message
             self.custom_message_sent = True
         else:
-            return _RESPONSE_EMPTY
+            response = _RESPONSE_EMPTY
+
+        # Save the full context of the message.
+        self.__save_message_context(request, message, response)
+
+        # If response is empty, return it without encryption.
+        if response == _RESPONSE_EMPTY:
+            return response
 
         # Encrypt the response.
         response = self.__encrypt_response_message(response)
@@ -224,23 +234,26 @@ class RemotedSimulator(BaseSimulator):
 
         return secure_message.set_algorithm_header(payload, self.algorithm)
 
-    def __set_encryption_values(self, message: bytes) -> None:
+    def __save_encryption_values(self, message: bytes) -> None:
         # Get the decryption/encryption algorithm and key.
         self.algorithm = secure_message.get_algorithm(message)
         self.encryption_key = self.__get_client_keys()
 
-    def __save_message_context(self, message: bytes) -> None:
+    def __save_message_context(self, request: bytes, message: str, response: bytes) -> None:
         """
-        Save the context of a received message from the agent.
+        Save the context of a received request from the agent.
 
-        The context includes the agent ID, counter and checksum of the message.
+        The context includes the agent ID, counter and checksum of the request.
 
         Args:
-            message (bytes): The received message from the agent.
+            request (bytes): The received request from the agent.
+            message (str): The decrypted and decoded message.
+            response (str): The response message to the agent.
         """
-        if agent_id := secure_message.get_agent_id(message):
+        if agent_id := secure_message.get_agent_id(request):
             self.last_message_ctx['id'] = agent_id
-        else:
-            self.last_message_ctx['ip'] = self.__mitm.listener.last_address[0]
 
+        self.last_message_ctx['ip'] = self.__mitm.listener.last_address[0]
         self.last_message_ctx['algorithm'] = self.algorithm
+        self.last_message_ctx['message'] = message
+        self.last_message_ctx['response'] = response
