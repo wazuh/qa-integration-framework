@@ -169,11 +169,11 @@ class RemotedSimulator(BaseSimulator):
         elif '#!-agent shutdown' in message:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        elif '#!-' in message:
-            response = _RESPONSE_ACK
         elif self.custom_message and not self.custom_message_sent:
             response = self.custom_message
             self.custom_message_sent = True
+        elif '#!-' in message:
+            response = _RESPONSE_ACK
         else:
             response = _RESPONSE_EMPTY
 
