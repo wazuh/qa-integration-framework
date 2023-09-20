@@ -5,8 +5,8 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import json
 import os
-import time
 import requests
+from requests.adapters import HTTPAdapter, Retry
 from base64 import b64encode
 from copy import deepcopy
 from jsonschema import validate
@@ -73,7 +73,7 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
 
 
 def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
-          timeout: int = session_parameters.default_timeout, login_attempts: int = 1, sleep_time: int = 0,
+          timeout: int = session_parameters.default_timeout, login_attempts: int = 3, backoff_factor: float = 0.5,
           host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, protocol: str = WAZUH_API_PROTOCOL
           ) -> Tuple[dict, requests.Response]:
     """Login to the API and get the token with the complete response.
@@ -82,8 +82,8 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         user (str): User to login to the API.
         password (str): Password to login to the API.
         timeout (int): Request timeout.
-        login_attempts (int): Login attempts before raising a RuntimeError.
-        sleep_time (time): Time to sleep before executing the next attempt.
+        login_attempts (int): Login attempts before raising a RuntimeError. Default is 3.
+        backoff_factor (float): A backoff factor to apply between attempts after the second try. Default is 0.5.
         host (str): Host where the API is receiving requests.
         port (str): Port where the API is listening.
 
@@ -92,21 +92,23 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         response (requests.Response): Response object.
 
     Raises:
-        RuntimeError(msg, requests.Response): When could not login after `login_attempts` every `sleep_time`
+        RuntimeError(msg, requests.Response): When could not login after `login_attempts` every `backoff_factor`
     """
     url = f"{get_base_url(protocol=protocol, host=host, port=port)}{LOGIN_ROUTE}"
 
-    for _ in range(login_attempts):
-        response = requests.post(url, headers=set_authorization_header(user, password), verify=WAZUH_API_CERTIFICATE, timeout=timeout)
+    session = requests.Session()
+    retry = Retry(total=None, connect=login_attempts, backoff_factor=backoff_factor)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount(f"{protocol}://", adapter)
 
-        if response.status_code == 200:
-            token = json.loads(response.content.decode())['data']['token']
-            authentication_headers = deepcopy(BASE_HEADERS)
-            authentication_headers['Authorization'] = f"Bearer {token}"
+    response = session.post(url, headers=set_authorization_header(user, password), verify=WAZUH_API_CERTIFICATE,
+                                timeout=timeout)
+    if response.status_code == 200:
+        token = json.loads(response.content.decode())['data']['token']
+        authentication_headers = deepcopy(BASE_HEADERS)
+        authentication_headers['Authorization'] = f"Bearer {token}"
 
-            return authentication_headers, response
-        else:
-            time.sleep(sleep_time)
+        return authentication_headers, response
 
     raise RuntimeError(API_LOGIN_ERROR_MSG, response)
 
