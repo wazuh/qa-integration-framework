@@ -34,7 +34,7 @@ class DatabaseAdministrator:
     def execute_query(self, query: str) -> list:
         self.cursor.execute(query)
         rows = self.cursor.fetchall()
-        
+
         return rows
 
 

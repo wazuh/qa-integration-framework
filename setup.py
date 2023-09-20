@@ -42,8 +42,6 @@ package_data_list = [
     'data/feeds/suse/custom_suse_oval_feed.xml',
     'data/feeds/suse/custom_suse_oval_feed.xml.bz2',
     'data/feeds/suse/custom_suse_oval_feed.xml.gz',
-    
-    
 ]
 
 # Entry point scripts.
