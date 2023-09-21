@@ -346,8 +346,10 @@ def remove_file(file_path: str) -> None:
     Args:
         file_path (str): File or directory path to remove.
     """
-    if os.path.exists(file_path):
-        if os.path.isfile(file_path) or os.path.islink(file_path):
+    if os.path.islink(file_path):
+        os.unlink(file_path)
+    elif os.path.exists(file_path):
+        if os.path.isfile(file_path):
             os.remove(file_path)
         elif os.path.isdir(file_path):
             delete_path_recursively(file_path)
@@ -559,3 +561,27 @@ def modify_symlink_target(target:str, link_path: str) -> None:
     if os.path.exists(link_path):
         os.remove(link_path)
     Path(link_path).symlink_to(target)
+
+
+def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
+    """Check if a file or folder is inside a certain directory.
+    
+    Args:
+        file_or_folder_name (str): The name of the file or folder to check.
+        directory_path (str): The path to the directory to check in.
+    
+    Returns:
+        bool: True if the file or folder is inside the directory, False otherwise.
+    """
+    # Get the absolute path of the directory
+    directory_path = os.path.abspath(directory_path)
+    
+    # Get the absolute path of the file or folder
+    file_or_folder_path = os.path.join(directory_path, file_or_folder_name)
+    
+    # Check if the file or folder exists and is not a symbolic link
+    return os.path.exists(file_or_folder_path) and not os.path.islink(file_or_folder_path)
+
+
+def exists(path:str) -> bool:
+    return os.path.exists(path) or os.path.islink(path)
