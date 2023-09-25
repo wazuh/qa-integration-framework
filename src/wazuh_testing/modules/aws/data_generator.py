@@ -6,7 +6,7 @@ from io import StringIO
 from os.path import join
 from uuid import uuid4
 
-from wazuh_testing.modules import aws as cons
+from wazuh_testing.constants.aws import *
 from wazuh_testing.utils.random import get_random_ip, get_random_port, get_random_string
 
 
@@ -39,8 +39,8 @@ class DataGenerator:
 
 
 class CloudTrailDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.CLOUDTRAIL, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.CLOUDTRAIL}_{cons.US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUD_TRAIL_TYPE, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CLOUD_TRAIL_TYPE}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the cloudtrail format.
@@ -52,8 +52,8 @@ class CloudTrailDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -71,14 +71,14 @@ class CloudTrailDataGenerator(DataGenerator):
                         'type': 'AWSService',
                         'invokedBy': 'ec2.amazonaws.com'
                     },
-                    'eventTime': datetime.utcnow().strftime(cons.EVENT_TIME_FORMAT),
+                    'eventTime': datetime.utcnow().strftime(EVENT_TIME_FORMAT),
                     'eventSource': 'sts.amazonaws.com',
                     'eventName': 'AssumeRole',
-                    'awsRegion': cons.US_EAST_1_REGION,
+                    'awsRegion': US_EAST_1_REGION,
                     'sourceIPAddress': 'ec2.amazonaws.com',
                     'userAgent': 'ec2.amazonaws.com',
                     'requestParameters': {
-                        'roleArn': f"arn:aws:iam::{cons.RANDOM_ACCOUNT_ID}:role/demo-415-v2-InstanceRole-1FB0FMP2EXOKN",
+                        'roleArn': f"arn:aws:iam::{RANDOM_ACCOUNT_ID}:role/demo-415-v2-InstanceRole-1FB0FMP2EXOKN",
                         'roleSessionName': 'i-0e9ddef5daf05c7df'
                     },
                     'responseElements': {
@@ -93,15 +93,15 @@ class CloudTrailDataGenerator(DataGenerator):
                     'readOnly': True,
                     'resources': [
                         {
-                            'accountId': cons.RANDOM_ACCOUNT_ID,
+                            'accountId': RANDOM_ACCOUNT_ID,
                             'type': 'AWS::IAM::Role',
-                            'ARN': f"arn:aws:iam::{cons.RANDOM_ACCOUNT_ID}:role/demo-415-v2-InstanceRole-1FB0FMP2EXOKN"
+                            'ARN': f"arn:aws:iam::{RANDOM_ACCOUNT_ID}:role/demo-415-v2-InstanceRole-1FB0FMP2EXOKN"
                         }
                     ],
                     'eventType': 'AwsApiCall',
                     'managementEvent': True,
                     'eventCategory': 'Management',
-                    'recipientAccountId': cons.RANDOM_ACCOUNT_ID,
+                    'recipientAccountId': RANDOM_ACCOUNT_ID,
                     'sharedEventID': str(uuid4())
                 }
             ]
@@ -109,8 +109,8 @@ class CloudTrailDataGenerator(DataGenerator):
 
 
 class VPCDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.VPC_FLOW_LOGS, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.VPC_FLOW_LOGS}_{cons.US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{VPC_FLOW_LOGS}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the VPC format.
@@ -122,10 +122,10 @@ class VPCDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}{cons.FLOW_LOG_ID}_{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}"
-            f"{cons.LOG_EXT}"
+            f"{self.BASE_FILE_NAME}{FLOW_LOG_ID}_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}"
+            f"{LOG_EXT}"
         )
 
         return join(path, name)
@@ -146,7 +146,7 @@ class VPCDataGenerator(DataGenerator):
         for _ in range(5):
             data.append(
                 [
-                    '2', cons.RANDOM_ACCOUNT_ID, get_random_interface_id(), get_random_ip(), get_random_ip(),
+                    '2', RANDOM_ACCOUNT_ID, get_random_interface_id(), get_random_ip(), get_random_ip(),
                     get_random_port(), get_random_port(), '6', '39', '4698', '1622505433', '1622505730', 'ACCEPT', 'OK'
                 ]
             )
@@ -157,8 +157,8 @@ class VPCDataGenerator(DataGenerator):
 
 
 class ConfigDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.CONFIG, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.CONFIG}_{cons.US_EAST_1_REGION}_ConfigHistory_AWS_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CONFIG, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CONFIG}_{US_EAST_1_REGION}_ConfigHistory_AWS_"
 
     def get_filename(self):
         """Return the filename in the Config format.
@@ -170,8 +170,8 @@ class ConfigDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_NO_PADED_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_NO_PADED_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -200,7 +200,7 @@ class ConfigDataGenerator(DataGenerator):
                         'configRuleList': [
                             {
                                 'configRuleArn': (
-                                    f"arn:aws:config:us-east-1:{cons.RANDOM_ACCOUNT_ID}:config-rule/"
+                                    f"arn:aws:config:us-east-1:{RANDOM_ACCOUNT_ID}:config-rule/"
                                     'config-rule-b1eqqf'),
                                 'configRuleId': 'config-rule-b1eqqf',
                                 'configRuleName': 'encrypted-volumes',
@@ -213,7 +213,7 @@ class ConfigDataGenerator(DataGenerator):
                     'configurationItemVersion': '1.3',
                     'configurationItemCaptureTime': '2020-06-01T02:12:37.713Z',
                     'configurationStateId': 1590977557713,
-                    'awsAccountId': cons.RANDOM_ACCOUNT_ID,
+                    'awsAccountId': RANDOM_ACCOUNT_ID,
                     'configurationItemStatus': 'ResourceDiscovered',
                     'resourceType': 'AWS::Config::ResourceCompliance',
                     'resourceId': f"AWS::EC2::Volume/vol-{get_random_string(17)}",
@@ -225,8 +225,8 @@ class ConfigDataGenerator(DataGenerator):
 
 
 class ALBDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.ELASTIC_LOAD_BALANCING, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.ELASTIC_LOAD_BALANCING}_{cons.US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the ALB format.
@@ -238,10 +238,10 @@ class ALBDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}_app.ALB-qatests_{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
-            f"{get_random_ip()}_pczeay_{cons.LOG_EXT}"
+            f"{self.BASE_FILE_NAME}_app.ALB-qatests_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{get_random_ip()}_pczeay_{LOG_EXT}"
         )
 
         return join(path, name)
@@ -259,7 +259,7 @@ class ALBDataGenerator(DataGenerator):
             data.append(
                 [
                     'http',  # type
-                    now.strftime(cons.ALB_DATE_FORMAT),  # time
+                    now.strftime(ALB_DATE_FORMAT),  # time
                     'app/ALB-qatests',  # elb
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
                     f"{get_random_ip()}:{get_random_port()}",  # target:port
@@ -275,12 +275,12 @@ class ALBDataGenerator(DataGenerator):
                     '-',  # ssl_cipher
                     '-',  # ssl_protocol
                     # target_group_arn
-                    f"arn:aws:elasticloadbalancing:{cons.US_EAST_1_REGION}:{cons.RANDOM_ACCOUNT_ID}:targetgroup/EC2/",
+                    f"arn:aws:elasticloadbalancing:{US_EAST_1_REGION}:{RANDOM_ACCOUNT_ID}:targetgroup/EC2/",
                     f"Root=1-5fbc4c52-{get_random_string(24)}",  # trace_id
                     '-',  # domain_name
                     '-',  # chosen_cert_arn
                     0,  # matched_rule_priority
-                    now.strftime(cons.ALB_DATE_FORMAT),  # request_creation_time
+                    now.strftime(ALB_DATE_FORMAT),  # request_creation_time
                     'forward',  # actions_executed
                     '-',  # redirect_url
                     '-',  # error_reason
@@ -297,8 +297,8 @@ class ALBDataGenerator(DataGenerator):
 
 
 class CLBDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.ELASTIC_LOAD_BALANCING, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.ELASTIC_LOAD_BALANCING}_{cons.US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the CLB format.
@@ -310,10 +310,10 @@ class CLBDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}qatests-APIClassi_{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
-            f"{get_random_ip()}{cons.LOG_EXT}"
+            f"{self.BASE_FILE_NAME}qatests-APIClassi_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{get_random_ip()}{LOG_EXT}"
         )
 
         return join(path, name)
@@ -329,7 +329,7 @@ class CLBDataGenerator(DataGenerator):
         for _ in range(5):
             data.append(
                 [
-                    now.strftime(cons.ALB_DATE_FORMAT),  # time
+                    now.strftime(ALB_DATE_FORMAT),  # time
                     'qatests-APIClassi',  # elb
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
                     f"{get_random_ip()}:{get_random_port()}",  # backend:port
@@ -353,8 +353,8 @@ class CLBDataGenerator(DataGenerator):
 
 
 class NLBDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.ELASTIC_LOAD_BALANCING, cons.US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{cons.RANDOM_ACCOUNT_ID}_{cons.ELASTIC_LOAD_BALANCING}_{cons.US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the NLB format.
@@ -366,10 +366,10 @@ class NLBDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}net.qatests_{now.strftime(cons.FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
-            f"{get_random_ip()}{cons.LOG_EXT}"
+            f"{self.BASE_FILE_NAME}net.qatests_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{get_random_ip()}{LOG_EXT}"
         )
 
         return join(path, name)
@@ -387,7 +387,7 @@ class NLBDataGenerator(DataGenerator):
                 [
                     'tls',  # type
                     '2.0',  # version
-                    now.strftime(cons.ALB_DATE_FORMAT),  # time
+                    now.strftime(ALB_DATE_FORMAT),  # time
                     'net/qatests',  # elb
                     get_random_string(16),  # listener
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
@@ -428,8 +428,8 @@ class KMSDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}_{str(uuid4())}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -445,17 +445,17 @@ class KMSDataGenerator(DataGenerator):
                 'id': str(uuid4()),
                 'detail-type': 'AWS API Call via CloudTrail',
                 'source': 'aws.kms',
-                'account': cons.RANDOM_ACCOUNT_ID,
+                'account': RANDOM_ACCOUNT_ID,
                 'time': '2018-11-07T17:27:01Z',
-                'region': cons.US_EAST_1_REGION,
+                'region': US_EAST_1_REGION,
                 'resources': [],
                 'detail': {
                     'eventVersion': '1.05',
                     'userIdentity': {
                         'type': 'IAMUser',
                         'principalId': get_random_string(20),
-                        'arn': f"arn:aws:iam::{cons.RANDOM_ACCOUNT_ID}:user/fake.user",
-                        'accountId': cons.RANDOM_ACCOUNT_ID,
+                        'arn': f"arn:aws:iam::{RANDOM_ACCOUNT_ID}:user/fake.user",
+                        'accountId': RANDOM_ACCOUNT_ID,
                         'accessKeyId': get_random_string(20),
                         'userName': 'fake.user',
                         'sessionContext': {
@@ -469,13 +469,13 @@ class KMSDataGenerator(DataGenerator):
                     'eventTime': '2018-11-07T17:27:01Z',
                     'eventSource': 'kms.amazonaws.com',
                     'eventName': 'GenerateDataKey',
-                    'awsRegion': cons.RANDOM_ACCOUNT_ID,
+                    'awsRegion': RANDOM_ACCOUNT_ID,
                     'sourceIPAddress': 'secretsmanager.amazonaws.com',
                     'userAgent': 'secretsmanager.amazonaws.com',
                     'requestParameters': {
                         'keySpec': 'AES_256',
                         'encryptionContext': {
-                            'SecretARN': f"arn:aws:secretsmanager:us-east-1:{cons.RANDOM_ACCOUNT_ID}:secret:test-aws",
+                            'SecretARN': f"arn:aws:secretsmanager:us-east-1:{RANDOM_ACCOUNT_ID}:secret:test-aws",
                             'SecretVersionId': str(uuid4())
                         },
                         'keyId': 'alias/aws/secretsmanager'
@@ -486,8 +486,8 @@ class KMSDataGenerator(DataGenerator):
                     'readOnly': True,
                     'resources': [
                         {
-                            'ARN': f"arn:aws:kms:us-east-1:{cons.RANDOM_ACCOUNT_ID}:key/{str(uuid4())}",
-                            'accountId': cons.RANDOM_ACCOUNT_ID,
+                            'ARN': f"arn:aws:kms:us-east-1:{RANDOM_ACCOUNT_ID}:key/{str(uuid4())}",
+                            'accountId': RANDOM_ACCOUNT_ID,
                             'type': 'AWS::KMS::Key'
                         }
                     ],
@@ -512,8 +512,8 @@ class MacieDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}_{str(uuid4())}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -530,12 +530,12 @@ class MacieDataGenerator(DataGenerator):
                 'id': str(uuid4()),
                 'detail-type': 'Macie Alert',
                 'source': 'aws.macie',
-                'account': cons.RANDOM_ACCOUNT_ID,
+                'account': RANDOM_ACCOUNT_ID,
                 'time': '2021-01-01T00:20:42Z',
                 'region': 'us-east-1',
                 'resources': [
-                    f"arn:aws:macie:us-east-1:{cons.RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}/alert",
-                    f"arn:aws:macie:us-east-1:{cons.RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}"
+                    f"arn:aws:macie:us-east-1:{RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}/alert",
+                    f"arn:aws:macie:us-east-1:{RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}"
                 ],
                 'detail': {
                     'notification-type': 'ALERT_CREATED',
@@ -546,7 +546,7 @@ class MacieDataGenerator(DataGenerator):
                     'name': 'S3 Bucket IAM policy grants global read rights',
                     'severity': 'CRITICAL',
                     'url': 'https://mt.us-east-1.macie.aws.amazon.com/posts/arn%3Aaws%3Amacie%3Aus-east-1',
-                    'alert-arn': f"arn:aws:macie:us-east-1:{cons.RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}/alert",
+                    'alert-arn': f"arn:aws:macie:us-east-1:{RANDOM_ACCOUNT_ID}:trigger/{str(uuid4())}/alert",
                     'risk-score': 9,
                     'created-at': '2021-01-01T00:20:42.364509',
                     'actor': 'resources.wazuh.com',
@@ -588,12 +588,12 @@ class MacieDataGenerator(DataGenerator):
                             '2021-01-01T00:11:49.171020Z': 1
                         },
                         'recipientAccountId': {
-                            cons.RANDOM_ACCOUNT_ID: 1
+                            RANDOM_ACCOUNT_ID: 1
                         }
                     },
                     'trigger': {
                         'rule-arn': (
-                            f"arn:aws:macie:us-east-1:{cons.RANDOM_ACCOUNT_ID}:trigger/b731d9ffb1fe61508d4a478c92efa666"
+                            f"arn:aws:macie:us-east-1:{RANDOM_ACCOUNT_ID}:trigger/b731d9ffb1fe61508d4a478c92efa666"
                         ),
                         'alert-type': 'basic',
                         'created-at': '2020-12-29 16:36:17.412000+00:00',
@@ -618,8 +618,8 @@ class TrustedAdvisorDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -635,8 +635,8 @@ class TrustedAdvisorDataGenerator(DataGenerator):
                 'id': get_random_string(26),
                 'detail-type': 'Trusted Advisor Check Item Refresh Notification',
                 'source': 'aws.trustedadvisor',
-                'account': cons.RANDOM_ACCOUNT_ID,
-                'time': datetime.utcnow().strftime(cons.FILENAME_DATE_FORMAT),
+                'account': RANDOM_ACCOUNT_ID,
+                'time': datetime.utcnow().strftime(FILENAME_DATE_FORMAT),
                 'region': 'us-east-1',
                 'resources': [],
                 'detail': {
@@ -670,8 +670,8 @@ class GuardDutyDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -687,17 +687,17 @@ class GuardDutyDataGenerator(DataGenerator):
                 'id': str(uuid4()),
                 'detail-type': 'GuardDuty Finding',
                 'source': 'aws.guardduty',
-                'account': cons.RANDOM_ACCOUNT_ID,
+                'account': RANDOM_ACCOUNT_ID,
                 'time': '2021-07-08T03:45:04Z',
                 'region': 'us-east-1',
                 'resources': [],
                 'detail': {
                     'schemaVersion': '2.0',
-                    'accountId': cons.RANDOM_ACCOUNT_ID,
+                    'accountId': RANDOM_ACCOUNT_ID,
                     'region': 'us-east-1',
                     'partition': 'aws',
                     'id': 'e8bc77e2d65ffa20de95cc6e7a94e926',
-                    'arn': f"arn:aws:guardduty:us-east-1:{cons.RANDOM_ACCOUNT_ID}:detector/",
+                    'arn': f"arn:aws:guardduty:us-east-1:{RANDOM_ACCOUNT_ID}:detector/",
                     'type': 'Recon:EC2/PortProbeUnprotectedPort',
                     'resource': {
                         'resourceType': 'Instance',
@@ -818,7 +818,7 @@ class GuardDutyDataGenerator(DataGenerator):
 
 
 class NativeGuardDutyDataGenerator(DataGenerator):
-    BASE_PATH = join(cons.AWS_LOGS, cons.RANDOM_ACCOUNT_ID, cons.GUARDDUTY, cons.US_EAST_1_REGION)
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARD_DUTY_TYPE, US_EAST_1_REGION)
     BASE_FILE_NAME = ''
 
     compress = True
@@ -833,8 +833,8 @@ class NativeGuardDutyDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{str(uuid4())}{cons.JSON_GZ_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{str(uuid4())}{JSON_GZ_EXT}"
 
         return join(path, name)
 
@@ -848,11 +848,11 @@ class NativeGuardDutyDataGenerator(DataGenerator):
         return json.dumps(
             {
                 'schemaVersion': '2.0',
-                'accountId': cons.RANDOM_ACCOUNT_ID,
+                'accountId': RANDOM_ACCOUNT_ID,
                 'region': 'us-east-1',
                 'partition': 'aws',
                 'id': '3ac1fd234445e957d526a10c72631c8f',
-                'arn': f"arn:aws:guardduty:us-east-1:{cons.RANDOM_ACCOUNT_ID}:detector/c0bfff53bb19fbee16ed05a0b21d3b/",
+                'arn': f"arn:aws:guardduty:us-east-1:{RANDOM_ACCOUNT_ID}:detector/c0bfff53bb19fbee16ed05a0b21d3b/",
                 'type': 'UnauthorizedAccess:EC2/SSHBruteForce',
                 'resource': {
                     'resourceType': 'Instance',
@@ -973,8 +973,8 @@ class WAFDataGenerator(DataGenerator):
             str: Synthetic filename.
         """
         now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(cons.PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(cons.FILENAME_DATE_FORMAT)}{cons.JSON_EXT}"
+        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -989,7 +989,7 @@ class WAFDataGenerator(DataGenerator):
                 'timestamp': 1576280412771,
                 'formatVersion': 1,
                 'webaclId': (
-                    f"arn:aws:wafv2:ap-southeast-2:{cons.RANDOM_ACCOUNT_ID}:regional/"
+                    f"arn:aws:wafv2:ap-southeast-2:{RANDOM_ACCOUNT_ID}:regional/"
                     'webacl/STMTest/1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE'
                 ),
                 'terminatingRuleId': 'STMTest_SQLi_XSS',
@@ -1079,7 +1079,7 @@ class ServerAccessDataGenerator(DataGenerator):
                 [
                     str(uuid4()), 'wazuh-server-access-integration-tests',
                     datetime.utcnow().strftime('[%d/%b/%Y:%H:%M:%S %z]'), get_random_ip(),
-                    f"arn:aws:iam::{cons.RANDOM_ACCOUNT_ID}:user/fake.user", get_random_string(16).upper(),
+                    f"arn:aws:iam::{RANDOM_ACCOUNT_ID}:user/fake.user", get_random_string(16).upper(),
                     'REST.GET.WEBSITE', '-', 'GET, /wazuh-server-access-integration-tests?website= HTTP/1.1',
                     '404', 'NoSuchWebsiteConfiguration', '343', '-', '85', '-', '-',
                     (
@@ -1113,7 +1113,7 @@ class UmbrellaDataGenerator(DataGenerator):
         """
         now = datetime.utcnow()
         path = join(self.BASE_PATH, now.strftime('%Y-%m-%d'))
-        name = f"{self.BASE_FILE_NAME}{now.strftime('%Y-%m-%d')}-00-00-ioxa{cons.CSV_EXT}"
+        name = f"{self.BASE_FILE_NAME}{now.strftime('%Y-%m-%d')}-00-00-ioxa{CSV_EXT}"
 
         return join(path, name)
 
@@ -1148,20 +1148,20 @@ class UmbrellaDataGenerator(DataGenerator):
 
 # Maps bucket type with corresponding data generator
 buckets_data_mapping = {
-    cons.CLOUD_TRAIL_TYPE: CloudTrailDataGenerator,
-    cons.VPC_FLOW_TYPE: VPCDataGenerator,
-    cons.CONFIG_TYPE: ConfigDataGenerator,
-    cons.ALB_TYPE: ALBDataGenerator,
-    cons.CLB_TYPE: CLBDataGenerator,
-    cons.NLB_TYPE: NLBDataGenerator,
-    cons.KMS_TYPE: KMSDataGenerator,
-    cons.MACIE_TYPE: MacieDataGenerator,
-    cons.TRUSTED_ADVISOR_TYPE: TrustedAdvisorDataGenerator,
-    cons.GUARD_DUTY_TYPE: GuardDutyDataGenerator,
-    cons.NATIVE_GUARD_DUTY_TYPE: NativeGuardDutyDataGenerator,
-    cons.WAF_TYPE: WAFDataGenerator,
-    cons.SERVER_ACCESS: ServerAccessDataGenerator,
-    cons.CISCO_UMBRELLA_TYPE: UmbrellaDataGenerator
+    CLOUD_TRAIL_TYPE: CloudTrailDataGenerator,
+    VPC_FLOW_TYPE: VPCDataGenerator,
+    CONFIG_TYPE: ConfigDataGenerator,
+    ALB_TYPE: ALBDataGenerator,
+    CLB_TYPE: CLBDataGenerator,
+    NLB_TYPE: NLBDataGenerator,
+    KMS_TYPE: KMSDataGenerator,
+    MACIE_TYPE: MacieDataGenerator,
+    TRUSTED_ADVISOR_TYPE: TrustedAdvisorDataGenerator,
+    GUARD_DUTY_TYPE: GuardDutyDataGenerator,
+    NATIVE_GUARD_DUTY_TYPE: NativeGuardDutyDataGenerator,
+    WAF_TYPE: WAFDataGenerator,
+    SERVER_ACCESS: ServerAccessDataGenerator,
+    CISCO_UMBRELLA_TYPE: UmbrellaDataGenerator
 }
 
 
@@ -1175,9 +1175,9 @@ def get_data_generator(bucket_type, bucket_name):
     Returns:
         DataGenerator: Data generator for the given bucket.
     """
-    if bucket_type == cons.CUSTOM_TYPE:
+    if bucket_type == CUSTOM_TYPE:
         bucket_type = bucket_name.split('-')[1]
-    elif bucket_type == cons.GUARD_DUTY_TYPE and 'native' in bucket_name:
-        bucket_type = cons.NATIVE_GUARD_DUTY_TYPE
+    elif bucket_type == GUARD_DUTY_TYPE and 'native' in bucket_name:
+        bucket_type = NATIVE_GUARD_DUTY_TYPE
 
     return buckets_data_mapping[bucket_type]()
