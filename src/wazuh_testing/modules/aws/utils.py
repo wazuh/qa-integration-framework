@@ -1,11 +1,4 @@
-# Copyright (C) 2015, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-
-"""
-    File contains all utils used in the AWS test suite.
-"""
-
+"""AWS related utils"""
 import subprocess
 import gzip
 import boto3
@@ -15,14 +8,12 @@ from time import time
 from uuid import uuid4
 from botocore.exceptions import ClientError
 
-# Local imports
 from wazuh_testing.constants.aws import (PERMANENT_CLOUDWATCH_LOG_GROUP, US_EAST_1_REGION, AWS_MODULE_CALL,
                                          RESULTS_FOUND, RESULTS_EXPECTED)
-from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH, S3_CLOUDTRAIL_DB_PATH,
-                                               AWS_SERVICES_DB_PATH)
+from wazuh_testing.constants.paths.aws import AWS_MODULE_PATH, AWS_BINARY_PATH
 from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
-
+from wazuh_testing.modules.aws.exceptions import OutputAnalysisError
 
 # Session setup
 session = boto3.Session(profile_name='qa')
@@ -30,14 +21,7 @@ s3 = session.resource('s3')
 logs = session.client('logs', region_name=US_EAST_1_REGION)
 
 
-# Custom exception
-class OutputAnalysisError(Exception):
-    pass
-
-
 """S3 utils"""
-
-
 def upload_file(bucket_type, bucket_name):
     """Upload a file to an S3 bucket.
 
@@ -98,7 +82,7 @@ def get_last_file_key(bucket_type, bucket_name, execution_datetime):
     Args:
         bucket_type (str): Bucket type to obtain the data generator.
         bucket_name (str): Bucket that contains the file.
-        execution_datetime (datetime): Datetime to use as prefix.
+        execution_datetime (datetime): Datetime to use to use as prefix.
 
     Returns:
         str: The last key in the bucket.
@@ -117,7 +101,6 @@ def get_last_file_key(bucket_type, bucket_name, execution_datetime):
 
 
 """AWS CloudWatch related utils"""
-
 
 def create_log_group(log_group_name):
     """Create a log group.
@@ -198,7 +181,6 @@ def log_stream_exists(log_group, log_stream) -> bool:
 
 """CLI utils"""
 
-
 def call_aws_module(*parameters):
     """Given some parameters call the AWS module and return the output.
 
@@ -218,7 +200,7 @@ def _default_callback(line: str):
 
 
 def analyze_command_output(
-        command_output, callback=_default_callback, expected_results=1, error_message=''
+    command_output, callback=_default_callback, expected_results=1, error_message=''
 ):
     """Analyze the given command output searching for a pattern.
 
@@ -249,10 +231,10 @@ def analyze_command_output(
             logger.error(RESULTS_FOUND, results_len)
             logger.error(RESULTS_EXPECTED, expected_results)
             raise OutputAnalysisError(error_message)
+        raise OutputAnalysisError()
 
 
 """Database utils"""
-
 
 def s3_db_exists():
     """Check if `s3_cloudtrail.db` exists.
@@ -268,15 +250,12 @@ def delete_s3_db() -> None:
     if path_exist(S3_CLOUDTRAIL_DB_PATH):
         S3_CLOUDTRAIL_DB_PATH.unlink()
 
-
 def delete_services_db() -> None:
     """Delete `aws_services.db` file."""
     if path_exist(AWS_SERVICES_DB_PATH):
         AWS_SERVICES_DB_PATH.unlink()
 
-
 """Common utils"""
-
 
 def path_exist(path: Path) -> bool:
     """Check if given path exists

@@ -1,7 +1,8 @@
-# Copyright (C) 2015, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-
+"""
+Copyright (C) 2015-2023, Wazuh Inc.
+Created by Wazuh, Inc. <info@wazuh.com>.
+This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+"""
 import os
 import json
 import socket
@@ -98,7 +99,7 @@ def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
 
 
 def get_sqlite_fetch_one_query_result(db_path: str, query: str) -> List[str]:
-    """Execute a query expecting only one result in a given database and return the result.
+    """Execute a query in a given database and return the result.
     Args:
         db_path (str): Path where is located the DB.
         query (str): SQL query. e.g(SELECT * ..).
@@ -116,42 +117,6 @@ def get_sqlite_fetch_one_query_result(db_path: str, query: str) -> List[str]:
                 result.append(', '.join([f"{item}" for item in row]))
 
             return result
-    finally:
-        services.control_service('start', daemon=WAZUH_DB_DAEMON)
-
-
-def get_query_result(db_path: str, query: str) -> List[str]:
-    """Execute a query in a given database and return the result.
-    Args:
-        db_path (str): Path where is located the DB.
-        query (str): SQL query. e.g(SELECT * ..).
-    Returns:
-        result (List[list]): Each row is the query result row and each column is the query field value.
-    """
-    services.control_service('stop', daemon=WAZUH_DB_DAEMON)
-
-    try:
-        with DatabaseAdministrator(db_path) as db:
-            records = db.execute_query(query)
-            return records
-    finally:
-        services.control_service('start', daemon=WAZUH_DB_DAEMON)
-
-
-def get_fetch_one_query_result(db_path: str, query: str) -> List[str]:
-    """Execute a query expecting only one result in a given database and return the result.
-    Args:
-        db_path (str): Path where is located the DB.
-        query (str): SQL query. e.g(SELECT * ..).
-    Returns:
-        result (List[str]): Each row is the query result row and each column is the query field value.
-    """
-    services.control_service('stop', daemon=WAZUH_DB_DAEMON)
-
-    try:
-        with DatabaseAdministrator(db_path) as db:
-            records = db.execute_fetch_one_query(query)
-            return records
     finally:
         services.control_service('start', daemon=WAZUH_DB_DAEMON)
 

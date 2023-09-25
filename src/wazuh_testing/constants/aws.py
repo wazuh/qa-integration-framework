@@ -1,19 +1,10 @@
-# Copyright (C) 2015, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-
-"""
-    File contains all constants used in the AWS test suite.
-"""
-
 # AWS Constants
 AWS_LOGS = 'AWSLogs'
 AWS_MODULE_CALL = "Calling AWS module with: '%s'"
 
-RANDOM_ACCOUNT_ID = '819751203818'
+RANDOM_ACCOUNT_ID = '819751203817'
 VPC_FLOW_LOGS = 'vpcflowlogs'
-FLOW_LOG_ID = 'fl-0754d951c16f517fa'
-GUARDDUTY = 'GuardDuty'
+FLOW_LOG_ID = 'fl-0755d951c16f517fa'
 CONFIG = 'Config'
 ELASTIC_LOAD_BALANCING = 'elasticloadbalancing'
 SERVER_ACCESS_TABLE_NAME = 's3_server_access'
@@ -42,9 +33,6 @@ JSON_GZ_EXT = '.jsonl.gz'
 CSV_EXT = '.csv'
 
 # Bucket types
-CLOUDTRAIL = 'CloudTrail'
-GUARDDUTY = 'GuardDuty'
-VPC_FLOW_LOGS = 'vpcflowlogs'
 CLOUD_TRAIL_TYPE = 'cloudtrail'
 VPC_FLOW_TYPE = 'vpcflow'
 CONFIG_TYPE = 'config'
@@ -67,3 +55,6 @@ INSPECTOR_TYPE = 'inspector'
 
 # Params
 ONLY_LOGS_AFTER_PARAM = '--only_logs_after'
+
+# Databases
+SELECT_QUERY_TEMPLATE = 'SELECT * FROM {table_name}'
