@@ -92,7 +92,8 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         response (requests.Response): Response object.
 
     Raises:
-        RuntimeError(msg, requests.Response): When could not login after `login_attempts` every `backoff_factor`
+        RuntimeError(msg, requests.Response): When could not login after `login_attempts` every timeout determined by 
+        the `backoff_factor`.
     """
     url = f"{get_base_url(protocol=protocol, host=host, port=port)}{LOGIN_ROUTE}"
 
