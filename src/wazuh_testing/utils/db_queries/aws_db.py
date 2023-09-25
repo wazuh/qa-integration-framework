@@ -1,93 +1,11 @@
-# Copyright (C) 2015, Wazuh Inc.
-# Created by Wazuh, Inc. <info@wazuh.com>.
-# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-
-"""
-This module will contain data structures, queries and db utils to manage AWS services and buckets databases.
-"""
+import sqlite3
 
 # Local imports
-from wazuh_testing.utils.database import get_query_result, get_fetch_one_query_result
+from wazuh_testing.utils.database import get_sqlite_query_result, get_sqlite_fetch_one_query_result
+from wazuh_testing.modules.aws.data_structures import s3_rows_map, service_rows_map, S3CloudTrailRow, \
+    ServiceCloudWatchRow
+from wazuh_testing.constants.aws import SELECT_QUERY_TEMPLATE
 from wazuh_testing.constants.paths.aws import S3_CLOUDTRAIL_DB_PATH, AWS_SERVICES_DB_PATH
-
-""" Database data structures  """
-
-import sqlite3
-from collections import namedtuple
-
-from wazuh_testing.constants.aws import (
-    ALB_TYPE,
-    CISCO_UMBRELLA_TYPE,
-    CLB_TYPE,
-    CLOUD_TRAIL_TYPE,
-    CUSTOM_TYPE,
-    GUARD_DUTY_TYPE,
-    NLB_TYPE,
-    SERVER_ACCESS_TABLE_NAME,
-    VPC_FLOW_TYPE,
-    WAF_TYPE,
-)
-
-# Databases
-SELECT_QUERY_TEMPLATE = 'SELECT * FROM {table_name}'
-
-S3CloudTrailRow = namedtuple(
-    'S3CloudTrailRow', 'bucket_path aws_account_id aws_region log_key processed_date created_date'
-)
-
-S3VPCFlowRow = namedtuple(
-    'S3VPCFlowRow', 'bucket_path aws_account_id aws_region flowlog_id log_key processed_date created_date'
-)
-
-S3ALBRow = namedtuple(
-    'S3ALBRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-S3CustomRow = namedtuple(
-    'S3CustomRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-S3GuardDutyRow = namedtuple(
-    'S3GuardDutyRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-S3WAFRow = namedtuple(
-    'S3WAFRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-S3ServerAccessRow = namedtuple(
-    'S3ServerAccessRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-ServiceInspectorRow = namedtuple(
-    'ServiceInspectorRow', 'service account_id region timestamp'
-)
-
-ServiceCloudWatchRow = namedtuple(
-    'ServiceCloudWatchRow', 'aws_region aws_log_group aws_log_stream next_token start_time end_time'
-)
-
-S3UmbrellaRow = namedtuple(
-    'S3UmbrellaRow', 'bucket_path aws_account_id log_key processed_date created_date'
-)
-
-s3_rows_map = {
-    CLOUD_TRAIL_TYPE: S3CloudTrailRow,
-    VPC_FLOW_TYPE: S3VPCFlowRow,
-    ALB_TYPE: S3ALBRow,
-    CLB_TYPE: S3ALBRow,
-    NLB_TYPE: S3ALBRow,
-    CUSTOM_TYPE: S3CustomRow,
-    GUARD_DUTY_TYPE: S3GuardDutyRow,
-    WAF_TYPE: S3WAFRow,
-    SERVER_ACCESS_TABLE_NAME: S3ServerAccessRow,
-    CISCO_UMBRELLA_TYPE: S3UmbrellaRow
-}
-
-service_rows_map = {
-    'cloudwatch_logs': ServiceCloudWatchRow,
-    'aws_services': ServiceInspectorRow
-}
 
 """ Database AWS utils"""
 
@@ -131,7 +49,7 @@ def get_s3_db_row(table_name) -> S3CloudTrailRow:
     """
     row_type = _get_s3_row_type(table_name)
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    row = get_fetch_one_query_result(S3_CLOUDTRAIL_DB_PATH, query)
+    row = get_sqlite_fetch_one_query_result(S3_CLOUDTRAIL_DB_PATH, query)
 
     return row_type(*row)
 
@@ -147,7 +65,7 @@ def get_multiple_s3_db_row(table_name):
     """
     row_type = _get_s3_row_type(table_name)
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    rows = get_query_result(S3_CLOUDTRAIL_DB_PATH, query)
+    rows = get_sqlite_query_result(S3_CLOUDTRAIL_DB_PATH, query)
 
     for row in rows:
         yield row_type(*row)
@@ -172,13 +90,13 @@ def table_exists(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
                 type ='table' AND
                 name NOT LIKE 'sqlite_%';
             """
-    results = get_query_result(db_path, query)
+    results = get_sqlite_query_result(db_path, query)
 
     return table_name in [result[0] for result in results]
 
 
 def table_exists_or_has_values(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
-    """Check if the given table name exists. If it exists, check if it has values.
+    """Check if the given table name exists. If exists check if it has values.
 
     Args:
         table_name (str): Table name to search for.
@@ -189,7 +107,7 @@ def table_exists_or_has_values(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
     """
     try:
         query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-        result = get_query_result(db_path, query)
+        result = get_sqlite_query_result(S3_CLOUDTRAIL_DB_PATH, query)
         return bool(result)
     except sqlite3.OperationalError:
         return False
@@ -209,7 +127,7 @@ def get_service_db_row(table_name):
     row_type = _get_service_row_type(table_name)
 
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    row = get_fetch_one_query_result(AWS_SERVICES_DB_PATH, query)
+    row = get_sqlite_fetch_one_query_result(AWS_SERVICES_DB_PATH, query)
 
     return row_type(*row)
 
@@ -226,7 +144,7 @@ def get_multiple_service_db_row(table_name):
     row_type = _get_service_row_type(table_name)
 
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    rows = get_query_result(AWS_SERVICES_DB_PATH, query)
+    rows = get_sqlite_query_result(AWS_SERVICES_DB_PATH, query)
 
     for row in rows:
         yield row_type(*row)
