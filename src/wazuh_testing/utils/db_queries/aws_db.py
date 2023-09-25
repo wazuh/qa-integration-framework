@@ -96,7 +96,7 @@ def table_exists(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
 
 
 def table_exists_or_has_values(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
-    """Check if the given table name exists. If exists check if it has values.
+    """Check if the given table name exists. If it exists, check if it has values.
 
     Args:
         table_name (str): Table name to search for.
@@ -107,7 +107,7 @@ def table_exists_or_has_values(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
     """
     try:
         query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-        result = get_sqlite_query_result(S3_CLOUDTRAIL_DB_PATH, query)
+        result = get_sqlite_query_result(db_path, query)
         return bool(result)
     except sqlite3.OperationalError:
         return False
