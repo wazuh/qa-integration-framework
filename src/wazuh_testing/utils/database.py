@@ -134,6 +134,7 @@ def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
         services.control_service('start', daemon=WAZUH_DB_DAEMON)
 
 
+
 def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os.PathLike, str]) -> None:
     """Run SQL script in a database.
     Args:
