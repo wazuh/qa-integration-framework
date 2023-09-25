@@ -99,7 +99,7 @@ def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
 
 
 def get_sqlite_fetch_one_query_result(db_path: str, query: str) -> List[str]:
-    """Execute a query in a given database and return the result.
+    """Execute a query expecting only one result in a given database and return the result.
     Args:
         db_path (str): Path where is located the DB.
         query (str): SQL query. e.g(SELECT * ..).
