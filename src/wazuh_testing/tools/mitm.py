@@ -36,7 +36,14 @@ class StreamServerPortV6(StreamServerPort):
 
 
 class DatagramServerPort(socketserver.ThreadingUDPServer):
-    pass
+
+    def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
+                        client_addres: tuple[str | bytes | bytearray, int]) -> None:
+        """
+        overrides process_request and saves `last_address`.
+        """
+        self.last_address = client_addres
+        super().process_request(request, client_addres)
 
 
 class DatagramServerPortV6(DatagramServerPort):
@@ -223,7 +230,6 @@ class DatagramHandler(socketserver.BaseRequestHandler):
             data = self.request[0]
             self.server.mitm.handler_func(data)
             self.server.mitm.put_queue(data)
-
 
 class ManInTheMiddle:
 
