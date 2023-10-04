@@ -4,3 +4,4 @@
 
 # Internal configuration options
 REMOTED_WORKER_POOL = 'remoted.worker_pool'
+REMOTED_DEBUG = 'remoted.debug'
