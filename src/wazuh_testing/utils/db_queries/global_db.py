@@ -2,7 +2,8 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from wazuh_testing.utils import database
-
+import time
+import hashlib
 
 def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1',
                            internal_key='', os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4',
@@ -80,3 +81,82 @@ def clean_agents_from_db():
         database.query_wdb(command)
     except Exception:
         raise Exception('Unable to clean agents')
+
+
+
+def insert_agent_in_db(id=1, name='TestAgent', ip='any', registration_time=0, connection_status=0,
+                       disconnection_time=0):
+    """
+    Write agent in global.db
+    """
+    insert_command = f'global insert-agent {{"id":{id},"name":"{name}","ip":"{ip}","date_add":{registration_time}}}'
+    update_command = f'global sql UPDATE agent SET connection_status = "{connection_status}",\
+                       disconnection_time = "{disconnection_time}" WHERE id = {id};'
+    try:
+        database.query_wdb(insert_command)
+        database.query_wdb(update_command)
+    except Exception:
+        raise Exception(f"Unable to add agent {id}")
+
+
+# Insert agents into DB and assign them into a group
+def insert_agent_into_group(total_agents):
+    for i in range(total_agents):
+        id = i + 1
+        name = 'Agent-test' + str(id)
+        date = time.time()
+        command = f'global insert-agent {{"id":{id},"name":"{name}","date_add":{date}}}'
+        results = database.query_wdb(command)
+        assert results == 'ok'
+
+        command = f'''global set-agent-groups {{"mode":"append","sync_status":"syncreq",
+                   "source":"remote","data":[{{"id":{id},"groups":["Test_group{id}"]}}]}}'''
+        results = database.query_wdb(command)
+        assert results == 'ok'
+
+
+def remove_db_agent(agent_id):
+    """Function that wraps the needed queries to remove an agent.
+
+    Args:
+        agent_id(int): Unique identifier of an agent
+    """
+    data = database.query_wdb(f"global delete-agent {agent_id}").split()
+    assert data[0] == 'ok', f"Unable to remove agent {agent_id} - {data[1]}"
+
+
+def calculate_global_hash():
+    """Function that calculates and retrieves the actual global groups hash.
+
+    Returns:
+        str: Actual global groups hash.
+    """
+    GET_GROUP_HASH = '''global sql SELECT group_hash FROM agent WHERE
+                     id > 0 AND group_hash IS NOT NULL ORDER BY id'''
+
+    result = database.query_wdb(GET_GROUP_HASH)
+    group_hashes = [item['group_hash'] for item in result]
+
+    return hashlib.sha1("".join(group_hashes).encode()).hexdigest()
+
+
+def clean_groups_from_db():
+    """
+    Clean groups table from global.db
+    """
+    command = 'global sql DELETE FROM "group"'
+    try:
+        database.query_wdb(command)
+    except Exception:
+        raise Exception('Unable to clean groups table.')
+
+
+def clean_belongs():
+    """
+    Clean belong table from global.db
+    """
+    command = 'global sql DELETE FROM belongs'
+    try:
+        database.query_wdb(command)
+    except Exception:
+        raise Exception('Unable to clean belongs table.')
