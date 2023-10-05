@@ -7,7 +7,7 @@ import os
 import json
 import socket
 import time
-
+import numbers
 from typing import List, Union
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
@@ -123,3 +123,12 @@ def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os
     """
     with DatabaseAdministrator(database_path) as db:
         db.execute_script(script_path)
+
+def validate_interval_format(interval):
+    """Validate that the interval passed has the format in which the last digit is a letter from those passed and
+       the other characters are between 0-9."""
+    if interval == '':
+        return False
+    if interval[-1] not in ['s', 'm', 'h', 'd', 'w', 'y'] or not isinstance(int(interval[0:-1]), numbers.Number):
+        return False
+    return True
