@@ -9,3 +9,6 @@ CONFIGURATION_ERROR_PORT = r".*{severity}: \\(\\d+\\): Invalid port number: '{po
 IGNORED_INVALID_PROTOCOL = r".*WARNING:.* Ignored invalid value '{protocol}' for 'protocol'.*"
 ERROR_GETTING_PROTOCOL = fr"{PREFIX}.* Error getting protocol. Default value \(TCP\) will be used.*"
 DETECT_REMOTED_STARTED = r".*Started.*Listening on port {port}\/{protocol_valid_upper} \({connection}\).*"
+
+WARNING_SYSLOG_TCP_UDP = r".*WARNING:.*Only secure connection supports TCP and UDP at the same time. " \
+                         r"Default value \(TCP\) will be used.*"
