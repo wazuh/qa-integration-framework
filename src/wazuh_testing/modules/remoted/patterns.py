@@ -18,3 +18,5 @@ ERROR_BIND_PORT = r".*CRITICAL: \(\d+\): Unable to Bind port '1514' due to \[\(\
 ERROR_QUEUE_SIZE_SYSLOG = r".*ERROR: Invalid option \<queue_size\> for Syslog remote connection."
 
 WARNING_QUEUE_SIZE_TOO_BIG = r".*WARNING: Queue size is very high. The application may run out of memory."
+
+WARNING_INVALID_VALUE_FOR = r".*WARNING: \(\d+\): Invalid value '.*' in '{option}' option. Default value will be used.*"
