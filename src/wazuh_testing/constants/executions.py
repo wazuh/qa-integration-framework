@@ -14,3 +14,4 @@ TIER2 = pytest.mark.tier(level=2)
 
 AGENT = pytest.mark.agent
 SERVER = pytest.mark.server
+LINUX = pytest.mark.linux
