@@ -14,3 +14,5 @@ WARNING_SYSLOG_TCP_UDP = r".*WARNING:.*Only secure connection supports TCP and U
                          r"Default value \(TCP\) will be used.*"
 
 ERROR_BIND_PORT = r".*CRITICAL: \(\d+\): Unable to Bind port '1514' due to \[\(\d+\)\-\(Cannot assign requested address\)\]"
+
+ERROR_QUEUE_SIZE_SYSLOG = r".*ERROR: Invalid option \<queue_size\> for Syslog remote connection."
