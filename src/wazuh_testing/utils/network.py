@@ -3,6 +3,9 @@ Copyright (C) 2015-2023, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
+
+import ipaddress
+
 # Protocols
 UDP = 'UDP'
 TCP = 'TCP'
@@ -36,3 +39,15 @@ def is_tcp_udp(protocol: str = None) -> bool:
     _protocol = protocol.replace(' ', '').upper().split(',')
     _protocol.sort()
     return ','.join(_protocol) == TCP_UDP
+
+
+def format_ipv6_long(ipv6_address):
+    """Return the long form of the address representation in uppercase.
+
+    Args:
+        ipv6_address (str): IPV6 address
+
+    Returns:
+        str: IPV6 long form
+    """
+    return (ipaddress.ip_address(ipv6_address).exploded).upper()
