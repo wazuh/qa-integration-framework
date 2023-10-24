@@ -24,3 +24,5 @@ WARNING_INVALID_VALUE_FOR = r".*WARNING: \(\d+\): Invalid value '.*' in '{option
 DETECT_SYSLOG_ALLOWED_IPS = r".*Remote syslog allowed from: \'{syslog_ips}\'.*"
 
 ERROR_INVALID_IP = r".*ERROR: \(\d+\): Invalid ip address: '{ip}'.*"
+
+ERROR_IN_CONFIGURATION = r".*{severity}:.*Configuration error at '{conf_path}'.*"
