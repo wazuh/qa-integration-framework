@@ -22,3 +22,5 @@ WARNING_QUEUE_SIZE_TOO_BIG = r".*WARNING: Queue size is very high. The applicati
 WARNING_INVALID_VALUE_FOR = r".*WARNING: \(\d+\): Invalid value '.*' in '{option}' option. Default value will be used.*"
 
 DETECT_SYSLOG_ALLOWED_IPS = r".*Remote syslog allowed from: \'{syslog_ips}\'.*"
+
+ERROR_INVALID_IP = r".*ERROR: \(\d+\): Invalid ip address: '{ip}'.*"
