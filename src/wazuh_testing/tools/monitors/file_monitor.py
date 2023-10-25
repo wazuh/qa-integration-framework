@@ -54,7 +54,7 @@ class FileMonitor(BaseMonitor):
             raise PermissionError(f"{self.monitored_object} is not readable.")
 
     def start(self, callback: Callable, timeout: int = 30, accumulations: int = 1,
-              only_new_events: bool = False) -> None:
+              only_new_events: bool = False, return_matched_line: bool = False) -> None:
         """
         Start monitoring the target file using the instance provided regex and accumulate matches.
 
@@ -79,6 +79,8 @@ class FileMonitor(BaseMonitor):
                 for line in _file:
                     matches += self._match(line, callback)
                     if matches >= accumulations:
+                        if return_matched_line:
+                            return line
                         return
 
         # Start count to set the timeout.
@@ -100,4 +102,6 @@ class FileMonitor(BaseMonitor):
                     matches += self._match(line, callback)
                     # If it has triggered the callback the expected times, break and leave the loop.
                     if matches >= accumulations:
+                        if return_matched_line:
+                            return line
                         return
