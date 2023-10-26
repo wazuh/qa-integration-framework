@@ -157,7 +157,24 @@ def control_service(action, daemon=None, debug_mode=False):
             f"Error when executing {action} in daemon {daemon}. Exit status: {result}")
 
 
-def check_daemon_status(target_daemon=None, running_condition=True, timeout=10, extra_sockets=[]):
+def check_all_daemon_status():
+    daemons_status = {}
+
+    if sys.platform == WINDOWS:
+        current_daemon = 'WAZUH_AGENT_WIN'
+        daemons_status[current_daemon] = check_if_process_is_running(WAZUH_AGENT_WIN)
+    else:
+        control_status_output = subprocess.run([WAZUH_CONTROL_PATH, 'status'],
+                                                stdout=subprocess.PIPE).stdout.decode()
+        for lines in control_status_output.splitlines():
+            daemon_status_tokens = lines.split()
+            current_daemon = daemon_status_tokens[0]
+            daemon_status = ' '.join(daemon_status_tokens[1:])
+            is_running = daemon_status == 'is running...'
+            daemons_status[current_daemon] = is_running
+    return daemons_status
+
+def wait_expected_daemon_status(target_daemon=None, running_condition=True, timeout=10, extra_sockets=[]):
     """Wait until Wazuh daemon's status matches the expected one. If timeout is reached and the status didn't match,
        it raises a TimeoutError.
 
