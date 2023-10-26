@@ -26,3 +26,5 @@ DETECT_SYSLOG_ALLOWED_IPS = r".*Remote syslog allowed from: \'{syslog_ips}\'.*"
 ERROR_INVALID_IP = r".*ERROR: \(\d+\): Invalid ip address: '{ip}'.*"
 
 ERROR_IN_CONFIGURATION = r".*{severity}:.*Configuration error at '{conf_path}'.*"
+
+MSG_SYSLOG_DENIED_IPS = r".*Message from \'{syslog_ips}\' not allowed. Cannot find the ID of the agent.*"
