@@ -2,10 +2,13 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
+import socket
+import ipaddress
 
 from wazuh_testing.tools.socket_controller import SocketController
 from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
                                                   MODULESD_C_INTERNAL_SOCKET_PATH
+from wazuh_testing.utils.network import UDP
 
 
 def delete_sockets(path=None):
@@ -44,3 +47,35 @@ def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
     controller.close()
 
     return response
+
+
+def send_message_to_syslog_socket(message, port, protocol, manager_address="127.0.0.1"):
+    """Send a message to the syslog server of wazuh-remoted.
+
+    Args:
+        message (str): string to send as a syslog event.
+        protocol (str): it can be UDP or TCP.
+        port (int): port where the manager has bound the remoted port.
+        manager_address (str): address of the manager.
+
+    Raises:
+        ConnectionRefusedError: if there's a problem while sending messages to the manager.
+    """
+    ip = ipaddress.ip_address(manager_address)
+    if protocol.upper() == UDP:
+        if isinstance(ip, ipaddress.IPv4Address):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        elif isinstance(ip, ipaddress.IPv6Address):
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    else:
+        if isinstance(ip, ipaddress.IPv4Address):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        elif isinstance(ip, ipaddress.IPv6Address):
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+
+    if not message.endswith("\n"):
+        message += "\n"
+
+    sock.connect((manager_address, port))
+    sock.send(message.encode())
+    sock.close()
