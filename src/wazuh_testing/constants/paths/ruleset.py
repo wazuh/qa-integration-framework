@@ -13,3 +13,7 @@ DEFAULT_RULESET_PATH = os.path.join(WAZUH_PATH, 'ruleset')
 DEFAULT_RULES_PATH = os.path.join(DEFAULT_RULESET_PATH, 'rules')
 DEFAULT_DECODERS_PATH = os.path.join(DEFAULT_RULESET_PATH, 'decoders')
 CIS_RULESET_PATH = os.path.join(DEFAULT_RULESET_PATH, 'sca')
+
+CUSTOM_RULES_PATH = os.path.join(WAZUH_PATH, 'etc', 'rules')
+LOCAL_RULES_PATH = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+LOCAL_DECODERS_PATH = os.path.join(WAZUH_PATH, 'etc', 'decoders', 'local_decoder.xml')
