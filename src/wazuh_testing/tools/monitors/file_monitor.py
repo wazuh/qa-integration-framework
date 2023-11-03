@@ -54,7 +54,7 @@ class FileMonitor(BaseMonitor):
             raise PermissionError(f"{self.monitored_object} is not readable.")
 
     def start(self, callback: Callable, timeout: int = 30, accumulations: int = 1,
-              only_new_events: bool = False) -> None:
+              only_new_events: bool = False, encoding = None) -> None:
         """
         Start monitoring the target file using the instance provided regex and accumulate matches.
 
@@ -71,7 +71,8 @@ class FileMonitor(BaseMonitor):
         """
         self._clear_results()
         matches = 0
-        encoding = file.get_file_encoding(self.monitored_object)
+        if encoding is None:
+            encoding = file.get_file_encoding(self.monitored_object)
 
         # Check if current file content lines triggers the callback (only when new events has False value)
         if not only_new_events:
