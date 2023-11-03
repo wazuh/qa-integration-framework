@@ -26,3 +26,5 @@ ARCHIVES_JSON_PATH = os.path.join(BASE_LOGS_PATH, 'archives', 'archives.json')
 # API logs paths
 WAZUH_API_LOG_FILE_PATH = os.path.join(BASE_LOGS_PATH, 'api.log')
 WAZUH_API_JSON_LOG_FILE_PATH = os.path.join(BASE_LOGS_PATH, 'api.json')
+
+WAZUH_CLUSTER_LOGS_PATH = os.path.join(BASE_LOGS_PATH, 'cluster.log')
