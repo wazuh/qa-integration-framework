@@ -49,8 +49,21 @@ class QueueMonitor(BaseMonitor):
         while time.time() - start_time < timeout:
             try:
                 item = self.monitored_object.get(block=True, timeout=0.5)
-                msg = item[0] if type(item) is tuple else item
-                matches += self._match(msg.decode() if isinstance(msg, bytes) else msg, callback)
+
+                def check_match(msg):
+                    nonlocal matches
+                    msg = msg.decode('latin-1', 'ignore') if isinstance(msg, bytes) else msg
+                    matches += self._match(msg, callback)
+
+                if type(item) is tuple:
+                    for msg in item:
+                        check_match(msg)
+                        # If it has triggered the callback the expected times, break and leave the loop
+                        if matches >= accumulations:
+                            break
+                else:
+                    check_match(item)
+
                 # If it has triggered the callback the expected times, break and leave the loop
                 if matches >= accumulations:
                     break
