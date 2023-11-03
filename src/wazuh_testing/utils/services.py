@@ -174,6 +174,7 @@ def check_all_daemon_status():
             daemons_status[current_daemon] = is_running
     return daemons_status
 
+
 def wait_expected_daemon_status(target_daemon=None, running_condition=True, timeout=10, extra_sockets=[]):
     """Wait until Wazuh daemon's status matches the expected one. If timeout is reached and the status didn't match,
        it raises a TimeoutError.
