@@ -382,6 +382,22 @@ def create_parent_directories(path: os.PathLike) -> list:
     return created_parents
 
 
+def recursive_directory_creation(path):
+    """Recursive function to create folders.
+
+    Args:
+        path (str): Path to create. If a folder doesn't exists, it will create it.
+    """
+    parent, _ = os.path.split(path)
+    if parent != '' and not os.path.exists(parent):
+        split = os.path.split(parent)
+        recursive_directory_creation(split[0])
+        os.mkdir(parent, mode=0o0777)
+
+    if not os.path.exists(path):
+        os.mkdir(path, mode=0o0777)
+
+
 def create_files(files: list[Union[str, os.PathLike]]) -> list:
     """Create multiple files/directories. Return the list of created files/directories.
 
