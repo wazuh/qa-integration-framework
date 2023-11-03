@@ -69,3 +69,30 @@ def delete_agent(agent_id):
         agent_id (str): Agent ID.
     """
     database.query_wdb(f"global sql DELETE FROM agent where id={int(agent_id)}")
+
+
+def clean_agents_from_db():
+    """
+    Clean agents from DB
+    """
+    command = 'global sql DELETE FROM agent WHERE id != 0'
+    try:
+        database.query_wdb(command)
+    except Exception:
+        raise Exception('Unable to clean agents')
+
+
+
+def insert_agent_in_db(id=1, name='TestAgent', ip='any', registration_time=0, connection_status=0,
+                       disconnection_time=0):
+    """
+    Write agent in global.db
+    """
+    insert_command = f'global insert-agent {{"id":{id},"name":"{name}","ip":"{ip}","date_add":{registration_time}}}'
+    update_command = f'global sql UPDATE agent SET connection_status = "{connection_status}",\
+                       disconnection_time = "{disconnection_time}" WHERE id = {id};'
+    try:
+        database.query_wdb(insert_command)
+        database.query_wdb(update_command)
+    except Exception:
+        raise Exception(f"Unable to add agent {id}")
