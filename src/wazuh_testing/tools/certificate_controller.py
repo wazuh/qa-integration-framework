@@ -29,6 +29,9 @@ class CertificateController:
         self.root_ca_key.generate_key(crypto.TYPE_RSA, 4096)
         self.root_ca_cert = self._create_ca_cert(self.root_ca_key)
 
+    def get_root_ca_cert(self):
+        return self.root_ca_cert
+
     def generate_agent_certificates(self, agent_key_path: str, agent_cert_path: str, agentname: str,
                                     key_bits: int = 4096, signed: bool = True) -> None:
         """
@@ -41,8 +44,8 @@ class CertificateController:
             key_bits (int): The number of bits for the RSA key. Defaults to 4096.
             signed (bool): Whether to sign the certificate with the root CA key. Defaults to True.
         """
-        key = crypto.PKey().generate_key(crypto.TYPE_RSA, key_bits)
-        self._add_key_to_certificate(key)
+        key = crypto.PKey()
+        key.generate_key(crypto.TYPE_RSA, key_bits)
         cert = self._create_ca_cert(key, subject=agentname)
 
         if signed:
