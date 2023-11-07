@@ -78,11 +78,12 @@ class CertificateController:
         cert.get_subject().CN = subject or issuer
         cert.gmtime_adj_notBefore(0)
         cert.gmtime_adj_notAfter(expiration_time if expiration_time else 10 * 365 * 24 * 60 * 60)
-        cert.set_issuer(cert.get_subject())
+        ca_issuer = cert.get_issuer()
+        ca_issuer.commonName = issuer
+        cert.set_issuer(ca_issuer)
         cert.set_pubkey(pub_key)
         cert.add_extensions([
             crypto.X509Extension(b'basicConstraints', True, b'CA:TRUE, pathlen:0'),
-            crypto.X509Extension(b'keyUsage', True, b'keyCertSign, cRLSign'),
             crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', subject=cert),
         ])
         cert.sign(self.root_ca_key, self.digest)
