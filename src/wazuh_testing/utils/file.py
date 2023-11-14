@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Union, List
 from datetime import datetime
 
+from wazuh_testing.constants.platforms import WINDOWS
 
 def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
@@ -326,7 +327,7 @@ def copy(source, destination):
     shutil.copy2(source, destination)
     source_stats = os.stat(source)
 
-    if sys.platform != 'win32':
+    if sys.platform != WINDOWS:
         os.chown(destination, source_stats[stat.ST_UID], source_stats[stat.ST_GID])
 
 

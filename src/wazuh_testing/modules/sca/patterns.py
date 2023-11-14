@@ -22,29 +22,3 @@ CB_SCA_SCAN_EVENT = r".*sca_send_alert.*Sending event: (.*)"
 ERR_MSG_REGEX_ENGINE = "Did not receive the expected 'SCA will use '.*' engine to check the rules' event"
 ERR_MSG_ID_RESULTS = 'Expected sca_has_integrity result events not found'
 ERR_MSG_SCA_SUMMARY = 'Expected SCA Scan Summary type event not found.'
-
-
-# Callback functions
-def callback_scan_id_result(line):
-    '''Callback that returns the ID an result of a SCA check
-    Args:
-        line (str): line string to check for match.
-    '''
-    match = re.match(CB_SCAN_RULE_RESULT, line)
-    if match:
-        return [match.group(1), match.group(2)]
-
-
-def callback_detect_sca_scan_summary(line):
-    '''Callback that return the json from a SCA summary event.
-    Args:
-        line (str): line string to check for match.
-    '''
-    match = re.match(CB_SCA_SCAN_EVENT, line)
-    if match:
-        if json.loads(match.group(1))['type'] == 'summary':
-            return json.loads(match.group(1))
-
-
-# Variables
-TEMP_FILE_PATH = '/tmp'
