@@ -25,6 +25,7 @@ from string import ascii_letters, digits
 from struct import pack
 from sys import getsizeof
 from time import mktime, localtime, sleep, time
+from typing import Tuple
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.utils import secure_message
@@ -1751,7 +1752,7 @@ def create_agents(agents_number, manager_address, cypher='aes', fim_eps=100, aut
     return agents
 
 
-def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='1514'):
+def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='1514') -> Tuple[Sender, Injector]:
     """Connects an agent to the manager
     Args:
         agent (Agent): agent to connect.
