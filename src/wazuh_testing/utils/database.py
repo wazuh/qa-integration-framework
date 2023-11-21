@@ -1,8 +1,7 @@
-"""
-Copyright (C) 2015-2023, Wazuh Inc.
-Created by Wazuh, Inc. <info@wazuh.com>.
-This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-"""
+# Copyright (C) 2015, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
 import os
 import json
 import socket
@@ -132,7 +131,6 @@ def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
             return result
     finally:
         services.control_service('start', daemon=WAZUH_DB_DAEMON)
-
 
 
 def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os.PathLike, str]) -> None:
