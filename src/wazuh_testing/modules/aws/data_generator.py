@@ -39,8 +39,8 @@ class DataGenerator:
 
 
 class CloudTrailDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUD_TRAIL_TYPE, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CLOUD_TRAIL_TYPE}_{US_EAST_1_REGION}_"
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUDTRAIL, US_EAST_1_REGION)
+    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CLOUDTRAIL}_{US_EAST_1_REGION}_"
 
     def get_filename(self):
         """Return the filename in the cloudtrail format.
@@ -818,7 +818,7 @@ class GuardDutyDataGenerator(DataGenerator):
 
 
 class NativeGuardDutyDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARD_DUTY_TYPE, US_EAST_1_REGION)
+    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARDDUTY, US_EAST_1_REGION)
     BASE_FILE_NAME = ''
 
     compress = True
