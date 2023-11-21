@@ -11,7 +11,8 @@ from botocore.exceptions import ClientError
 # Local imports
 from wazuh_testing.constants.aws import (PERMANENT_CLOUDWATCH_LOG_GROUP, US_EAST_1_REGION, AWS_MODULE_CALL,
                                          RESULTS_FOUND, RESULTS_EXPECTED)
-from wazuh_testing.constants.paths.aws import AWS_MODULE_PATH, AWS_BINARY_PATH
+from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH, S3_CLOUDTRAIL_DB_PATH,
+                                               AWS_SERVICES_DB_PATH)
 from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
 
