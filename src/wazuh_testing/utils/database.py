@@ -133,7 +133,6 @@ def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
         services.control_service('start', daemon=WAZUH_DB_DAEMON)
 
 
-# @todo Ask repetidas sin el loop
 def get_query_result(db_path: str, query: str) -> List[str]:
     """Execute a query in a given database and return the result.
     Args:
