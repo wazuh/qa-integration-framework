@@ -1,3 +1,11 @@
+# Copyright (C) 2015, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+"""
+    File contains all constants used in the AWS test suite.
+"""
+
 # AWS Constants
 AWS_LOGS = 'AWSLogs'
 AWS_MODULE_CALL = "Calling AWS module with: '%s'"
