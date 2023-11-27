@@ -1,4 +1,11 @@
-"""Utils to generate sample data to AWS"""
+# Copyright (C) 2015, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+"""
+    File contains utils to generate sample data for the AWS test suite.
+"""
+
 import csv
 import json
 from datetime import datetime
