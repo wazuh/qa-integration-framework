@@ -3,7 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 """
-    File contains regex patterns used in AWS module.
+    File contains regex patterns used in AWS test suite.
 """
 
 # Errors
