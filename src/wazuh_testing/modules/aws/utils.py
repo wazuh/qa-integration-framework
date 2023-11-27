@@ -1,4 +1,11 @@
-"""AWS related utils"""
+# Copyright (C) 2015, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+"""
+    File contains all utils used in the AWS test suite.
+"""
+
 import subprocess
 import gzip
 import boto3
