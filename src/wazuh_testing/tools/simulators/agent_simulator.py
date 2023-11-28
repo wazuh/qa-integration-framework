@@ -31,7 +31,7 @@ from wazuh_testing import DATA_PATH
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
-from wazuh_testing.utils.network import TCP, is_udp, is_tcp
+from wazuh_testing.utils.network import TCP, UDP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
 
 
@@ -1765,3 +1765,38 @@ def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='151
     injector.run()
     agent.wait_status_active()
     return sender, injector
+
+
+def send_ping_pong_messages(protocol, manager_address, port):
+    """Send the ping message to the manager.
+
+    This message is the first of many between the manager and the agents. It is used to check if both of them are ready
+    to send and receive other messages.
+
+    Args:
+        protocol (str): it can be UDP or TCP.
+        manager_address (str): address of the manager. IP and hostname are valid options.
+        port (int): port where the manager has bound the remoted port.
+
+    Returns:
+        bytes: returns the #pong message from the manager.
+
+    Raises:
+        ConnectionRefusedError: if there's a problem while sending messages to the manager.
+    """
+    protocol = protocol.upper()
+    if protocol == UDP:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ping_msg = b'#ping'
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        msg = '#ping'
+        msg_size = len(bytearray(msg, 'utf-8'))
+        # Since the message size's is represented as an unsigned int32, you need to use 4 bytes to represent it
+        ping_msg = msg_size.to_bytes(4, 'little') + msg.encode()
+
+    sock.connect((manager_address, port))
+    sock.send(ping_msg)
+    response = sock.recv(len(ping_msg))
+    sock.close()
+    return response if protocol == UDP else response[-5:]
