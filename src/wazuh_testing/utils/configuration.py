@@ -19,7 +19,7 @@ def get_minimal_configuration():
     Returns:
         List of str: Wazuh minimal configuration data.
     """
-    return file.read_file_lines(os.path.join(DATA_PATH, 'all_disabled_ossec.conf'))
+    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', 'all_disabled_ossec.conf'))
 
 
 def get_wazuh_conf() -> List[str]:

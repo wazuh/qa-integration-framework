@@ -631,7 +631,7 @@ class Agent:
 
     def create_keep_alive(self):
         """Set the keep alive event from keepalives operating systemd data."""
-        with open(os.path.join(DATA_PATH, 'keepalives.txt'), 'r') as fp:
+        with open(os.path.join(DATA_PATH, 'events_template', 'keepalives.txt'), 'r') as fp:
             line = fp.readline()
             while line:
                 if line.strip("\n") == self.os:
@@ -992,7 +992,7 @@ class Rootcheck:
     def setup(self):
         """Initialized the list of rootcheck messages, using `rootcheck_sample` and agent information."""
         if self.rootcheck_sample is None:
-            self.rootcheck_path = os.path.join(DATA_PATH, 'rootcheck.txt')
+            self.rootcheck_path = os.path.join(DATA_PATH, 'events_template', 'rootcheck.txt')
         else:
             self.rootcheck_path = os.path.join(DATA_PATH, self.rootcheck_sample)
 

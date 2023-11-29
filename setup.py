@@ -12,12 +12,12 @@ from typing import List
 
 # Extra data.
 package_data_list = [
-    'data/all_disabled_ossec.conf',
-    'data/analysis_alert.json',
-    'data/analysis_alert_windows.json',
-    'data/mitre_event.json',
-    'data/keepalives.txt',
-    'data/rootcheck.txt',
+    'data/alerts_template/analysis_alert.json',
+    'data/alerts_template/analysis_alert_windows.json',
+    'data/alerts_template/mitre_event.json',
+    'data/configuration_template/all_disabled_ossec.conf',
+    'data/events_template/keepalives.txt',
+    'data/events_template/rootcheck.txt',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
     'data/statistics_template/manager_statistics_format_test_module/wazuh-analysisd_template.json',
