@@ -27,6 +27,7 @@ class BaseMonitor(ABC):
         """
         self.monitored_object: Any = monitored_object
         self.callback_result: Tuple = None
+        self.matches = 0
 
     @abstractmethod
     def start():
@@ -42,6 +43,7 @@ class BaseMonitor(ABC):
         Clear the monitor's callback_result.
         """
         self.callback_result = None
+        self.matches = 0
 
     def _match(self, message: str, callback: Callable) -> bool:
         """Determine if a given message matches the current pattern using the callback function.
