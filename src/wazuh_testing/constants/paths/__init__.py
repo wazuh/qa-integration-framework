@@ -6,6 +6,7 @@ import os
 
 from wazuh_testing.constants.platforms import MACOS, WINDOWS
 
+TEMP_FILE_PATH = '/tmp'
 
 if sys.platform == WINDOWS:
     WAZUH_PATH = os.path.join("C:", os.sep, "Program Files (x86)", "ossec-agent")

@@ -12,3 +12,4 @@ from . import WAZUH_PATH
 DEFAULT_RULESET_PATH = os.path.join(WAZUH_PATH, 'ruleset')
 DEFAULT_RULES_PATH = os.path.join(DEFAULT_RULESET_PATH, 'rules')
 DEFAULT_DECODERS_PATH = os.path.join(DEFAULT_RULESET_PATH, 'decoders')
+CIS_RULESET_PATH = os.path.join(DEFAULT_RULESET_PATH, 'sca')
