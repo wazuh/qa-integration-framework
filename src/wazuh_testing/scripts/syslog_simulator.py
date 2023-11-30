@@ -16,7 +16,7 @@ DEFAULT_MESSAGE_SIZE = len(DEFAULT_MESSAGE.encode('utf-8'))
 LOGGER = logging.getLogger('syslog_simulator')
 TCP_LIMIT = 5000
 UDP_LIMIT = 200
-
+SYSLOG_SIMULATOR_START_TIME = 2
 
 def set_logging(debug=False):
     LOGGER.setLevel(logging.DEBUG if debug else logging.INFO)
