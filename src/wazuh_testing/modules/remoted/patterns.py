@@ -36,3 +36,7 @@ ERROR_IN_CONFIGURATION = r".*{severity}:.*Configuration error at '{conf_path}'.*
 MSG_SYSLOG_DENIED_IPS = r".*Message from \'{syslog_ips}\' not allowed. Cannot find the ID of the agent.*"
 
 INFO_NO_ALLOWED_IPS = r".*INFO:.*IP or network must be present in syslog access list \(allowed-ips\).*"
+
+ARCHIVES_FULL_JSON = r'.*"full_log":"{message}".*"location":"{location}".*'
+
+ARCHIVES_FULL_LOG  = r'.*{location}.*{message}.*'
