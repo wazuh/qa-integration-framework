@@ -219,7 +219,7 @@ def get_encryption_key(id: str, name: str, key: str) -> bytes:
         bytes: The generated encryption key as bytes.
     """
     first_hash = (hashlib.md5(hashlib.md5(name.encode()).hexdigest().encode() +
-                                hashlib.md5(id.encode()).hexdigest().encode()
+                                hashlib.md5(str(id).encode()).hexdigest().encode()
                                 ).hexdigest().encode())[:15]
     second_hash = hashlib.md5(key.encode()).hexdigest().encode()
 
