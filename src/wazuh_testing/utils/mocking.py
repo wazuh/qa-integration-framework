@@ -137,20 +137,6 @@ SYSTEM_DATA = {
 }
 
 
-def set_system(system, agent_id: str = '000') -> None:
-    """Set custom system in global DB Agent info.
-    Args:
-        system (str): System to set. Available systems in SYSTEM_DATA variable.
-    """
-    global_db.modify_agent_system(agent_id=agent_id, os_name=SYSTEM_DATA[system]['os_name'],
-                                  os_major=SYSTEM_DATA[system]['os_major'], os_minor=SYSTEM_DATA[system]['os_minor'],
-                                  name=SYSTEM_DATA[system]['name'])
-
-    agent_db.update_os_info(agent_id=agent_id, os_name=SYSTEM_DATA[system]['os_name'],
-                            os_major=SYSTEM_DATA[system]['os_major'], os_minor=SYSTEM_DATA[system]['os_minor'],
-                            hostname=SYSTEM_DATA[system]['name'])
-
-
 def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1', internal_key='',
                         os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4', os_codename='centos-8',
                         os_build='4.18.0-147.8.1.el8_1.x86_64', os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020',
@@ -281,19 +267,3 @@ def delete_mocked_packages(agent_id: str = '000') -> None:
 
     for package_name in package_names:
         agent_db.delete_package(package=package_name, agent_id=agent_id)
-
-
-def delete_all_mocked_agents(name: str = 'mocked_agent') -> None:
-    """Delete all mocked agents by name.
-
-    Args:
-        name (str): Name of mocked agents to delete.
-    """
-    for agent_id in global_db.get_agent_ids(name):
-        delete_mocked_agent(agent_id)
-
-
-def delete_all_agents() -> None:
-    """Delete all mocked agents except id 000."""
-    for agent_id in global_db.get_all_agent_ids():
-        delete_mocked_agent(agent_id)
