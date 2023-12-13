@@ -33,7 +33,7 @@ def replace_values_in_dynamic_regex(regex: str, replacement: dict = None) -> str
     return regex
 
 
-def generate_callback(regex: str, replacement: dict = None) -> Callable:
+def generate_callback(regex: str, replacement: dict = None, debug = False) -> Callable:
     """Returns a callback function that searches for a regular expression in a given line.
 
     Args:
@@ -59,6 +59,9 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         if match:
             # Return the matched line or match groups.
             return line if len(match.groups()) == 0 else match.groups()
+        elif debug :
+            print("line: " + line)
+            print("regex: " + line)
 
         return None
 
