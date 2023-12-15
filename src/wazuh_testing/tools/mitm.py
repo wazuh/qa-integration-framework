@@ -232,6 +232,7 @@ class DatagramHandler(socketserver.BaseRequestHandler):
             self.server.mitm.handler_func(data)
             self.server.mitm.put_queue(data)
 
+
 class ManInTheMiddle:
 
     def __init__(self, address, family='AF_UNIX', connection_protocol='TCP', func: callable = None):
