@@ -96,3 +96,10 @@ def insert_agent_in_db(id=1, name='TestAgent', ip='any', registration_time=0, co
         database.query_wdb(update_command)
     except Exception:
         raise Exception(f"Unable to add agent {id}")
+
+
+def list_agents_ids():
+    wazuhdb_result = query_wdb('global get-all-agents last_id -1')
+    list_agents = [agent['id'] for agent in wazuhdb_result if not (0 == agent.get('id'))]
+
+    return list_agents

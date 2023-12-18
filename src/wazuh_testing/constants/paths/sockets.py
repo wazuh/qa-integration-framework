@@ -9,6 +9,9 @@ from . import WAZUH_PATH
 QUEUE_CLUSTER_PATH = os.path.join(WAZUH_PATH, 'queue', 'cluster')
 QUEUE_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'db')
 QUEUE_SOCKETS_PATH = os.path.join(WAZUH_PATH, 'queue', 'sockets')
+QUEUE_AGENTS_TIMESTAMP_PATH = os.path.join(WAZUH_PATH, 'queue', 'agents-timestamp')
+QUEUE_DIFF_PATH = os.path.join(WAZUH_PATH, 'queue', 'diff')
+QUEUE_RIDS_PATH = os.path.join(WAZUH_PATH, 'queue', 'rids')
 
 ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'analysis')
 ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
