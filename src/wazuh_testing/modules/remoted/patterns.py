@@ -40,3 +40,5 @@ INFO_NO_ALLOWED_IPS = r".*INFO:.*IP or network must be present in syslog access 
 ARCHIVES_FULL_JSON = r'.*"full_log":"{message}".*"location":"{location}".*'
 
 ARCHIVES_FULL_LOG  = r'.*{location}.*{message}.*'
+
+KEY_UPDATE = r'.*rem_keyupdate_main().*Checking for keys file changes.*'
