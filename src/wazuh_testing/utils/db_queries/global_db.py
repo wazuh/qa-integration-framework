@@ -82,24 +82,8 @@ def clean_agents_from_db():
         raise Exception('Unable to clean agents')
 
 
-
-def insert_agent_in_db(id=1, name='TestAgent', ip='any', registration_time=0, connection_status=0,
-                       disconnection_time=0):
-    """
-    Write agent in global.db
-    """
-    insert_command = f'global insert-agent {{"id":{id},"name":"{name}","ip":"{ip}","date_add":{registration_time}}}'
-    update_command = f'global sql UPDATE agent SET connection_status = "{connection_status}",\
-                       disconnection_time = "{disconnection_time}" WHERE id = {id};'
-    try:
-        database.query_wdb(insert_command)
-        database.query_wdb(update_command)
-    except Exception:
-        raise Exception(f"Unable to add agent {id}")
-
-
 def list_agents_ids():
-    wazuhdb_result = query_wdb('global get-all-agents last_id -1')
+    wazuhdb_result = database.query_wdb('global get-all-agents last_id -1')
     list_agents = [agent['id'] for agent in wazuhdb_result if not (0 == agent.get('id'))]
 
     return list_agents

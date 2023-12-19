@@ -27,7 +27,7 @@ class QueueMonitor(BaseMonitor):
         """
         super().__init__(monitored_object=monitored_object)
 
-    def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1) -> None:
+    def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1, encoding = 'latin-1') -> None:
         """Start monitoring the target queue using the instance provided regex and accumulate matches.
 
         This method monitors the target queue using the regex provided during object instantiation.
@@ -52,7 +52,7 @@ class QueueMonitor(BaseMonitor):
 
                 def check_match(msg):
                     nonlocal matches
-                    msg = msg.decode('latin-1', 'ignore') if isinstance(msg, bytes) else msg
+                    msg = msg.decode(encoding, 'ignore') if isinstance(msg, bytes) else msg
                     matches += self._match(msg, callback)
 
                 if type(item) is tuple:
