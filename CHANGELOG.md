@@ -2,14 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [4.9.0] - TBD
+
+## [4.9.0]
 
 ### Changed
 - Added the `/manager/configuration` endpoint route constant. ([#63](https://github.com/wazuh/qa-integration-framework/pull/63))
 
-## [4.8.1] - TBD
+## [4.8.1]
 
-## [4.8.0] - TBD
+## [4.8.0]
 
-## [4.7.1] - TBD
+### Changed
+- Updated name of the `vulnerability-detection` configuration block in the `all_disabled_ossec.conf` file. ([#51](https://github.com/wazuh/qa-integration-framework/pull/51))
 
+## [4.7.2]
+
+## [4.7.1]

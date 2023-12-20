@@ -1,21 +1,27 @@
-"""
-Copyright (C) 2015-2023, Wazuh Inc.
-Created by Wazuh, Inc. <info@wazuh.com>.
-This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
-"""
-import chardet
+# Copyright (C) 2015-2023, Wazuh Inc.
+# Created by Wazuh, Inc. <info@wazuh.com>.
+# This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+import bz2
+import gzip
 import json
 import os
 import re
 import shutil
-import time
-import yaml
-import sys
 import stat
+import sys
+import time
+import xml.etree.ElementTree as ET
+import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Union, List
-from datetime import datetime
 
+import chardet
+import filetype
+import requests
+import yaml
+from wazuh_testing.constants import platforms
 from wazuh_testing.constants.platforms import WINDOWS
 
 def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
@@ -44,6 +50,33 @@ def read_file(path: str) -> str:
     with open(path) as f:
         data = f.read()
     return data
+
+
+def copy(source: str, destination: str) -> None:
+    """
+    Copy file with metadata and ownership to a specific destination.
+
+    Args:
+        source (str): Source file path to copy.
+        destination (str): Destination file.
+    """
+    shutil.copy2(source, destination)
+    source_stats = os.stat(source)
+
+    if sys.platform != platforms.WINDOWS:
+        os.chown(destination, source_stats[stat.ST_UID], source_stats[stat.ST_GID])
+
+
+def download_file(source_url: str, dest_path: str) -> None:
+    """Download file to destination path.
+
+    Args:
+        source_url (str): Source url of file to download.
+        dest_path (str): Destination where file will be downloaded to.
+    """
+    request = requests.get(source_url, allow_redirects=True)
+    with open(dest_path, 'wb') as dest_file:
+        dest_file.write(request.content)
 
 
 def read_file_lines(path: str) -> List[str]:
@@ -162,6 +195,21 @@ def get_file_encoding(file_path: Union[str, os.PathLike]) -> str:
     return encoding
 
 
+def get_file_info(file_path, info_type="extension") -> str:
+    """Gets a file extension
+    Args:
+
+        file_path (str): File path to check.
+        info_type (str): expected extension type. Default: 'extension'
+
+    Returns:
+        str: File extension or mime type.
+    """
+    if os.path.exists(file_path) and filetype.guess(file_path) is not None:
+        file = filetype.guess(file_path)
+        return file.extension if info_type == "extension" else file.mime
+
+
 def wait_mtime(path, time_step=5, timeout=-1):
     """
     Wait until the monitored log is not being modified.
@@ -189,6 +237,72 @@ def wait_mtime(path, time_step=5, timeout=-1):
             raise TimeoutError("Reached timeout.")
 
 
+def decompress_file(file_path, dest_file_path, compression_type="gzip") -> None:
+    """Decompresses file to destination
+
+    Args:
+        file_path (str): path of file to decompress
+        dest_file_path (str): path where to decompress the file
+        compression_type (str): type of compression. Default: 'gzip'. Values: 'gzip', 'zip', 'bz2'
+    """
+    if compression_type == "gzip":
+        with gzip.open(file_path, 'rb') as source, open(dest_file_path, 'wb') as dest:
+            dest.write(source.read())
+    elif compression_type == "zip":
+        with zipfile.ZipFile(file_path, 'r') as zip_reference:
+            zip_reference.extractall(dest_file_path)
+    elif compression_type == "bz2":
+        with open(file_path, 'rb') as source, open(dest_file_path, 'wb') as dest:
+            dest.write(bz2.decompress(source.read()))
+
+
+def write_json_file(file_path: str, data: dict[str, str], ensure_ascii: bool = False) -> None:
+    """
+    Write dict data to JSON file
+
+    Args:
+        file_path (str): File path where is located the JSON file to write.
+        data (dict): Data to write.
+        ensure_ascii (boolean) : If ensure_ascii is true, the output is guaranteed to have all incoming
+                                 non-ASCII characters escaped. If ensure_ascii is false, these characters will
+                                 be output as-is.
+    """
+    write_file(file_path, json.dumps(data, indent=4, ensure_ascii=ensure_ascii))
+
+
+def validate_json_file(file_path: str) -> bool:
+    """Validates a file is in JSON format
+
+    Args:
+        file_path (str): File path where is located the JSON file to read.
+
+    Returns:
+        Boolean: returns True if the file is in JSON format, False otherwise.
+    """
+    try:
+        with open(file_path) as file:
+            json.loads(file.read())
+        return True
+    except json.decoder.JSONDecodeError:
+        return False
+
+
+def validate_xml_file(file_path: str) -> bool:
+    """Validates a file is in JSON format
+
+    Args:
+        file_path (str): File path where is located the XML file to read.
+
+    Returns:
+        Boolean: returns True if the file is in XML format, False otherwise.
+    """
+    try:
+        ET.parse(file_path)
+        return True
+    except ET.ParseError:
+        return False
+
+
 def on_write_error(function, path, exc_info):
     """ Error handler for functions that try to modify a file. If the error is due to an access error (read only file),
     it attempts to add write permission and then retries. If the error is for another reason it re-raises the error.
@@ -201,7 +315,6 @@ def on_write_error(function, path, exc_info):
     Example:
         > shutil.rmtree(path, onerror=on_write_error)
     """
-    import stat
     # Check if the error is an access error for Write permissions.
     if not os.access(path, os.W_OK):
         # Add write permissions so file can be edited and execute function.
@@ -212,7 +325,7 @@ def on_write_error(function, path, exc_info):
         raise
 
 
-def delete_path_recursively(path):
+def delete_path_recursively(path: str) -> None:
     '''Remove a directory recursively.
 
     Args:
@@ -222,7 +335,7 @@ def delete_path_recursively(path):
         shutil.rmtree(path, onerror=on_write_error)
 
 
-def remove_file(file_path):
+def remove_file(file_path: str) -> None:
     """Remove a file or a directory path.
 
     Args:
