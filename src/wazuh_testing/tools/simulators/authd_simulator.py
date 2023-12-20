@@ -110,6 +110,13 @@ class AuthdSimulator(BaseSimulator):
             self.__mitm.queue.get_nowait()
         self.__mitm.event.clear()
 
+    def destroy(self) -> None:
+        """
+        Clear and shutdown the simulator.
+        """
+        self.clear()
+        self.shutdown()
+
     # Internal methods.
 
     def __authd_response_simulation(self, _request: Any) -> bytes:
