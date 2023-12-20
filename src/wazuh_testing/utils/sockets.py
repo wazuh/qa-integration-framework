@@ -7,7 +7,8 @@ import ipaddress
 
 from wazuh_testing.tools.socket_controller import SocketController
 from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
-                                                  MODULESD_C_INTERNAL_SOCKET_PATH
+                                                  MODULESD_C_INTERNAL_SOCKET_PATH, \
+                                                  ACTIVE_RESPONSE_SOCKET_PATH
 from wazuh_testing.utils.network import UDP
 
 
@@ -78,4 +79,17 @@ def send_message_to_syslog_socket(message, port, protocol, manager_address="127.
 
     sock.connect((manager_address, port))
     sock.send(message.encode())
+    sock.close()
+
+
+def send_active_response_message(active_response_command):
+    """Send active response message to `/var/ossec/queue/alerts/ar` socket.
+
+    Args:
+        active_response_command (str): Active response message.
+    """
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+    sock.connect(ACTIVE_RESPONSE_SOCKET_PATH)
+    sock.send(f"{active_response_command}".encode())
     sock.close()
