@@ -44,3 +44,9 @@ ARCHIVES_FULL_LOG  = r'.*{location}.*{message}.*'
 KEY_UPDATE = r'.*rem_keyupdate_main().*Checking for keys file changes.*'
 
 ACK_MESSAGE = r".*#!-agent ack.*"
+
+ACTIVE_RESPONSE_RECEIVED = r'.*DEBUG: Active response request received:.*'
+
+ACTIVE_RESPONSE_SENT = r'.*DEBUG: Active response sent: #!-execd.*'
+
+EXECD_MESSAGE = r".*#!-execd {message}.*"
