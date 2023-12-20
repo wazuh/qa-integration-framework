@@ -7,6 +7,7 @@ from . import global_parameters
 
 
 DATA_PATH = Path(Path(__file__).parent, 'data')
+FEEDS_PATH = Path(DATA_PATH, 'feeds')
 SCRIPTS_PATH = Path(Path(__file__).parent, 'scripts')
 
 session_parameters = global_parameters.GlobalParameters()
