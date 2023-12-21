@@ -6,8 +6,15 @@ from random import choices, randrange
 from string import ascii_lowercase, digits
 from struct import pack
 import re
+import os
+import subprocess
+import time
 
 from cryptography.fernet import Fernet
+
+from wazuh_testing.constants.paths.sockets import QUEUE_AGENTS_TIMESTAMP_PATH, QUEUE_DIFF_PATH, QUEUE_RIDS_PATH
+from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
+from wazuh_testing.utils.file import truncate_file, remove_file, recursive_directory_creation
 
 CLUSTER_DATA_HEADER_SIZE = 20
 CLUSTER_CMD_HEADER_SIZE = 12
@@ -114,3 +121,162 @@ def validate_authd_response(response, expected):
         if re.match(expected[key], response_dict[key]) is None:
             return 'error', f"Invalid {key}: '{response_dict[key]}' received, '{expected[key]}' expected"
     return 'success', ''
+
+
+def clean_diff():
+    try:
+        remove_file(QUEUE_DIFF_PATH)
+        recursive_directory_creation(QUEUE_DIFF_PATH)
+        os.chmod(QUEUE_DIFF_PATH, 0o777)
+    except Exception as e:
+        print('Failed to delete %s. Reason: %s' % (QUEUE_DIFF_PATH, e))
+
+
+def clean_rids():
+    for filename in os.listdir(QUEUE_RIDS_PATH):
+        file_path = os.path.join(QUEUE_RIDS_PATH, filename)
+        if "sender_counter" not in file_path:
+            try:
+                os.unlink(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+def clean_agents_timestamp():
+    truncate_file(QUEUE_AGENTS_TIMESTAMP_PATH)
+
+
+def check_agent_groups(id, expected, timeout=30):
+    subprocess.call(['/var/ossec/bin/agent_groups', '-s', '-i', id, '-q'])
+    wait = time.time() + timeout
+    while time.time() < wait:
+        groups_created = subprocess.check_output("/var/ossec/bin/agent_groups")
+        if expected in str(groups_created):
+            return True
+    return False
+
+
+def check_diff(name, expected, timeout=30):
+    diff_path = os.path.join(QUEUE_DIFF_PATH, name)
+    wait = time.time() + timeout
+    while time.time() < wait:
+        ret = os.path.exists(diff_path)
+        if ret == expected:
+            return True
+    return False
+
+
+def check_client_keys(id, expected):
+    found = False
+    try:
+        with open(WAZUH_CLIENT_KEYS_PATH) as client_file:
+            client_lines = client_file.read().splitlines()
+            for line in client_lines:
+                data = line.split(" ")
+                if data[0] == id:
+                    found = True
+                    break
+    except IOError:
+        raise
+
+    if found == expected:
+        return True
+    else:
+        return False
+
+
+def check_agent_timestamp(id, name, ip, expected):
+    line = "{} {} {}".format(id, name, ip)
+    found = False
+    try:
+        with open(QUEUE_AGENTS_TIMESTAMP_PATH) as file:
+            file_lines = file.read().splitlines()
+            for file_line in file_lines:
+                if line in file_line:
+                    found = True
+                    break
+    except IOError:
+        raise
+    if found == expected:
+        return True
+    else:
+        return False
+
+
+def check_rids(id, expected):
+    agent_info_path = os.path.join(QUEUE_RIDS_PATH, id)
+    if expected == os.path.exists(agent_info_path):
+        return True
+    else:
+        return False
+
+
+def create_rids(id):
+    rids_path = os.path.join(QUEUE_RIDS_PATH, id)
+    try:
+        file = open(rids_path, 'w')
+        file.close()
+        os.chmod(rids_path, 0o777)
+    except IOError:
+        raise
+
+
+def create_diff(name):
+    SIGID = '533'
+    diff_folder = os.path.join(QUEUE_DIFF_PATH, name)
+    try:
+        os.mkdir(diff_folder)
+    except IOError:
+        raise
+
+    sigid_folder = os.path.join(diff_folder, SIGID)
+    try:
+        os.mkdir(sigid_folder)
+    except IOError:
+        raise
+
+    last_entry_path = os.path.join(sigid_folder, 'last-entry')
+    try:
+        file = open(last_entry_path, 'w')
+        file.close()
+        os.chmod(last_entry_path, 0o777)
+    except IOError:
+        raise
+
+
+def register_agent_main_server(receiver_sockets, Name, Group=None, IP=None):
+    message = "OSSEC A:'{}'".format(Name)
+    if Group:
+        message += " G:'{}'".format(Group)
+    if IP:
+        message += " IP:'{}'".format(IP)
+
+    receiver_sockets[0].open()
+    receiver_sockets[0].send(message, size=False)
+    timeout = time.time() + 10
+    response = ''
+    while response == '':
+        response = receiver_sockets[0].receive().decode()
+        if time.time() > timeout:
+            raise ConnectionResetError('Manager did not respond to sent message!')
+    time.sleep(5)
+    return response
+
+
+def register_agent_local_server(receiver_sockets, Name, Group=None, IP=None):
+    message = ('{"arguments":{"force":{"enabled":true,"disconnected_time":{"enabled":true,"value":"0"},'
+               '"key_mismatch":true,"after_registration_time":"0"}')
+    message += ',"name":"{}"'.format(Name)
+    if Group:
+        message += ',"groups":"{}"'.format(Group)
+    if IP:
+        message += ',"ip":"{}"'.format(IP)
+    else:
+        message += ',"ip":"any"'
+    message += '},"function":"add"}'
+
+    receiver_sockets[1].open()
+    receiver_sockets[1].send(message, size=True)
+    response = receiver_sockets[1].receive(size=True).decode()
+    time.sleep(5)
+    return response
