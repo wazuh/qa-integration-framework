@@ -13,6 +13,7 @@ QUEUE_AGENTS_TIMESTAMP_PATH = os.path.join(WAZUH_PATH, 'queue', 'agents-timestam
 QUEUE_DIFF_PATH = os.path.join(WAZUH_PATH, 'queue', 'diff')
 QUEUE_RIDS_PATH = os.path.join(WAZUH_PATH, 'queue', 'rids')
 QUEUE_ALERTS_PATH = os.path.join(WAZUH_PATH, 'queue', 'alerts')
+QUEUE_GROUPS_PATH = os.path.join(WAZUH_PATH, 'queue', 'agent-groups')
 
 ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'analysis')
 ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
