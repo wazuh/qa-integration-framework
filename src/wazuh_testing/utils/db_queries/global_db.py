@@ -160,3 +160,10 @@ def clean_belongs():
         database.query_wdb(command)
     except Exception:
         raise Exception('Unable to clean belongs table.')
+
+
+def list_agents_ids():
+    wazuhdb_result = database.query_wdb('global get-all-agents last_id -1')
+    list_agents = [agent['id'] for agent in wazuhdb_result if not (0 == agent.get('id'))]
+
+    return list_agents
