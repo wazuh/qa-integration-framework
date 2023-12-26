@@ -18,7 +18,7 @@ from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
 from wazuh_testing.utils import secure_message
-from wazuh_testing.modules.authd.utils import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
+from wazuh_testing.modules.clusterd.utils import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
