@@ -63,24 +63,3 @@ def generate_callback(regex: str, replacement: dict = None) -> Callable:
         return None
 
     return new_callback
-
-def make_callback(pattern, prefix="wazuh", escape=False):
-    """
-    Creates a callback function from a text pattern.
-
-    Args:
-        pattern (str): String to match on the log
-        prefix  (str): String prefix (modulesd, remoted, ...)
-        escape (bool): Flag to escape special characters in the pattern
-    Returns:
-        lambda function with the callback
-    """
-    if escape:
-        pattern = re.escape(pattern)
-    else:
-        pattern = r'\s+'.join(pattern.split())
-
-    full_pattern = pattern if prefix is None else fr'{prefix}{pattern}'
-    regex = re.compile(full_pattern)
-
-    return lambda line: regex.match(line.decode() if isinstance(line, bytes) else line) is not None
