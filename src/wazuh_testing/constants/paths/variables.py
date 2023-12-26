@@ -13,7 +13,6 @@ VAR_PATH = os.path.join(WAZUH_PATH, 'var')
 VAR_RUN_PATH = os.path.join(VAR_PATH, 'run')
 
 ANALYSISD_STATE = os.path.join(VAR_RUN_PATH, 'wazuh-analysisd.state')
-LOGCOLLECTOR_STATISTICS_FILE = os.path.join(WAZUH_PATH, 'wazuh-logcollector.state')
 
 if sys.platform == WINDOWS:
     VERSION_FILE = os.path.join(WAZUH_PATH, 'VERSION')
