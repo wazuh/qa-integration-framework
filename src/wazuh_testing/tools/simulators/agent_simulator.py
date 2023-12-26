@@ -1804,7 +1804,6 @@ def send_ping_pong_messages(protocol, manager_address, port):
     return response if protocol == UDP else response[-5:]
 
 
-
 def new_agent_group(group_name='testing_group', configuration_file='agent.conf'):
     """Create a new agent group for testing purpose, must be run only on Managers."""
 
