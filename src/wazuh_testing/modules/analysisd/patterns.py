@@ -23,3 +23,11 @@ ANALYSISD_SYSCHECK_MESSSAGE = r'(.*)syscheck:(.+)$'
 
 # Alerts useful IDs
 ANALYSISD_ALERTS_SYSCHECK_IDS = ['550', '553', '554', '594', '597', '598', '750', '751', '752']
+
+# Logtest patterns
+LOGTEST_STARTED = fr'{PREFIX}.*INFO: \(\d+\): Logtest started'
+LOGTEST_DISABLED = fr'{PREFIX}.*INFO: \(\d+\): Logtest disabled'
+LOGTEST_CONFIG_ERROR = fr'{PREFIX}.*ERROR: \(\d+\): Invalid value for element'
+LOGTEST_SESSION_INIT = r".*\(7202\): Session initialized with token '(\w{8})'"
+LOGTEST_REMOVE_SESSION = r".*\(7206\): The session '(\w{8})' was closed successfully"
+LOGTEST_INVALID_TOKEN = r".*\(7309\): '(\S+)' is not a valid token"
