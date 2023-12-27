@@ -87,3 +87,31 @@ def get_client_keys(path: str = WAZUH_CLIENT_KEYS_PATH) -> List[dict]:
         keys.append({'id': id, 'name': name, 'ip': ip, 'key': key})
 
     return keys
+
+
+def check_client_keys(id, expected):
+    """Check key of a given agent
+
+    Args:
+        id (str): Agent id
+        expected (str): Key expected
+
+    Returns:
+        True if key exists for agent, False otherwise
+    """
+    found = False
+    try:
+        with open(WAZUH_CLIENT_KEYS_PATH) as client_file:
+            client_lines = client_file.read().splitlines()
+            for line in client_lines:
+                data = line.split(" ")
+                if data[0] == id:
+                    found = True
+                    break
+    except IOError:
+        raise
+
+    if found == expected:
+        return True
+    else:
+        return False

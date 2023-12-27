@@ -73,8 +73,12 @@ class SocketController:
                 raise TypeError(
                     f'Invalid or unsupported SSL version specified, valid versions are: {list(versions_maps.keys())}')
             # Wrap socket into ssl
-            self.sock = ssl.wrap_socket(self.sock, ssl_version=ssl_version, ciphers=self.ciphers,
-                                        certfile=self.certificate, keyfile=self.keyfile)
+            context = ssl.SSLContext(ssl_version)
+            if self.certificate and self.keyfile:
+                context.load_cert_chain(self.certificate, self.keyfile)
+            if self.ciphers:
+                context.set_ciphers(self.ciphers)
+            self.sock = context.wrap_socket(self.sock)
             self.ssl = True
 
         # Connect only if protocol is TCP
