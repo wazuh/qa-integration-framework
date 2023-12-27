@@ -55,12 +55,12 @@ class QueueMonitor(BaseMonitor):
 
                 if type(item) is tuple:
                     for msg in item:
-                        check_match(msg=msg)
+                        check_match(self, msg)
                         # If it has triggered the callback the expected times, break and leave the loop
                         if self.matches >= accumulations:
                             break
                 else:
-                    check_match(msg=item)
+                    check_match(self, item)
 
                 # If it has triggered the callback the expected times, break and leave the loop
                 if self.matches >= accumulations:
