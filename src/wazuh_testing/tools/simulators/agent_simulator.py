@@ -16,7 +16,6 @@ import os
 import socket
 import ssl
 import threading
-import subprocess as sb
 from pathlib import Path
 from datetime import date
 from itertools import cycle
@@ -35,7 +34,6 @@ from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
 from wazuh_testing.utils.network import TCP, UDP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
-from wazuh_testing.constants.paths import WAZUH_PATH
 
 os_list = ["debian7", "debian8", "debian9", "debian10", "ubuntu12.04",
            "ubuntu14.04", "ubuntu16.04", "ubuntu18.04", "mojave", "solaris11"]
@@ -1802,25 +1800,3 @@ def send_ping_pong_messages(protocol, manager_address, port):
     response = sock.recv(len(ping_msg))
     sock.close()
     return response if protocol == UDP else response[-5:]
-
-
-def new_agent_group(group_name='testing_group', configuration_file='agent.conf'):
-    """Create a new agent group for testing purpose, must be run only on Managers."""
-
-    data_path = Path(__file__).parents[2]/'data'/'configuration_template'
-    sb.run([f"{WAZUH_PATH}/bin/agent_groups", "-q", "-a", "-g", group_name])
-
-    agent_conf_path = os.path.join(data_path, configuration_file)
-
-    with open(f"{WAZUH_PATH}/etc/shared/{group_name}/agent.conf", "w") as agent_conf_file:
-        with open(agent_conf_path, 'r') as configuration:
-            #lala = configuration
-            agent_conf_file.write(configuration.read())
-
-
-def remove_agent_group(group_name):
-    sb.run([f"{WAZUH_PATH}/bin/agent_groups", "-q", "-r", "-g", group_name])
-
-
-def add_agent_to_group(group_name, agent_id):
-    sb.run([f"{WAZUH_PATH}/bin/agent_groups", "-q", "-a", "-i", agent_id, "-g", group_name])
