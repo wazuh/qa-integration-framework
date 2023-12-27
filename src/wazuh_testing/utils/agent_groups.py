@@ -36,6 +36,21 @@ def delete_group(group):
     return result
 
 
+def add_agent_to_group(group, agent_id):
+    """Add agent to group with /var/ossec/bin/agent_groups
+
+    Args:
+        group (str): Group name
+        agent_id (str): Agent ID
+
+    Returns:
+        result(str): Return code
+    """
+    result = subprocess.run([AGENT_GROUPS_BINARY, "-q", "-a", "-i", agent_id, "-g", group]).returncode
+
+    return result
+
+
 def check_agent_groups(id, expected, timeout=30):
     """Check groups of a given agent with /var/ossec/bin/agent_groups
 
