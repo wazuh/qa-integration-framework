@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Added the `/manager/configuration` endpoint route constant. ([#63](https://github.com/wazuh/qa-integration-framework/pull/63))
 
+## [4.8.2]
+
 ## [4.8.1]
 
 ## [4.8.0]
