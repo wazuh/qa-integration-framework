@@ -25,6 +25,7 @@ ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.con
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 CUSTOM_RULES_PATH = os.path.join(BASE_CONF_PATH, 'rules')
 CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
+DEFAULT_AUTHD_PASS_PATH = os.path.join(BASE_CONF_PATH, 'authd.pass')
 
 # Wazuh API configurations path
 WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration', 'api.yaml')

@@ -18,6 +18,7 @@ from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
 from wazuh_testing.utils import secure_message
+from wazuh_testing.modules.clusterd.utils import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
@@ -331,3 +332,33 @@ class ManInTheMiddle:
 
     def put_queue(self, item):
         self._queue.put(item)
+
+
+class WorkerMID(ManInTheMiddle):
+
+    def __init__(self, address, family='AF_UNIX', connection_protocol='TCP', func: callable = None):
+        self.cluster_input = None
+        self.cluster_output = None
+        super().__init__(address, family, connection_protocol, self.verify_message)
+
+    def set_cluster_messages(self, cluster_input, cluster_output):
+        self.cluster_input = cluster_input
+        self.cluster_output = cluster_output
+
+    def verify_message(self, data: bytes):
+        if len(data) > CLUSTER_DATA_HEADER_SIZE:
+            message = data[CLUSTER_DATA_HEADER_SIZE:]
+            response = cluster_msg_build(cmd=b'send_sync', counter=2, payload=bytes(self.cluster_output.encode()),
+                                         encrypt=False)
+            print(f'Received message from wazuh-authd: {message}')
+            print(f'Response to send: {self.cluster_output}')
+            self.pause()
+            return response
+        else:
+            raise ConnectionResetError('Invalid cluster message!')
+
+    def pause(self):
+        self.event.set()
+
+    def restart(self):
+        self.event.clear()

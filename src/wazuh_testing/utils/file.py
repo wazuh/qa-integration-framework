@@ -1,29 +1,28 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
 import bz2
 import gzip
-import filetype
-import chardet
 import json
 import os
-import sys
-import shutil
-import stat
-import json
 import re
 import shutil
+import stat
+import sys
 import time
-import yaml
-import zipfile
 import xml.etree.ElementTree as ET
-import requests
-
+import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Union, List
-from datetime import datetime
-from wazuh_testing.constants import platforms
 
+import chardet
+import filetype
+import requests
+import yaml
+from wazuh_testing.constants import platforms
+from wazuh_testing.constants.platforms import WINDOWS
 
 def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
@@ -316,7 +315,6 @@ def on_write_error(function, path, exc_info):
     Example:
         > shutil.rmtree(path, onerror=on_write_error)
     """
-    import stat
     # Check if the error is an access error for Write permissions.
     if not os.access(path, os.W_OK):
         # Add write permissions so file can be edited and execute function.
@@ -384,6 +382,22 @@ def create_parent_directories(path: os.PathLike) -> list:
     return created_parents
 
 
+def recursive_directory_creation(path):
+    """Recursive function to create folders.
+
+    Args:
+        path (str): Path to create. If a folder doesn't exists, it will create it.
+    """
+    parent, _ = os.path.split(path)
+    if parent != '' and not os.path.exists(parent):
+        split = os.path.split(parent)
+        recursive_directory_creation(split[0])
+        os.mkdir(parent, mode=0o0777)
+
+    if not os.path.exists(path):
+        os.mkdir(path, mode=0o0777)
+
+
 def create_files(files: list[Union[str, os.PathLike]]) -> list:
     """Create multiple files/directories. Return the list of created files/directories.
 
@@ -429,3 +443,41 @@ def delete_files(files: list[Union[str, os.PathLike]]) -> None:
     """
     for file in files:
         remove_file(file)
+
+
+def copy(source, destination):
+    """
+    Copy file with metadata and ownership to a specific destination.
+
+    Args:
+        source (str): Source file path to copy.
+        destination (str): Destination file.
+    """
+    shutil.copy2(source, destination)
+    source_stats = os.stat(source)
+
+    if sys.platform != WINDOWS:
+        os.chown(destination, source_stats[stat.ST_UID], source_stats[stat.ST_GID])
+
+
+def copy_files_in_folder(src_folder, dst_folder='/tmp', files_to_move=None):
+    """Copy files from a folder to target folder
+    Args:
+        src_folder (str): directory path from where to copy files.
+        dst_folder (str): directory path where files will be copied to.
+        files_to_move (list): List with files to move copy from a folder.
+    """
+    file_list = []
+    if os.path.isdir(src_folder):
+        if files_to_move is None:
+            for file in os.listdir(src_folder):
+                file_list.append(file)
+                copy(os.path.join(src_folder, file), dst_folder)
+                remove_file(os.path.join(src_folder, file))
+        else:
+            for file in files_to_move:
+                if os.path.isfile(os.path.join(src_folder, file)):
+                    file_list.append(file)
+                    copy(os.path.join(src_folder, file), dst_folder)
+                    remove_file(os.path.join(src_folder, file))
+    return file_list

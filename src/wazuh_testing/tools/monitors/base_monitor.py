@@ -55,6 +55,14 @@ class BaseMonitor(ABC):
         result = callback(message)
 
         # Update match result only if it's not None (i.e., there was a match)
-        self.callback_result = result if result else self.callback_result
+        if result:
+            # Create a list in case accumulations is greater than 1
+            if self.callback_result:
+                if type(self.callback_result) != list or (type(result) == list and type(self.callback_result[0]) != list) :
+                    self.callback_result = [self.callback_result, result]
+                else:
+                    self.callback_result.append(result)
+            else:
+                self.callback_result = result
 
         return bool(result)
