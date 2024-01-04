@@ -8,6 +8,8 @@
 
 import subprocess
 import gzip
+from datetime import datetime
+
 import boto3
 
 from pathlib import Path
@@ -23,9 +25,13 @@ from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH,
 from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
 
+import os
+
+# Use the environment variable or default to 'dev'
+profile = os.environ.get('AWS_PROFILE', 'default')
 
 # Session setup
-session = boto3.Session(profile_name='qa')
+session = boto3.Session(profile_name=f'{profile}')
 s3 = session.resource('s3')
 logs = session.client('logs', region_name=US_EAST_1_REGION)
 
@@ -38,32 +44,105 @@ class OutputAnalysisError(Exception):
 """S3 utils"""
 
 
-def upload_file(bucket_type, bucket_name):
+def create_bucket(bucket_name: str, bucket_type: str):
+    """Create a S3 bucket.
+
+    Args:
+        bucket_name (str): The bucket to create.
+        bucket_type (str): The type of bucket.
+
+    Returns:
+        str: The bucket name
+    """
+    try:
+        bucket = s3.client.create_bucket(
+            Bucket=f'{bucket_name}',
+            CreateBucketConfiguration={
+                'LocationConstraint': f'{US_EAST_1_REGION}',
+                'Bucket': {
+                    'Type': f'{bucket_type}'
+                }
+            }
+        )
+
+        # @todo check if needed
+        return bucket
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'BucketAlreadyExists':
+            logger.error(f"Bucket {bucket_name} already exist")
+            pass
+        else:
+            raise error
+
+    except Exception as error:
+        raise error
+
+
+def delete_bucket(bucket_name: str):
+    """Delete a S3 bucket
+
+    Args:
+        bucket_name (str): Bucket to delete.
+
+    Returns:
+        bool: True if bucket is deleted else False.
+    """
+    try:
+        s3.client.delete_bucket(
+            Bucket=bucket_name
+        )
+    except ClientError as error:
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"Bucket {bucket_name} not found.")
+            pass
+        else:
+            raise error
+
+
+def generate_file(bucket_type: str, bucket_name: str):
+    """ Generate a file for a specific bucket type.
+
+    Args:
+        bucket_type (str): The type of bucket.
+        bucket_name (str): The bucket name.
+
+    Returns:
+        da: True if bucket is deleted else False.
+
+    """
+
+    dg = get_data_generator(bucket_type, bucket_name)
+    filename = dg.get_filename()
+    data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
+
+    return data, filename
+
+
+def upload_bucket_file(bucket_name: str, data: str, filename: str):
     """Upload a file to an S3 bucket.
 
     Args:
-        bucket_type (str): Bucket type to generate the data.
         bucket_name (str): Bucket to upload.
+        data (str): Data to upload in bucket
+        filename (str): Name of file uploaded.
 
     Returns:
-        str: The name of the file if was uploaded, else ''.
+        bool: True if uploaded.
     """
-    dg = get_data_generator(bucket_type, bucket_name)
-    filename = dg.get_filename()
     obj = s3.Object(bucket_name, filename)
-
-    data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
 
     # Upload the file
     try:
         obj.put(Body=data)
-    except ClientError as e:
-        logger.error(e)
-        filename = ''
-    return filename
+        return True
+    except ClientError as error:
+        logger.error(error)
+        raise error
 
 
-def delete_file(filename, bucket_name):
+def delete_bucket_file(filename: str, bucket_name: str):
     """Delete a given file from the bucket.
 
     Args:
@@ -73,7 +152,7 @@ def delete_file(filename, bucket_name):
     s3.Object(bucket_name, filename).delete()
 
 
-def file_exists(filename, bucket_name):
+def file_exists(filename: str, bucket_name: str):
     """Check if a file exists in a bucket.
 
     Args:
@@ -92,7 +171,7 @@ def file_exists(filename, bucket_name):
     return exists
 
 
-def get_last_file_key(bucket_type, bucket_name, execution_datetime):
+def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime):
     """Return the last file key contained in a default path of a bucket.
 
     Args:
@@ -119,13 +198,22 @@ def get_last_file_key(bucket_type, bucket_name, execution_datetime):
 """AWS CloudWatch related utils"""
 
 
-def create_log_group(log_group_name):
+def create_log_group(log_group_name: str):
     """Create a log group.
 
     Args:
         log_group_name (str): Log group name to create.
     """
-    logs.create_log_group(logGroupName=log_group_name)
+    try:
+        logs.create_log_group(logGroupName=log_group_name)
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceAlreadyExists':
+            logger.error(f"Log group {log_group_name} already exist")
+            pass
+        else:
+            raise error
 
 
 def delete_log_group(log_group_name):
@@ -134,10 +222,19 @@ def delete_log_group(log_group_name):
     Args:
         log_group_name (str): Log group name to delete.
     """
-    logs.delete_log_group(logGroupName=log_group_name)
+    try:
+        logs.delete_log_group(logGroupName=log_group_name)
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"Log group {log_group_name} not found")
+            pass
+        else:
+            raise error
 
 
-def create_log_stream(log_group=PERMANENT_CLOUDWATCH_LOG_GROUP):
+def create_log_stream(log_group: str):
     """Create a log stream within the given log group.
 
     Args:
@@ -147,37 +244,65 @@ def create_log_stream(log_group=PERMANENT_CLOUDWATCH_LOG_GROUP):
         str: The name of the created log stream.
     """
     log_stream_name = str(uuid4())
-    logs.create_log_stream(logGroupName=log_group, logStreamName=log_stream_name)
+    try:
 
-    return log_stream_name
+        logs.create_log_stream(logGroupName=log_group,
+                               logStreamName=log_stream_name)
+
+        return log_stream_name
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceAlreadyExists':
+            logger.error(f"Log Stream {log_stream_name} im {log_group} already exist.")
+            pass
+        else:
+            raise error
 
 
-def delete_log_stream(log_stream, log_group=PERMANENT_CLOUDWATCH_LOG_GROUP):
+def delete_log_stream(log_stream, log_group: str):
     """Delete a log stream from the given log group.
 
     Args:
         log_stream (str): The log stream to delete.
         log_group (str, optional): Log group to delete the stream. Defaults to PERMANENT_CLOUDWATCH_LOG_GROUP.
     """
-    logs.delete_log_stream(logGroupName=log_group, logStreamName=log_stream)
+    try:
+
+        logs.delete_log_stream(logGroupName=log_group, logStreamName=log_stream)
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"Log Stream {log_stream} in {log_group} not found.")
+            pass
+        else:
+            raise error
 
 
-def create_log_events(log_stream, log_group=PERMANENT_CLOUDWATCH_LOG_GROUP, event_number=1):
+def create_log_events(log_stream, log_group: str, event_number=1):
     """Create a log event within the given log stream and group.
 
     Args:
         log_stream (str): The log stream to delete.
-        log_group (str, optional): Log group to delete the stream. Defaults to PERMANENT_CLOUDWATCH_LOG_GROUP.
+        log_group (str, optional): Log group to delete the stream.
         event_number (int, optional): Number of events to create. Defaults to 1.
     """
-
     events = [
         {'timestamp': int(time() * 1000), 'message': f"Test event number {i}"} for i in range(event_number)
     ]
+    try:
 
-    logs.put_log_events(
-        logGroupName=log_group, logStreamName=log_stream, logEvents=events,
-    )
+        logs.put_log_events(
+            logGroupName=log_group, logStreamName=log_stream, logEvents=events,
+        )
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'DataAlreadyAccepted':
+            logger.error(f"Event {events} already accepted in log stream: {log_stream} inside log_group: {log_group}.")
+            pass
+        else:
+            raise error
 
 
 def log_stream_exists(log_group, log_stream) -> bool:
@@ -190,10 +315,18 @@ def log_stream_exists(log_group, log_stream) -> bool:
     Returns:
         bool: True if exists else False
     """
-    response = logs.describe_log_streams(logGroupName=log_group)
-    log_streams = [item['logStreamName'] for item in response['logStreams']]
+    try:
+        response = logs.describe_log_streams(logGroupName=log_group)
+        log_streams = [item['logStreamName'] for item in response['logStreams']]
 
-    return log_stream in log_streams
+        return log_stream in log_streams
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"Log stream {log_stream} not found in log group {log_group}")
+            pass
+        else:
+            raise error
 
 
 """CLI utils"""
@@ -254,15 +387,6 @@ def analyze_command_output(
 """Database utils"""
 
 
-def s3_db_exists():
-    """Check if `s3_cloudtrail.db` exists.
-
-    Returns:
-        bool: True if exists else False.
-    """
-    return S3_CLOUDTRAIL_DB_PATH.exists()
-
-
 def delete_s3_db() -> None:
     """Delete `s3_cloudtrail.db` file."""
     if path_exist(S3_CLOUDTRAIL_DB_PATH):
@@ -285,3 +409,29 @@ def path_exist(path: Path) -> bool:
         bool: True if exist else False
     """
     return path.exists()
+
+
+def delete_resources(resource: dict):
+    """Delete the given resource from AWS.
+
+    Args:
+        resource (str): Resource to delete.
+
+    Return:
+        None
+    """
+
+    try:
+
+        if resource["type"] is "bucket":
+            delete_bucket(bucket_name=resource["name"])
+        elif resource["type"] is "log_group":
+            delete_log_group(log_group_name=resource["name"])
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"Resource {resource['type'], resource['name']} not found.")
+            pass
+        else:
+            raise error
