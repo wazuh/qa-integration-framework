@@ -228,8 +228,9 @@ class DatagramHandler(socketserver.BaseRequestHandler):
             self.default_wazuh_handler()
         else:
             data = self.request[0]
-            self.server.mitm.handler_func(data)
+            response = self.server.mitm.handler_func(data)
             self.server.mitm.put_queue(data)
+            self.request[1].sendto(response, self.client_address)
 
 
 class ManInTheMiddle:
