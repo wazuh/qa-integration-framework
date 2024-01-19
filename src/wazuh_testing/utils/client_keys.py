@@ -79,7 +79,7 @@ def get_client_keys(path: str = WAZUH_CLIENT_KEYS_PATH) -> List[dict]:
             Each dictionary contains the following keys: 'id', 'name', 'ip', and 'key'.
     """
     if not file.exists_and_is_file(path):
-        return [{'id': 100, 'name': 'ubuntu-agent', 'ip': 'any', 'key': 'TopSecret'}]
+        return [{'id': '001', 'name': 'ubuntu-agent', 'ip': 'any', 'key': 'SuperSecretKey'}]
 
     keys = []
     for line in file.read_file_lines(path):

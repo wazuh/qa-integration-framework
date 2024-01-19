@@ -110,6 +110,13 @@ class RemotedSimulator(BaseSimulator):
             self.__mitm.queue.get_nowait()
         self.__mitm.event.clear()
 
+    def destroy(self) -> None:
+        """
+        Clear and shutdown the simulator.
+        """
+        self.clear()
+        self.shutdown()
+
     def send_custom_message(self, message: Union[str, bytes]) -> None:
         """
         Send a custom message to the connected wazuh agent.
@@ -169,11 +176,11 @@ class RemotedSimulator(BaseSimulator):
         elif '#!-agent shutdown' in message:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        elif '#!-' in message:
-            response = _RESPONSE_ACK
         elif self.custom_message and not self.custom_message_sent:
             response = self.custom_message
             self.custom_message_sent = True
+        elif '#!-' in message:
+            response = _RESPONSE_ACK
         else:
             response = _RESPONSE_EMPTY
 
