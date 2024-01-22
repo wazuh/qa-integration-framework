@@ -53,8 +53,7 @@ SYSTEM_DATA = {
     'ALAS': {'hostname': 'amz', 'architecture': 'x86_64', 'os_name': 'Amazon Linux AMI', 'os_version': '2018.03',
              'os_codename': '', 'os_major': '2018', 'os_minor': '03', 'os_patch': '', 'os_build': '',
              'os_platform': 'amzn', 'sysname': 'Linux', 'release': '4.14.97-74.72.amzn1.x86_64',
-             'version': 'Wazuh v4.3.0', 'os_release': '', 'checksum': '1645433796303855540', 'os_display_version': '',
-             'triaged': '0', 'reference': '0886f3023b131f5bf1ecbc33f651807114cb5a53', 'name': 'amz', 'ip': '127.0.0.1',
+             'version': 'Wazuh v4.3.0', 'os_release': '', 'checksum': '1645433796303855540', 'os_display_version': '', 'reference': '0886f3023b131f5bf1ecbc33f651807114cb5a53', 'name': 'amz', 'ip': '127.0.0.1',
              'register_ip': '127.0.0.1', 'internal_key': '',
              'os_uname': 'Linux |amz |4.14.97-74.72.amzn1.x86_64 |#1 SMP Tue Feb 5 20:59:30 UTC 2019 |x86_64',
              'os_arch': 'x86_64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'amz', 'node_name': 'node01',
@@ -144,7 +143,7 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
                         manager_host='centos-8', node_name='node01', date_add='1612942494', hostname='centos-8',
                         last_keepalive='253402300799', group='', sync_status='synced', connection_status='active',
                         client_key_secret=None, os_release='', os_patch='', release='', sysname='Linux',
-                        checksum='checksum', os_display_version='', triaged='0', reference='', disconnection_time='0',
+                        checksum='checksum', os_display_version='', reference='', disconnection_time='0',
                         architecture='x64'):
 
     """Mock a new agent creating a new client keys entry, adding it to the global db and creating a new agent id DB.
@@ -181,7 +180,6 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
         sysname (str): System name.
         checksum (str): Checksum.
         os_display_version (str): OS displayed version.
-        triaged (str): Triaged.
         reference (str): Reference.
         disconnection_time (str): Last disconnection time.
         architecture (str): Architecture.
@@ -218,7 +216,7 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
                             os_version=os_version, os_codename=os_codename, os_major=os_major, os_minor=os_minor,
                             os_patch=os_patch, os_build=os_build, os_platform=os_platform, sysname=sysname,
                             release=release, version=version, os_release=os_release, checksum=checksum,
-                            os_display_version=os_display_version, triaged=triaged, reference=reference)
+                            os_display_version=os_display_version, reference=reference)
 
     return agent_id_str
 
