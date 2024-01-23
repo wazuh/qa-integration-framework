@@ -14,7 +14,6 @@ from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
 from wazuh_testing.constants.platforms import MACOS, SOLARIS, WINDOWS
-from wazuh_testing.constants.paths import WAZUH_PATH
 
 from . import sockets
 

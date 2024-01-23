@@ -4,7 +4,6 @@
 import subprocess
 import time
 
-from wazuh_testing.constants.paths import WAZUH_PATH
 from wazuh_testing.constants.paths.binaries import AGENT_GROUPS_BINARY
 
 

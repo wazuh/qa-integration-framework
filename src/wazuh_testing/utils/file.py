@@ -496,21 +496,6 @@ def get_list_of_content_yml(file_path, separator='_'):
     """
     value_list = []
     with open(file_path) as f:
-        value_list.append((yaml.safe_load(f), file_path.split(separator)[0]))
+        value_list.append(yaml.safe_load(f), file_path.split(separator)[0])
 
     return value_list
-
-def recursive_directory_creation(path):
-    """Recursive function to create folders.
-
-    Args:
-        path (str): Path to create. If a folder doesn't exists, it will create it.
-    """
-    parent, _ = os.path.split(path)
-    if parent != '' and not os.path.exists(parent):
-        split = os.path.split(parent)
-        recursive_directory_creation(split[0])
-        os.mkdir(parent, mode=0o0777)
-
-    if not os.path.exists(path):
-        os.mkdir(path, mode=0o0777)
