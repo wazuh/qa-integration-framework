@@ -23,7 +23,8 @@ import filetype
 import requests
 import yaml
 from wazuh_testing.constants import platforms
-from wazuh_testing.constants.platforms import WINDOWSfrom wazuh_testing.constants.platforms import LINUX
+from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.platforms import LINUX
 
 from wazuh_testing.utils import commands
 
