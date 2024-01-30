@@ -330,7 +330,9 @@ class ManInTheMiddle:
         self.listener.socket.close()
         self.event.set()
         # Remove created unix socket and restore original
-        if isinstance(self.listener_socket_address, str):
+        if (isinstance(self.listener_socket_address, str) and
+            os.path.exists(self.listener_socket_address)):
+
             os.remove(self.listener_socket_address)
             os.rename(self.forwarded_socket_path, self.listener_socket_address)
 
