@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import datetime
 import time
+import json
 
 from wazuh_testing.utils import database
 
@@ -290,3 +291,30 @@ def rootcheck_delete(agent_id: str = '000'):
         agent_id (str): Agent ID.
     """
     database.query_wdb(f"agent {agent_id} rootcheck delete")
+
+
+def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file'):
+    """Create agent's checksum data.
+    Args:
+        agent_id (str): Agent ID.
+        path (str): File path.
+    """
+    command = f"agent {agent_id} syscheck save2 "
+    payload = {'path': {path},
+               'timestamp': 1575421292,
+               'attributes': {
+                   'type': 'file',
+                   'size': 0,
+                   'perm': 'rw-r--r--',
+                   'uid': '0',
+                   'gid': '0',
+                   'user_name': 'root',
+                   'group_name': 'root',
+                   'inode': 16879,
+                   'mtime': 1575421292,
+                   'hash_md5': 'd41d8cd98f00b204e9800998ecf8427e',
+                   'hash_sha1': 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+                   'hash_sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                   'checksum': 'f65b9f66c5ef257a7566b98e862732640d502b6f'}}
+
+    database.query_wdb(command+json.dumps(payload))
