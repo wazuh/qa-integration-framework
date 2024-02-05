@@ -2,7 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from wazuh_testing.utils import database
-import time
+import json
 import hashlib
 
 def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1',
@@ -84,19 +84,12 @@ def clean_agents_from_db():
 
 
 # Insert agents into DB and assign them into a group
-def insert_agent_into_group(total_agents):
-    for i in range(total_agents):
-        id = i + 1
-        name = 'Agent-test' + str(id)
-        date = time.time()
-        command = f'global insert-agent {{"id":{id},"name":"{name}","date_add":{date}}}'
-        results = database.query_wdb(command)
-        assert results == 'ok'
-
-        command = f'''global set-agent-groups {{"mode":"append","sync_status":"syncreq",
-                   "source":"remote","data":[{{"id":{id},"groups":["Test_group{id}"]}}]}}'''
-        results = database.query_wdb(command)
-        assert results == 'ok'
+def insert_agent_into_group(agent_id, groups_list):
+    groups = json.dumps(groups_list)
+    command = f'''global set-agent-groups {{"mode":"append","sync_status":"syncreq",
+                "source":"remote","data":[{{"id":{agent_id},"groups":{groups}}}]}}'''
+    results = database.query_wdb(command)
+    assert results == 'ok'
 
 
 def calculate_global_hash():

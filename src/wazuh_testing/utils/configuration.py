@@ -2,16 +2,13 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
-import sys
 import json
 import xml.etree.ElementTree as ET
-import yaml
 
 from copy import deepcopy
 from typing import List
 
 from wazuh_testing import DATA_PATH
-from wazuh_testing.constants.paths import ROOT_PREFIX
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
 
 from . import file
