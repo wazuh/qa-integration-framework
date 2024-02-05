@@ -34,7 +34,6 @@ from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
 from wazuh_testing.utils.network import TCP, UDP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
-import multiprocessing
 
 
 os_list = ["debian7", "debian8", "debian9", "debian10", "ubuntu12.04",
@@ -1622,7 +1621,6 @@ class InjectorThread(threading.Thread):
         self.module = module
         self.stop_thread = 0
         self.limit_msg = limit_msg
-        self.lock = multiprocessing.Lock()
 
 
     def keep_alive(self):
@@ -1650,9 +1648,7 @@ class InjectorThread(threading.Thread):
         while self.stop_thread == 0:
             # Send agent keep alive
             logging.debug(f"KeepAlive - {self.agent.name}({self.agent.id})")
-            self.lock.acquire()
             self.sender.send_event(self.agent.keep_alive_event)
-            self.lock.release()
             self.totalMessages += 1
             if frequency > 0:
                 sleep(frequency - ((time() - start_time) % frequency))
@@ -1799,7 +1795,8 @@ def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='151
     sender = Sender(manager_address, protocol=protocol, manager_port=manager_port)
     injector = Injector(sender, agent)
     injector.run()
-    agent.wait_status(wait_status)
+    if wait_status != '':
+        agent.wait_status(wait_status)
     return sender, injector
 
 
