@@ -50,3 +50,7 @@ ACTIVE_RESPONSE_RECEIVED = r'.*DEBUG: Active response request received:.*'
 ACTIVE_RESPONSE_SENT = r'.*DEBUG: Active response sent: #!-execd.*'
 
 EXECD_MESSAGE = r".*#!-execd {message}.*"
+
+START_UP = r".*DEBUG: Agent {agent_name} sent HC_STARTUP from '{agent_ip}'"
+
+MERGED_NEW_SHARED_END_SEND= r".*End sending file.*to agent.*"
