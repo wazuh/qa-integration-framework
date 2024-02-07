@@ -300,7 +300,7 @@ def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file'):
         path (str): File path.
     """
     command = f"agent {agent_id} syscheck save2 "
-    payload = {'path': {path},
+    payload = {'path': path,
                'timestamp': 1575421292,
                'attributes': {
                    'type': 'file',
