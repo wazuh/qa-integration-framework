@@ -16,7 +16,6 @@ import os
 import socket
 import ssl
 import threading
-from pathlib import Path
 from datetime import date
 from itertools import cycle
 from queue import Queue
@@ -1484,6 +1483,7 @@ def is_valid_fd(fd):
         ret_val = True
     return ret_val
 
+
 class Sender:
     """This class sends events to the manager through a socket.
     Attributes:
@@ -1583,7 +1583,6 @@ class Injector:
             self.threads[thread].daemon = True
             self.threads[thread].start()
 
-
     def stop_receive(self):
         """Stop the daemon for all the threads."""
         for thread in range(self.thread_number):
@@ -1622,14 +1621,13 @@ class InjectorThread(threading.Thread):
         self.stop_thread = 0
         self.limit_msg = limit_msg
 
-
     def keep_alive(self):
         """Send a keep alive message from the agent to the manager."""
         sleep(10)
         logging.debug("Startup - {}({})".format(self.agent.name, self.agent.id))
         self.sender.send_event(self.agent.startup_msg)
 
-        #wating for 'pending' status
+        #waiting for 'pending' status
         for i in range(4):
             if self.agent.get_connection_status() == 'pending':
                 sleep(10)
