@@ -60,7 +60,7 @@ def get_install_requires() -> List[str]:
 
 setup(
     name='wazuh_testing',
-    version='4.7.2',
+    version='4.7.3',
     description='Wazuh testing utilities to help programmers automate tests',
     url='https://github.com/wazuh',
     author='Wazuh',
