@@ -70,7 +70,6 @@ class FileMonitor(BaseMonitor):
             None
         """
         self._clear_results()
-        matches = 0
         if encoding is None:
             encoding = file.get_file_encoding(self.monitored_object)
 
@@ -78,8 +77,8 @@ class FileMonitor(BaseMonitor):
         if not only_new_events:
             with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
                 for line in _file:
-                    matches += self._match(line, callback)
-                    if matches >= accumulations:
+                    self.matches += self._match(line, callback)
+                    if self.matches >= accumulations:
                         if return_matched_line:
                             return line
                         return
@@ -100,9 +99,9 @@ class FileMonitor(BaseMonitor):
                     time.sleep(0.1)
                 # If we have a new line, check if it matches with the callback.
                 else:
-                    matches += self._match(line, callback)
+                    self.matches += self._match(line, callback)
                     # If it has triggered the callback the expected times, break and leave the loop.
-                    if matches >= accumulations:
+                    if self.matches >= accumulations:
                         if return_matched_line:
                             return line
                         return
