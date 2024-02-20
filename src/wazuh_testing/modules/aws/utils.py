@@ -8,13 +8,13 @@
 
 import subprocess
 import gzip
+import json
+import os
 from datetime import datetime
 
 import boto3
 
 from pathlib import Path
-from time import time
-from uuid import uuid4
 from botocore.exceptions import ClientError
 
 # Local imports
@@ -25,15 +25,15 @@ from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH,
 from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
 
-import os
-
 # Use the environment variable or default to 'dev'
-profile = os.environ.get('AWS_PROFILE', 'default')
+aws_profile = os.environ.get("AWS_PROFILE", "dev")
 
 # Session setup
-session = boto3.Session(profile_name=f'{profile}')
-s3 = session.resource('s3')
-logs = session.client('logs', region_name=US_EAST_1_REGION)
+session = boto3.Session(profile_name=f'{aws_profile}')
+s3 = session.client(service_name="s3")
+logs = session.client(service_name="logs", region_name=US_EAST_1_REGION)
+sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
+sts = session.client(service_name="sts")
 
 
 # Custom exception
@@ -44,34 +44,24 @@ class OutputAnalysisError(Exception):
 """S3 utils"""
 
 
-def create_bucket(bucket_name: str, bucket_type: str):
+def create_bucket(bucket_name: str):
     """Create a S3 bucket.
 
     Args:
         bucket_name (str): The bucket to create.
-        bucket_type (str): The type of bucket.
 
-    Returns:
+    Returns
         str: The bucket name
     """
     try:
-        bucket = s3.client.create_bucket(
-            Bucket=f'{bucket_name}',
-            CreateBucketConfiguration={
-                'LocationConstraint': f'{US_EAST_1_REGION}',
-                'Bucket': {
-                    'Type': f'{bucket_type}'
-                }
-            }
+        s3.create_bucket(
+            Bucket=bucket_name
         )
-
-        # @todo check if needed
-        return bucket
 
     except ClientError as error:
         # Check if the resource exist
         if error.response['Error']['Code'] == 'BucketAlreadyExists':
-            logger.error(f"Bucket {bucket_name} already exist")
+            logger.warning(f"Bucket {bucket_name} already exist")
             pass
         else:
             raise error
@@ -90,7 +80,7 @@ def delete_bucket(bucket_name: str):
         bool: True if bucket is deleted else False.
     """
     try:
-        s3.client.delete_bucket(
+        s3.delete_bucket(
             Bucket=bucket_name
         )
     except ClientError as error:
@@ -152,23 +142,23 @@ def delete_bucket_file(filename: str, bucket_name: str):
     s3.Object(bucket_name, filename).delete()
 
 
-def file_exists(filename: str, bucket_name: str):
-    """Check if a file exists in a bucket.
-
-    Args:
-        filename (str): Full filename to check.
-        bucket_name (str): Bucket that contains the file.
-    Returns:
-        bool: True if exists else False.
-    """
-    exists = True
-    try:
-        s3.Object(bucket_name, filename).load()
-    except ClientError as error:
-        if error.response['Error']['Code'] == '404':
-            exists = False
-
-    return exists
+# def file_exists(filename: str, bucket_name: str):
+#     """Check if a file exists in a bucket.
+#
+#     Args:
+#         filename (str): Full filename to check.
+#         bucket_name (str): Bucket that contains the file.
+#     Returns:
+#         bool: True if exists else False.
+#     """
+#     exists = True
+#     try:
+#         s3.Object(bucket_name, filename).load()
+#     except ClientError as error:
+#         if error.response['Error']['Code'] == '404':
+#             exists = False
+#
+#     return exists
 
 
 def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime):
@@ -215,6 +205,9 @@ def create_log_group(log_group_name: str):
         else:
             raise error
 
+    except Exception as error:
+        raise error
+
 
 def delete_log_group(log_group_name):
     """Delete the given log group.
@@ -233,39 +226,46 @@ def delete_log_group(log_group_name):
         else:
             raise error
 
+    except Exception as error:
+        raise error
 
-def create_log_stream(log_group: str):
+
+def create_log_stream(log_group: str, log_stream: str):
     """Create a log stream within the given log group.
 
-    Args:
-        log_group (str, optional): Log group to store the stream. Defaults to PERMANENT_CLOUDWATCH_LOG_GROUP.
+    Parameters
+    ----------
+        log_group (str): Log group to store the stream.
+        log_stream (str):
 
-    Returns:
-        str: The name of the created log stream.
+    Returns
+    --------
+        None
     """
-    log_stream_name = str(uuid4())
     try:
 
         logs.create_log_stream(logGroupName=log_group,
-                               logStreamName=log_stream_name)
-
-        return log_stream_name
+                               logStreamName=log_stream)
 
     except ClientError as error:
         # Check if the resource exist
         if error.response['Error']['Code'] == 'ResourceAlreadyExists':
-            logger.error(f"Log Stream {log_stream_name} im {log_group} already exist.")
+            logger.error(f"Log Stream {log_stream} im {log_group} already exist.")
             pass
         else:
             raise error
+
+    except Exception as error:
+        raise error
 
 
 def delete_log_stream(log_stream, log_group: str):
     """Delete a log stream from the given log group.
 
-    Args:
+    Parameters
+    ----------
         log_stream (str): The log stream to delete.
-        log_group (str, optional): Log group to delete the stream. Defaults to PERMANENT_CLOUDWATCH_LOG_GROUP.
+        log_group (str): Log group to delete the stream.
     """
     try:
 
@@ -278,41 +278,54 @@ def delete_log_stream(log_stream, log_group: str):
         else:
             raise error
 
+    except Exception as error:
+        raise error
 
-def create_log_events(log_stream, log_group: str, event_number=1):
-    """Create a log event within the given log stream and group.
 
-    Args:
+def upload_log_events(log_stream: str, log_group: str, events: list) -> None:
+    """Upload a log event within the given log stream and group.
+
+    Parameters
+    ----------
+        log_group (str): Log group where the stream is located.
         log_stream (str): The log stream to delete.
-        log_group (str, optional): Log group to delete the stream.
-        event_number (int, optional): Number of events to create. Defaults to 1.
+        events (list): Log events to create in log stream.
+
+    Returns
+    -------
+        None
     """
-    events = [
-        {'timestamp': int(time() * 1000), 'message': f"Test event number {i}"} for i in range(event_number)
-    ]
-    try:
+    # Put events
+    for event in events:
+        try:
+            logs.put_log_events(
+                logGroupName=log_group, logStreamName=log_stream, logEvents=events,
+            )
+        except ClientError as error:
+            # Check if the resource exist
+            if error.response['Error']['Code'] == 'DataAlreadyAccepted':
+                logger.error(
+                    f"Event {event} already uploaded in log stream: {log_stream} withi log_group: {log_group}.")
+                pass
+            else:
+                raise error
 
-        logs.put_log_events(
-            logGroupName=log_group, logStreamName=log_stream, logEvents=events,
-        )
-
-    except ClientError as error:
-        # Check if the resource exist
-        if error.response['Error']['Code'] == 'DataAlreadyAccepted':
-            logger.error(f"Event {events} already accepted in log stream: {log_stream} inside log_group: {log_group}.")
-            pass
-        else:
+        except Exception as error:
             raise error
 
 
 def log_stream_exists(log_group, log_stream) -> bool:
     """Check if a log stream exists in a group.
 
-    Args:
-        log_group (str): Log group to search within.
-        log_stream (str): Log stream to search.
+    Parameters
+    ----------
+    log_group : str
+        Log group to search within.
+    log_stream : str
+        Log stream to search.
 
-    Returns:
+    Returns
+    -------
         bool: True if exists else False
     """
     try:
@@ -327,6 +340,181 @@ def log_stream_exists(log_group, log_stream) -> bool:
             pass
         else:
             raise error
+
+
+"""SQS utils"""
+
+
+def create_sqs_queue(sqs_name: str) -> str:
+    """Create a sqs queue.
+
+    Parameters
+    ----------
+    sqs_name : str
+        The name of the sqs queue.
+
+    Returns
+    -------
+    sqs_url: str
+        Sqs queue url.
+    """
+    try:
+        response = sqs.create_queue(
+            QueueName=sqs_name
+        )
+        return response["QueueUrl"]
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"SQS Queue {sqs_name} already exists")
+            pass
+        else:
+            raise error
+
+    except Exception as error:
+        raise error
+
+
+def get_sqs_queue_arn(sqs_url: str) -> str:
+    """Get SQS Queue ARN.
+
+    Parameters
+    ----------
+    sqs_url : str
+        The SQS Queue URL.
+
+    Returns
+    -------
+    sqs_queue_arn : str
+        The SQS queue ARN.
+    """
+    try:
+        # Fetch queue's ARN
+        response = sqs.get_queue_attributes(
+            QueueUrl=sqs_url,
+            AttributeNames=["QueueArn"]
+        )
+        return response["Attributes"]["QueueArn"]
+
+    except ClientError as error:
+        raise error
+
+    except Exception as error:
+        raise error
+
+
+def set_sqs_policy(bucket_name: str, sqs_queue_url: str) -> None:
+    """Set a policy for the SQS queue
+
+    Parameters
+    ----------
+    bucket_name : str
+        The bucket name.
+    sqs_queue_url : str
+        The SQS queue Url to apply policy.
+    """
+    # Get account id
+    account_id = sts.get_caller_identiity()["Account"]
+
+    # Get date
+    today_date = datetime.now().date().strftime("%Y-%m-%d")
+
+    # Create Policy
+    policy = {
+        "Version": today_date,
+        "Id": "wazuh-integration-test-policy-ID",
+        "Statement": [
+            {
+                "Sid": "wazuh-integration-test-policy",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "s3.amazonaws.com"
+                },
+                "Action": "SQS:SendMessage",
+                "Resource": f"arn:aws:sqs:{US_EAST_1_REGION}:{account_id}:{bucket_name}",
+                "Condition": {
+                    "StringEquals": {
+                        "aws:SourceAccount": account_id
+                    },
+                    "ArnLike": {
+                        "aws:SourceArn": f"arn:aws:s3:*:*:{bucket_name}"
+                    }
+                }
+            }
+        ]
+    }
+    # Set policy
+    try:
+        sqs.set_queue_attributes(
+            QueueUrl=sqs_queue_url,
+            Attributes={
+                'Policy': json.dumps(policy)
+            }
+        )
+
+    except ClientError as error:
+        raise error
+
+    except Exception as error:
+        raise error
+
+
+def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn: str) ->None:
+    """Configure bucket for event notification.
+
+    Parameters
+    ----------
+    bucket_name : str
+        The name of the bucket.
+    sqs_queue_arn : str
+        The SQS Queue
+    """
+    # Create notification config dict
+    notification_configuration = {
+        'QueueConfigurations': [
+            {
+                'QueueArn': sqs_queue_arn,
+                'Events': ['s3:ObjectCreated:*']
+            }
+        ]
+    }
+    try:
+        s3.put_bucket_notification_configuration(
+            bucket=bucket_name,
+            NotificationConfiguration=notification_configuration
+        )
+
+    except ClientError as error:
+        raise error
+
+    except Exception as error:
+        raise error
+
+
+def delete_sqs_queue(sqs_queue_url: str) -> None:
+    """Delete the SQS queue.
+
+    Parameters
+    ----------
+    sqs_queue_url : str
+        The SQS queue url
+    """
+    try:
+        sqs.delete_queue(
+            QueueUrl=sqs_queue_url
+        )
+
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'ResourceNotFound':
+            logger.error(f"SQS Queue {sqs_queue_url} not found")
+            pass
+        else:
+            raise error
+
+    except Exception as error:
+        raise error
 
 
 """CLI utils"""
@@ -409,29 +597,3 @@ def path_exist(path: Path) -> bool:
         bool: True if exist else False
     """
     return path.exists()
-
-
-def delete_resources(resource: dict):
-    """Delete the given resource from AWS.
-
-    Args:
-        resource (str): Resource to delete.
-
-    Return:
-        None
-    """
-
-    try:
-
-        if resource["type"] is "bucket":
-            delete_bucket(bucket_name=resource["name"])
-        elif resource["type"] is "log_group":
-            delete_log_group(log_group_name=resource["name"])
-
-    except ClientError as error:
-        # Check if the resource exist
-        if error.response['Error']['Code'] == 'ResourceNotFound':
-            logger.error(f"Resource {resource['type'], resource['name']} not found.")
-            pass
-        else:
-            raise error
