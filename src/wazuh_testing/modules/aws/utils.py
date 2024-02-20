@@ -33,7 +33,6 @@ session = boto3.Session(profile_name=f'{aws_profile}')
 s3 = session.client(service_name="s3")
 logs = session.client(service_name="logs", region_name=US_EAST_1_REGION)
 sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
-sts = session.client(service_name="sts")
 
 
 # Custom exception
@@ -404,7 +403,7 @@ def get_sqs_queue_arn(sqs_url: str) -> str:
         raise error
 
 
-def set_sqs_policy(bucket_name: str, sqs_queue_url: str) -> None:
+def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> None:
     """Set a policy for the SQS queue
 
     Parameters
@@ -413,16 +412,15 @@ def set_sqs_policy(bucket_name: str, sqs_queue_url: str) -> None:
         The bucket name.
     sqs_queue_url : str
         The SQS queue Url to apply policy.
+    sqs_queue_arn : str
+        The SQS queue ARN.
     """
     # Get account id
-    account_id = sts.get_caller_identiity()["Account"]
-
-    # Get date
-    today_date = datetime.now().date().strftime("%Y-%m-%d")
+    account_id = sqs_queue_arn.split(':')[4]
 
     # Create Policy
     policy = {
-        "Version": today_date,
+        "Version": "2012-10-17",
         "Id": "wazuh-integration-test-policy-ID",
         "Statement": [
             {
@@ -432,7 +430,7 @@ def set_sqs_policy(bucket_name: str, sqs_queue_url: str) -> None:
                     "Service": "s3.amazonaws.com"
                 },
                 "Action": "SQS:SendMessage",
-                "Resource": f"arn:aws:sqs:{US_EAST_1_REGION}:{account_id}:{bucket_name}",
+                "Resource": sqs_queue_arn,
                 "Condition": {
                     "StringEquals": {
                         "aws:SourceAccount": account_id
@@ -481,7 +479,7 @@ def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn:
     }
     try:
         s3.put_bucket_notification_configuration(
-            bucket=bucket_name,
+            Bucket=bucket_name,
             NotificationConfiguration=notification_configuration
         )
 
