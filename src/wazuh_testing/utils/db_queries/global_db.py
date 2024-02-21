@@ -168,7 +168,7 @@ def sync_agent_groups(last_id='0', condition='all', get_global_hash='true',
     Sync agent groups
     """
 
-    command = f'global sync-agent-groups-get {{"last_id": {last_id}, "condition": "{condition}", "get_global_hash": {get_global_hash},
+    command = f'global sync-agent-groups-get {{"last_id": {last_id}, "condition": "{condition}", "get_global_hash": {get_global_hash},\
                 "set_synced": {set_synced}, "agent_delta_registration": {agent_delta_registration}}}'
     return database.query_wdb(command)
 
