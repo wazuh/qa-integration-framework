@@ -30,7 +30,7 @@ aws_profile = os.environ.get("AWS_PROFILE", "dev")
 
 # Session setup
 session = boto3.Session(profile_name=f'{aws_profile}')
-s3 = session.client(service_name="s3")
+s3 = session.resource(service_name="s3")
 logs = session.client(service_name="logs", region_name=US_EAST_1_REGION)
 sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
 
@@ -79,15 +79,32 @@ def delete_bucket(bucket_name: str):
         bool: True if bucket is deleted else False.
     """
     try:
-        s3.delete_bucket(
-            Bucket=bucket_name
-        )
+        # Get bucket
+        bucket = s3.Bucket(name=bucket_name)
+
+        # Delete bucket
+        bucket.delete()
+
     except ClientError as error:
         if error.response['Error']['Code'] == 'ResourceNotFound':
             logger.error(f"Bucket {bucket_name} not found.")
             pass
         else:
             raise error
+
+
+def delete_bucket_files(bucket_name: str):
+    """Delete all files i n the bucket"""
+    try:
+        # Get bucket
+        bucket = s3.Bucket(name=bucket_name)
+
+        # Delete all objects
+        bucket.objects.all().delete()
+    except ClientError as error:
+        raise error
+    except Exception as error:
+        raise error
 
 
 def generate_file(bucket_type: str, bucket_name: str):
@@ -109,25 +126,31 @@ def generate_file(bucket_type: str, bucket_name: str):
     return data, filename
 
 
-def upload_bucket_file(bucket_name: str, data: str, filename: str):
+def upload_bucket_file(bucket_name: str, data: str, key: str):
     """Upload a file to an S3 bucket.
 
-    Args:
-        bucket_name (str): Bucket to upload.
-        data (str): Data to upload in bucket
-        filename (str): Name of file uploaded.
-
-    Returns:
-        bool: True if uploaded.
+    Parameters
+    ----------
+    bucket_name : str
+        Bucket to upload.
+    data : str
+        Data to upload in bucket
+    key : str
+        Key
     """
-    obj = s3.Object(bucket_name, filename)
-
-    # Upload the file
+    # Set bucket
     try:
-        obj.put(Body=data)
-        return True
+        # Get bucket
+        bucket = s3.Bucket(name=bucket_name)
+
+        # Upload the file
+        bucket.put_object(
+            Key=key,
+            Body=data
+        )
     except ClientError as error:
-        logger.error(error)
+        raise error
+    except Exception as error:
         raise error
 
 
@@ -139,25 +162,6 @@ def delete_bucket_file(filename: str, bucket_name: str):
         bucket_name (str): Bucket that contains the file.
     """
     s3.Object(bucket_name, filename).delete()
-
-
-# def file_exists(filename: str, bucket_name: str):
-#     """Check if a file exists in a bucket.
-#
-#     Args:
-#         filename (str): Full filename to check.
-#         bucket_name (str): Bucket that contains the file.
-#     Returns:
-#         bool: True if exists else False.
-#     """
-#     exists = True
-#     try:
-#         s3.Object(bucket_name, filename).load()
-#     except ClientError as error:
-#         if error.response['Error']['Code'] == '404':
-#             exists = False
-#
-#     return exists
 
 
 def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime):
@@ -478,10 +482,10 @@ def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn:
         ]
     }
     try:
-        s3.put_bucket_notification_configuration(
-            Bucket=bucket_name,
-            NotificationConfiguration=notification_configuration
-        )
+        # Get bucket
+        bucket = s3.Bucket(name=bucket_name)
+
+        bucket.Notification().put(NotificationConfiguration=notification_configuration)
 
     except ClientError as error:
         raise error
