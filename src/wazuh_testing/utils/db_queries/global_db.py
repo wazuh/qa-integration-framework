@@ -143,3 +143,40 @@ def remove_metadata_value(key):
         database.query_wdb(command)
     except Exception:
         raise Exception('Unable to remove value')
+
+
+def get_agent_info(agent_id):
+    """
+    Gets agent info
+    """
+    command = f'global get-agent-info {agent_id}'
+    return database.query_wdb(command)
+
+
+def set_agent_group(mode='append', sync_status='synced', source='remote', id='1', group='Test_group'):
+    """
+    Sets agent group
+    """
+    command = f'global set-agent-groups {{"mode":"{mode}","sync_status":"{sync_status}","source":"{source}",\
+                "data":[{{"id":{id},"groups":["{group}"]}}]}}'
+    return database.query_wdb(command)
+
+
+def sync_agent_groups(last_id='0', condition='all', get_global_hash='true',
+                      set_synced='false', agent_delta_registration='0'):
+    """
+    Sync agent groups
+    """
+
+    command = f'global sync-agent-groups-get {{"last_id": {last_id}, "condition": "{condition}", "get_global_hash": {get_global_hash},
+                "set_synced": {set_synced}, "agent_delta_registration": {agent_delta_registration}}}'
+    return database.query_wdb(command)
+
+
+def get_groups_integrity(hash):
+    """
+    Gets groups integrity
+    """
+
+    command = f'global get-groups-integrity {hash}'
+    return database.query_wdb(command)
