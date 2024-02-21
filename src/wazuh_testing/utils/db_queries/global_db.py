@@ -157,8 +157,8 @@ def set_agent_group(mode='append', sync_status='synced', source='remote', id='1'
     """
     Sets agent group
     """
-    command = f'global set-agent-groups {{"mode":"{mode}","sync_status":"{sync_status}","source":"{source}",\
-                "data":[{{"id":{id},"groups":["{group}"]}}]}}'
+    command = f'global set-agent-groups {{"mode":"{mode}","sync_status":"{sync_status}","source":"{source}",'\
+                '"data":[{{"id":{id},"groups":["{group}"]}}]}}'
     return database.query_wdb(command)
 
 
@@ -179,4 +179,5 @@ def get_groups_integrity(hash):
     """
 
     command = f'global get-groups-integrity {hash}'
+    print(command)
     return database.query_wdb(command)
