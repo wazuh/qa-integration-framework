@@ -20,3 +20,5 @@ if sys.platform == WINDOWS:
 else:
     VERSION_FILE = ''
     AGENTD_STATE = os.path.join(VAR_RUN_PATH, 'wazuh-agentd.state')
+
+VAR_MULTIGROUPS_PATH = os.path.join(VAR_PATH, 'multigroups')
