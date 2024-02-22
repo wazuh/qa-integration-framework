@@ -310,5 +310,5 @@ def agent_integrity_check(agent_id: str = '1', begin='/home/test/file1', end='/h
     Checksum Range calculus
     """
     command = f'syscheck integrity_check_global {{"begin":"{begin}","end":"{end}",'\
-              '"checksum":"{checksum}","id":{id}}}'
+              f'"checksum":"{checksum}","id":{id}}}'
     database.query_wdb(f"agent {agent_id} {command}", False)
