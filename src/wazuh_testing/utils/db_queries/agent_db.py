@@ -274,12 +274,13 @@ def rootcheck_delete(agent_id: str = '000'):
     database.query_wdb(f"agent {agent_id} rootcheck delete")
 
 
-def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file', timestamp='1575421292', type='file',
-                        size='0', perm='rw-r--r--', uid='0', gid='0', user_name='root', group_name='root', inode=16879,
-                        mtime=1575421292, hash_md5='d41d8cd98f00b204e9800998ecf8427e',
-                        hash_sha1='da39a3ee5e6b4b0d3255bfef95601890afd80709',
-                        hash_sha256='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-                        checksum='f65b9f66c5ef257a7566b98e862732640d502b6f'):
+def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file', timestamp: int = 1575421292, type: str = 'file',
+                        size: int = 0, perm: str = 'rw-r--r--', uid: str = '0', gid: str = '0', user_name: str = 'root',
+                        group_name: str = 'root', inode: int = 16879, mtime: int = 1575421292,
+                        hash_md5: str = 'd41d8cd98f00b204e9800998ecf8427e',
+                        hash_sha1: str = 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+                        hash_sha256: str = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                        checksum: str = 'f65b9f66c5ef257a7566b98e862732640d502b6f'):
     """
     Create agent's checksum data.
     """
@@ -304,8 +305,8 @@ def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file', ti
     database.query_wdb(command+json.dumps(payload))
 
 
-def agent_integrity_check(agent_id: str = '1', begin='/home/test/file1', end='/home/test/file2',
-                          checksum='2a41be94762b4dc57d98e8262e85f0b90917d6be', id=1):
+def agent_integrity_check(agent_id: str = '1', begin: str = '/home/test/file1', end: str = '/home/test/file2',
+                          checksum: str = '2a41be94762b4dc57d98e8262e85f0b90917d6be', id: int = 1):
     """
     Checksum Range calculus
     """
