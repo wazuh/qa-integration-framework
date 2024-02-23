@@ -481,3 +481,21 @@ def copy_files_in_folder(src_folder, dst_folder='/tmp', files_to_move=None):
                     copy(os.path.join(src_folder, file), dst_folder)
                     remove_file(os.path.join(src_folder, file))
     return file_list
+
+
+def get_list_of_content_yml(file_path, separator='_'):
+    """Read a YAML file from a given path, return a list with the YAML data
+    after apply filter
+
+    Args:
+        file_path (str): Path of the YAML file to be readed
+        separator (str): filder to extract some part of yaml
+
+    Returns:
+       list: Yaml structure.
+    """
+    value_list = []
+    with open(file_path) as f:
+        value_list.append(yaml.safe_load(f), file_path.split(separator)[0])
+
+    return value_list

@@ -31,7 +31,7 @@ def remove_agents(agents_id: List, remove_type: str = 'wazuhdb') -> None:
     if agents_id:
         for agent_id in agents_id:
             if remove_type == 'manage_agents':
-                subprocess.call([MANAGE_AGENTS_BINARY, "-r", agent_id], stdout=open(os.devnull, "w"),
+                subprocess.call([MANAGE_AGENTS_BINARY, "-r", f"{agent_id}"], stdout=open(os.devnull, "w"),
                                 stderr=subprocess.STDOUT)
             elif remove_type == 'wazuhdb':
                 delete_agent(agent_id)

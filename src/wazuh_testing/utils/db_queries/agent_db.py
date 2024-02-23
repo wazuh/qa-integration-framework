@@ -3,6 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import datetime
 import time
+import json
 
 from wazuh_testing.utils import database
 
@@ -11,8 +12,7 @@ def insert_os_info(agent_id='000', scan_id=int(time.time()),
                    scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), hostname='centos8',
                    architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='', os_major='8',
                    os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux', release='',
-                   version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
-                   reference=''):
+                   version='', os_release='', checksum='dummychecksum', os_display_version='', reference=''):
     """Insert the OS information in the agent database.
 
     Args:
@@ -35,16 +35,15 @@ def insert_os_info(agent_id='000', scan_id=int(time.time()),
         os_release (str): Release of the OS.
         checksum (str): Checksum of the OS.
         os_display_version (str): Os displayed version
-        triaged (str): Triaged.
         reference (str): OS reference.
     """
     query_string = f"agent {agent_id} sql INSERT OR REPLACE INTO sys_osinfo (scan_id, scan_time, hostname, " \
                    'architecture, os_name, os_version, os_codename, os_major, os_minor, os_patch, os_build, ' \
-                   'os_platform, sysname, release, version, os_release, os_display_version, checksum, reference, ' \
-                   f"triaged) VALUES ({scan_id}, '{scan_time}', '{hostname}', '{architecture}', '{os_name}', " \
+                   'os_platform, sysname, release, version, os_release, os_display_version, checksum, reference)' \
+                   f" VALUES ({scan_id}, '{scan_time}', '{hostname}', '{architecture}', '{os_name}', " \
                    f"'{os_version}', '{os_codename}', '{os_major}', '{os_minor}', '{os_patch}', '{os_build}', " \
                    f"'{os_platform}', '{sysname}', '{release}', '{version}', '{os_release}', '{os_display_version}', " \
-                   f"'{checksum}', '{reference}', {triaged})"
+                   f"'{checksum}', '{reference}')"
 
     database.query_wdb(query_string)
 
@@ -62,8 +61,7 @@ def update_os_info(agent_id='000', scan_id=int(time.time()),
                    scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), hostname='centos8',
                    architecture='x64', os_name='CentOS Linux', os_version='8.4', os_codename='', os_major='8',
                    os_minor='4', os_patch='', os_build='', os_platform='centos', sysname='Linux', release='',
-                   version='', os_release='', checksum='dummychecksum', os_display_version='', triaged='0',
-                   reference=''):
+                   version='', os_release='', checksum='dummychecksum', os_display_version='', reference=''):
     """Update the sys_osinfo data from a specific agent.
 
     Args:
@@ -86,7 +84,6 @@ def update_os_info(agent_id='000', scan_id=int(time.time()),
         os_release (str): Release of the OS.
         checksum (str): Checksum of the OS.
         os_display_version (str): Os displayed version
-        triaged (str): Triaged.
         reference (str): OS reference.
     """
     delete_os_info(agent_id)
@@ -96,7 +93,7 @@ def update_os_info(agent_id='000', scan_id=int(time.time()),
 def insert_package(agent_id='000', scan_id=int(time.time()), format='rpm', name='custom-package-0',
                 priority='', section='Unspecified', size=99, vendor='wazuh-mocking', version='1.0.0-1.el7',
                 architecture='x64', multiarch='', description='Wazuh mocking packages', source='Wazuh QA tests',
-                location='', triaged='0', install_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                location='', install_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                 scan_time=datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), checksum='dummychecksum',
                 item_id='dummyitemid'):
     """Insert a package in the agent DB.
@@ -115,7 +112,6 @@ def insert_package(agent_id='000', scan_id=int(time.time()), format='rpm', name=
         description (str): Package description.
         source (str): Package source.
         location (str): Package location.
-        triaged (str): Times that the package has been installed.
         install_time (str): Installation timestamp.
         scan_time (str): Scan timestamp.
         checksum (str): Package checksum.
@@ -129,12 +125,11 @@ def insert_package(agent_id='000', scan_id=int(time.time()), format='rpm', name=
 
     query_string = f"agent {agent_id} sql INSERT INTO sys_programs (scan_id, scan_time, format, name, priority, "\
                    f"section, size, vendor, install_time, version, architecture, multiarch, source, description, "\
-                   f"location, triaged, checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, "\
+                   f"location, checksum, item_id) VALUES ({arguments['scan_id']}, {arguments['scan_time']}, "\
                    f"{arguments['format']}, {arguments['name']}, {arguments['priority']}, {arguments['section']}, "\
                    f"{arguments['size']}, {arguments['vendor']}, {arguments['install_time']}, {arguments['version']}, "\
                    f"{arguments['architecture']}, {arguments['multiarch']}, {arguments['source']}, "\
-                   f"{arguments['description']}, {arguments['location']}, {arguments['triaged']}, "\
-                   f"{arguments['checksum']}, {arguments['item_id']})"
+                   f"{arguments['description']}, {arguments['location']}, {arguments['checksum']}, {arguments['item_id']})"
 
     database.query_wdb(query_string)
 
@@ -253,19 +248,6 @@ def get_vulnerability_inventory_data(agent_id='000', name=None, status=None, cve
     return database.query_wdb(query)
 
 
-def get_triaged_value_from_inventory(package_name: str, agent_id: str = '000') -> str:
-    """Check the triaged of a vulnerability in the agent database table.
-    Args:
-        package_name (str): Package name.
-        agent_id (str): Agent ID.
-    """
-    query = f"agent {agent_id} sql SELECT triaged FROM sys_programs WHERE name='{package_name}'"
-
-    result = database.query_wdb(query)[0]['triaged']
-
-    return result
-
-
 def update_last_full_scan(last_scan: int = 0, agent_id: str = '000'):
     """Update the last full scan of an agent.
     Args:
@@ -290,3 +272,44 @@ def rootcheck_delete(agent_id: str = '000'):
         agent_id (str): Agent ID.
     """
     database.query_wdb(f"agent {agent_id} rootcheck delete")
+
+
+def agent_checksum_data(agent_id: str = '001', path: str = '/home/test/file', timestamp: int = 1575421292, type: str = 'file',
+                        size: int = 0, perm: str = 'rw-r--r--', uid: str = '0', gid: str = '0', user_name: str = 'root',
+                        group_name: str = 'root', inode: int = 16879, mtime: int = 1575421292,
+                        hash_md5: str = 'd41d8cd98f00b204e9800998ecf8427e',
+                        hash_sha1: str = 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+                        hash_sha256: str = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                        checksum: str = 'f65b9f66c5ef257a7566b98e862732640d502b6f'):
+    """
+    Create agent's checksum data.
+    """
+    command = f"agent {agent_id} syscheck save2 "
+    payload = {'path': path,
+               'timestamp': timestamp,
+               'attributes': {
+                   'type': type,
+                   'size': size,
+                   'perm': perm,
+                   'uid': uid,
+                   'gid': gid,
+                   'user_name': user_name,
+                   'group_name': group_name,
+                   'inode': inode,
+                   'mtime': mtime,
+                   'hash_md5': hash_md5,
+                   'hash_sha1': hash_sha1,
+                   'hash_sha256': hash_sha256,
+                   'checksum': checksum}}
+
+    database.query_wdb(command+json.dumps(payload))
+
+
+def agent_integrity_check(agent_id: str = '1', begin: str = '/home/test/file1', end: str = '/home/test/file2',
+                          checksum: str = '2a41be94762b4dc57d98e8262e85f0b90917d6be', id: int = 1):
+    """
+    Checksum Range calculus
+    """
+    command = f'syscheck integrity_check_global {{"begin":"{begin}","end":"{end}",'\
+              f'"checksum":"{checksum}","id":{id}}}'
+    database.query_wdb(f"agent {agent_id} {command}", False)
