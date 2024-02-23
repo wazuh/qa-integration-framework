@@ -2,7 +2,6 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from wazuh_testing.utils import database
-import json
 import hashlib
 
 def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1',
@@ -77,52 +76,6 @@ def delete_agent(agent_id = None):
     database.query_wdb(f"global sql DELETE FROM agent where {id}")
 
 
-# Insert agents into DB and assign them into a group
-def insert_agent_into_group(agent_id, groups_list):
-    groups = json.dumps(groups_list)
-    command = f'''global set-agent-groups {{"mode":"append","sync_status":"syncreq",
-                "source":"remote","data":[{{"id":{agent_id},"groups":{groups}}}]}}'''
-    results = database.query_wdb(command)
-    assert results == 'ok'
-
-
-def calculate_global_hash():
-    """Function that calculates and retrieves the actual global groups hash.
-
-    Returns:
-        str: Actual global groups hash.
-    """
-    GET_GROUP_HASH = '''global sql SELECT group_hash FROM agent WHERE
-                     id > 0 AND group_hash IS NOT NULL ORDER BY id'''
-
-    result = database.query_wdb(GET_GROUP_HASH)
-    group_hashes = [item['group_hash'] for item in result]
-
-    return hashlib.sha1("".join(group_hashes).encode()).hexdigest()
-
-
-def clean_groups_from_db():
-    """
-    Clean groups table from global.db
-    """
-    command = 'global sql DELETE FROM "group"'
-    try:
-        database.query_wdb(command)
-    except Exception:
-        raise Exception('Unable to clean groups table.')
-
-
-def clean_belongs():
-    """
-    Clean belong table from global.db
-    """
-    command = 'global sql DELETE FROM belongs'
-    try:
-        database.query_wdb(command)
-    except Exception:
-        raise Exception('Unable to clean belongs table.')
-
-
 def insert_metadata_value(key, value):
     """
     Clean belong table from global.db
@@ -143,14 +96,6 @@ def remove_metadata_value(key):
         database.query_wdb(command)
     except Exception:
         raise Exception('Unable to remove value')
-
-
-def get_agent_info(agent_id):
-    """
-    Gets agent info
-    """
-    command = f'global get-agent-info {agent_id}'
-    return database.query_wdb(command)
 
 
 def set_agent_group(mode='append', sync_status='synced', source='remote', id=1, group='Test_group'):
@@ -181,3 +126,26 @@ def get_groups_integrity(hash):
     command = f'global get-groups-integrity {hash}'
     print(command)
     return database.query_wdb(command)
+
+
+def get_agent_info(agent_id):
+    """
+    Gets agent info
+    """
+    command = f'global get-agent-info {agent_id}'
+    return database.query_wdb(command)
+
+
+def calculate_global_hash():
+    """Function that calculates and retrieves the actual global groups hash.
+
+    Returns:
+        str: Actual global groups hash.
+    """
+    GET_GROUP_HASH = '''global sql SELECT group_hash FROM agent WHERE
+                     id > 0 AND group_hash IS NOT NULL ORDER BY id'''
+
+    result = database.query_wdb(GET_GROUP_HASH)
+    group_hashes = [item['group_hash'] for item in result]
+
+    return hashlib.sha1("".join(group_hashes).encode()).hexdigest()
