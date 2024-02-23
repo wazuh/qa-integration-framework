@@ -76,7 +76,7 @@ def query_wdb(command, response_only=True, multiple_responses=False) -> List[str
                         rcv = sock.recv(4)
                         data_len = secure_message.unpack(rcv)
                         data = sock.recv(data_len).decode()
-            
+
             # Remove response header and cast str to list of dictionaries
             # From --> 'ok [ {data1}, {data2}...]' To--> [ {data1}, data2}...]
             if len(data.split()) > 1 and data.split()[0] == 'ok':
