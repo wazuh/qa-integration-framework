@@ -29,7 +29,7 @@ from wazuh_testing.constants.platforms import LINUX
 from wazuh_testing.utils import commands
 
 
-def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
+def write_file(file_path: str, data: Union[List[str], str, bytes] = '') -> None:
     """
     Write the specified data to the specified file.
 
@@ -38,8 +38,13 @@ def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
         data (List[str], str): The data to write to the file. This can either
                                be a string or a list of strings.
     """
-    with open(file_path, 'w') as f:
-        f.writelines(data)
+
+    if isinstance(data, bytes):
+        with open(file_path, 'wb') as f:
+            f.write(data)
+    else:
+        with open(file_path, 'w') as f:
+            f.writelines(data)
 
 
 def read_file(path: str) -> str:
