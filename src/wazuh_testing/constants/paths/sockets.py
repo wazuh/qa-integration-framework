@@ -9,6 +9,10 @@ from . import WAZUH_PATH
 QUEUE_CLUSTER_PATH = os.path.join(WAZUH_PATH, 'queue', 'cluster')
 QUEUE_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'db')
 QUEUE_SOCKETS_PATH = os.path.join(WAZUH_PATH, 'queue', 'sockets')
+QUEUE_AGENTS_TIMESTAMP_PATH = os.path.join(WAZUH_PATH, 'queue', 'agents-timestamp')
+QUEUE_DIFF_PATH = os.path.join(WAZUH_PATH, 'queue', 'diff')
+QUEUE_RIDS_PATH = os.path.join(WAZUH_PATH, 'queue', 'rids')
+QUEUE_ALERTS_PATH = os.path.join(WAZUH_PATH, 'queue', 'alerts')
 
 ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'analysis')
 ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
@@ -25,6 +29,8 @@ MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor')
 REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
 WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_DB_PATH, 'wdb')
+ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_ALERTS_PATH, 'ar')
+
 
 WAZUH_SOCKETS = {
     'wazuh-agentd': [],

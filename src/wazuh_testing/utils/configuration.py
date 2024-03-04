@@ -2,10 +2,12 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import os
+import sys
+import json
+import xml.etree.ElementTree as ET
+
 from copy import deepcopy
 from typing import List
-
-import xml.etree.ElementTree as ET
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
@@ -19,7 +21,7 @@ def get_minimal_configuration():
     Returns:
         List of str: Wazuh minimal configuration data.
     """
-    return file.read_file_lines(os.path.join(DATA_PATH, 'all_disabled_ossec.conf'))
+    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', 'all_disabled_ossec.conf'))
 
 
 def get_wazuh_conf() -> List[str]:
@@ -353,3 +355,57 @@ def get_test_cases_data(data_file_path):
         test_cases_ids.append(test_case['name'])
 
     return configuration_parameters, configuration_metadata, test_cases_ids
+
+
+def update_configuration_template(configurations, old_values, new_values):
+    """Update the configuration templates with specific values. Useful for setting the configuration dynamically.
+    Args:
+        configurations (list(dict)): Configuration templates.
+        old_values (list)): Values to be replace.
+        new_values (list): New values.
+    Raises:
+        ValueError: If the number of values to replace are not the same.
+    """
+    if len(configurations) != len(old_values) != len(new_values):
+        raise ValueError('The number of configuration and values items should be the same.')
+
+    configurations_to_update = json.dumps(configurations)
+
+    for old_value, new_value in zip(old_values, new_values):
+        configurations_to_update = configurations_to_update.replace(old_value, new_value)
+
+    return json.loads(configurations_to_update)
+
+
+def update_feed_path_configurations(configurations, metadata, feeds_path):
+    """Replace feed path tags in the configuration template, using the metadata information.
+
+    Args:
+        configurations (list(dict)): List of configuration templates.
+        metadata (list(dict)): List of configuration templates metadata.
+        feeds_path (str): Absolute path where the feeds are located.
+
+    Returns:
+        list(dict): List of configurations with the feeds path updated.
+    """
+    new_configurations = deepcopy(configurations)
+
+    for index, _ in enumerate(configurations):
+        if 'json_feed' in metadata[index] and metadata[index]['json_feed'] is not None:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['json_feed_tag'],
+                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
+                                                                metadata[index]['json_feed'])))
+
+        if 'oval_feed' in metadata[index] and metadata[index]['oval_feed'] is not None:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['oval_feed_tag'],
+                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
+                                                                metadata[index]['oval_feed'])))
+
+        if 'nvd_feed_tag' in metadata[index] and 'nvd_feed' in metadata[index]:
+            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
+                                                   replace(metadata[index]['nvd_feed_tag'],
+                                                   os.path.join(feeds_path, 'nvd', metadata[index]['nvd_feed'])))
+
+    return new_configurations

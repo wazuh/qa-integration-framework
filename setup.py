@@ -12,17 +12,37 @@ from typing import List
 
 # Extra data.
 package_data_list = [
-    'data/all_disabled_ossec.conf',
-    'data/analysis_alert.json',
-    'data/analysis_alert_windows.json',
-    'data/mitre_event.json',
-    'data/keepalives.txt',
-    'data/rootcheck.txt',
+    'data/alerts_template/analysis_alert.json',
+    'data/alerts_template/analysis_alert_windows.json',
+    'data/alerts_template/mitre_event.json',
+    'data/configuration_template/all_disabled_ossec.conf',
+    'data/configuration_template/agent.conf',
+    'data/events_template/keepalives.txt',
+    'data/events_template/rootcheck.txt',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
     'data/statistics_template/manager_statistics_format_test_module/wazuh-analysisd_template.json',
     'data/statistics_template/manager_statistics_format_test_module/wazuh-db_template.json',
-    'data/statistics_template/manager_statistics_format_test_module/wazuh-remoted_template.json'
+    'data/statistics_template/manager_statistics_format_test_module/wazuh-remoted_template.json',
+    'data/feeds/alas/custom_alas2_feed.json',
+    'data/feeds/alas/custom_alas_2022_feed.json',
+    'data/feeds/alas/custom_alas_feed.json',
+    'data/feeds/arch/custom_archlinux_feed.json',
+    'data/feeds/canonical/custom_canonical_oval_feed.xml',
+    'data/feeds/cpe_helper/custom_cpe_helper_template.json',
+    'data/feeds/cpe_helper/custom_cpe_helper.json',
+    'data/feeds/cpe_helper/custom_generic_cpe_helper_one_package.json',
+    'data/feeds/debian/custom_debian_json_feed.json',
+    'data/feeds/debian/custom_debian_oval_feed.xml',
+    'data/feeds/msu/custom_msu.json',
+    'data/feeds/nvd/custom_nvd_alternative_feed.json',
+    'data/feeds/nvd/custom_nvd_feed.json',
+    'data/feeds/nvd/real_nvd_feed.json',
+    'data/feeds/redhat/custom_redhat_json_feed.json',
+    'data/feeds/redhat/custom_redhat_oval_feed.xml',
+    'data/feeds/suse/custom_suse_oval_feed.xml',
+    'data/feeds/suse/custom_suse_oval_feed.xml.bz2',
+    'data/feeds/suse/custom_suse_oval_feed.xml.gz',
 ]
 
 # Entry point scripts.
@@ -41,7 +61,7 @@ def get_install_requires() -> List[str]:
 
 setup(
     name='wazuh_testing',
-    version='4.6.0',
+    version='5.0.0',
     description='Wazuh testing utilities to help programmers automate tests',
     url='https://github.com/wazuh',
     author='Wazuh',

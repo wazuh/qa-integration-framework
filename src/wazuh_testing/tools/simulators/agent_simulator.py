@@ -25,12 +25,13 @@ from string import ascii_letters, digits
 from struct import pack
 from sys import getsizeof
 from time import mktime, localtime, sleep, time
+from typing import Tuple
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.database import query_wdb
 from wazuh_testing.utils.decorators import retry
-from wazuh_testing.utils.network import TCP, is_udp, is_tcp
+from wazuh_testing.utils.network import TCP, UDP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
 
 
@@ -631,7 +632,7 @@ class Agent:
 
     def create_keep_alive(self):
         """Set the keep alive event from keepalives operating systemd data."""
-        with open(os.path.join(DATA_PATH, 'keepalives.txt'), 'r') as fp:
+        with open(os.path.join(DATA_PATH, 'events_template', 'keepalives.txt'), 'r') as fp:
             line = fp.readline()
             while line:
                 if line.strip("\n") == self.os:
@@ -746,18 +747,17 @@ class Agent:
         """
         return self.get_agent_info('connection_status')
 
-    @retry(AttributeError, attempts=10, delay=5, delay_multiplier=1)
-    def wait_status_active(self):
-        """Wait until agent status is active in global.db.
+    @retry(AttributeError, attempts=30, delay=5, delay_multiplier=1)
+    def wait_status(self, status_match = 'active'):
+        """Wait until agent status is status_match (active or pending, so on) in global.db.
         Raises:
             AttributeError: If the agent is not active. Combined with the retry decorator makes a wait loop
-                until the agent is active.
+                until the agent is status_match.
         """
         status = self.get_connection_status()
-
-        if status == 'active':
+        if status == status_match:
             return
-        raise AttributeError(f"Agent is not active yet: {status}")
+        raise AttributeError(f"Agent is not {status_match} yet: {status}")
 
     def set_module_status(self, module_name, status):
         """Set module status.
@@ -992,7 +992,7 @@ class Rootcheck:
     def setup(self):
         """Initialized the list of rootcheck messages, using `rootcheck_sample` and agent information."""
         if self.rootcheck_sample is None:
-            self.rootcheck_path = os.path.join(DATA_PATH, 'rootcheck.txt')
+            self.rootcheck_path = os.path.join(DATA_PATH, 'events_template', 'rootcheck.txt')
         else:
             self.rootcheck_path = os.path.join(DATA_PATH, self.rootcheck_sample)
 
@@ -1469,6 +1469,21 @@ class GeneratorFIM:
         return generated_message
 
 
+def is_valid_fd(fd):
+    import os,errno
+    ret_val = True
+    try: f = os.fdopen(fd, closefd=False)
+    except OSError as e:
+        if e.errno!=errno.EBADF: raise
+        else:
+            # actions when doesn't exist
+            ret_val = False
+    else:
+        #actions when exists
+        ret_val = True
+    return ret_val
+
+
 class Sender:
     """This class sends events to the manager through a socket.
     Attributes:
@@ -1510,17 +1525,21 @@ class Sender:
         if is_tcp(self.protocol):
             length = pack('<I', len(event))
             try:
-                self.socket.send(length + event)
+                if self.socket.fileno() != -1:
+                    self.socket.send(length + event)
             except BrokenPipeError:
                 logging.warning(f"Broken Pipe error while sending event. Creating new socket...")
                 sleep(5)
                 self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.connect((self.manager_address, int(self.manager_port)))
-                self.socket.send(length + event)
+                if self.socket.fileno() != -1 and is_valid_fd(self.socket.fileno()):
+                    self.socket.connect((self.manager_address, int(self.manager_port)))
+                    self.socket.send(length + event)
             except ConnectionResetError:
                 logging.warning(f"Connection reset by peer. Continuing...")
-        if is_udp(self.protocol):
-            self.socket.sendto(event, (self.manager_address, int(self.manager_port)))
+
+        if self.socket.fileno() != -1 and is_valid_fd(self.socket.fileno()):
+            if is_udp(self.protocol):
+                self.socket.sendto(event, (self.manager_address, int(self.manager_port)))
 
 
 class Injector:
@@ -1569,9 +1588,11 @@ class Injector:
         for thread in range(self.thread_number):
             self.threads[thread].stop_rec()
         sleep(2)
-        if is_tcp(self.sender.protocol):
-            self.sender.socket.shutdown(socket.SHUT_RDWR)
-        self.sender.socket.close()
+
+        if self.sender.socket.fileno() != -1 and is_valid_fd(self.sender.socket.fileno()):
+            if is_tcp(self.sender.protocol):
+                self.sender.socket.shutdown(socket.SHUT_RDWR)
+            self.sender.socket.close()
 
     def wait(self):
         for thread in range(self.thread_number):
@@ -1605,7 +1626,17 @@ class InjectorThread(threading.Thread):
         sleep(10)
         logging.debug("Startup - {}({})".format(self.agent.name, self.agent.id))
         self.sender.send_event(self.agent.startup_msg)
+
+        #waiting for 'pending' status
+        for i in range(4):
+            if self.agent.get_connection_status() == 'pending':
+                sleep(10)
+                break
+            else:
+                sleep(5)
+
         self.sender.send_event(self.agent.keep_alive_event)
+        sleep(1)
         start_time = time()
         frequency = self.agent.modules["keepalive"]["frequency"]
         eps = 1
@@ -1687,9 +1718,12 @@ class InjectorThread(threading.Thread):
                         break
 
                 event = self.agent.create_event(event_msg)
-                self.sender.send_event(event)
-                self.totalMessages += 1
-                sent_messages += 1
+                try:
+                    self.sender.send_event(event)
+                    self.totalMessages += 1
+                    sent_messages += 1
+                except Exception as e:
+                    logging.debug(f"Send a module message - {e}")
                 if self.totalMessages % eps == 0:
                     sleep(1.0 - ((time() - start_time) % 1.0))
 
@@ -1748,7 +1782,7 @@ def create_agents(agents_number, manager_address, cypher='aes', fim_eps=100, aut
     return agents
 
 
-def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='1514'):
+def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='1514', wait_status='active') -> Tuple[Sender, Injector]:
     """Connects an agent to the manager
     Args:
         agent (Agent): agent to connect.
@@ -1759,5 +1793,41 @@ def connect(agent,  manager_address='localhost', protocol=TCP, manager_port='151
     sender = Sender(manager_address, protocol=protocol, manager_port=manager_port)
     injector = Injector(sender, agent)
     injector.run()
-    agent.wait_status_active()
+    if wait_status != '':
+        agent.wait_status(wait_status)
     return sender, injector
+
+
+def send_ping_pong_messages(protocol, manager_address, port):
+    """Send the ping message to the manager.
+
+    This message is the first of many between the manager and the agents. It is used to check if both of them are ready
+    to send and receive other messages.
+
+    Args:
+        protocol (str): it can be UDP or TCP.
+        manager_address (str): address of the manager. IP and hostname are valid options.
+        port (int): port where the manager has bound the remoted port.
+
+    Returns:
+        bytes: returns the #pong message from the manager.
+
+    Raises:
+        ConnectionRefusedError: if there's a problem while sending messages to the manager.
+    """
+    protocol = protocol.upper()
+    if protocol == UDP:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ping_msg = b'#ping'
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        msg = '#ping'
+        msg_size = len(bytearray(msg, 'utf-8'))
+        # Since the message size's is represented as an unsigned int32, you need to use 4 bytes to represent it
+        ping_msg = msg_size.to_bytes(4, 'little') + msg.encode()
+
+    sock.connect((manager_address, port))
+    sock.send(ping_msg)
+    response = sock.recv(len(ping_msg))
+    sock.close()
+    return response if protocol == UDP else response[-5:]

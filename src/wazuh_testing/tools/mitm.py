@@ -18,6 +18,7 @@ from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
 from wazuh_testing.utils import secure_message
+from wazuh_testing.modules.clusterd.utils import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
@@ -36,7 +37,14 @@ class StreamServerPortV6(StreamServerPort):
 
 
 class DatagramServerPort(socketserver.ThreadingUDPServer):
-    pass
+
+    def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
+                        client_addres: tuple[str | bytes | bytearray, int]) -> None:
+        """
+        overrides process_request and saves `last_address`.
+        """
+        self.last_address = client_addres
+        super().process_request(request, client_addres)
 
 
 class DatagramServerPortV6(DatagramServerPort):
@@ -221,8 +229,9 @@ class DatagramHandler(socketserver.BaseRequestHandler):
             self.default_wazuh_handler()
         else:
             data = self.request[0]
-            self.server.mitm.handler_func(data)
+            response = self.server.mitm.handler_func(data)
             self.server.mitm.put_queue(data)
+            self.request[1].sendto(response, self.client_address)
 
 
 class ManInTheMiddle:
@@ -321,7 +330,9 @@ class ManInTheMiddle:
         self.listener.socket.close()
         self.event.set()
         # Remove created unix socket and restore original
-        if isinstance(self.listener_socket_address, str):
+        if (isinstance(self.listener_socket_address, str) and
+            os.path.exists(self.listener_socket_address)):
+
             os.remove(self.listener_socket_address)
             os.rename(self.forwarded_socket_path, self.listener_socket_address)
 
@@ -331,3 +342,33 @@ class ManInTheMiddle:
 
     def put_queue(self, item):
         self._queue.put(item)
+
+
+class WorkerMID(ManInTheMiddle):
+
+    def __init__(self, address, family='AF_UNIX', connection_protocol='TCP', func: callable = None):
+        self.cluster_input = None
+        self.cluster_output = None
+        super().__init__(address, family, connection_protocol, self.verify_message)
+
+    def set_cluster_messages(self, cluster_input, cluster_output):
+        self.cluster_input = cluster_input
+        self.cluster_output = cluster_output
+
+    def verify_message(self, data: bytes):
+        if len(data) > CLUSTER_DATA_HEADER_SIZE:
+            message = data[CLUSTER_DATA_HEADER_SIZE:]
+            response = cluster_msg_build(cmd=b'send_sync', counter=2, payload=bytes(self.cluster_output.encode()),
+                                         encrypt=False)
+            print(f'Received message from wazuh-authd: {message}')
+            print(f'Response to send: {self.cluster_output}')
+            self.pause()
+            return response
+        else:
+            raise ConnectionResetError('Invalid cluster message!')
+
+    def pause(self):
+        self.event.set()
+
+    def restart(self):
+        self.event.clear()

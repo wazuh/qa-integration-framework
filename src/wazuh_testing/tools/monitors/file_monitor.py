@@ -54,7 +54,7 @@ class FileMonitor(BaseMonitor):
             raise PermissionError(f"{self.monitored_object} is not readable.")
 
     def start(self, callback: Callable, timeout: int = 30, accumulations: int = 1,
-              only_new_events: bool = False) -> None:
+              only_new_events: bool = False, encoding = None, return_matched_line: bool = False) -> None:
         """
         Start monitoring the target file using the instance provided regex and accumulate matches.
 
@@ -70,22 +70,24 @@ class FileMonitor(BaseMonitor):
             None
         """
         self._clear_results()
-        matches = 0
-        encoding = file.get_file_encoding(self.monitored_object)
+        if encoding is None:
+            encoding = file.get_file_encoding(self.monitored_object)
 
         # Check if current file content lines triggers the callback (only when new events has False value)
         if not only_new_events:
-            with open(self.monitored_object, encoding=encoding) as _file:
+            with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
                 for line in _file:
-                    matches += self._match(line, callback)
-                    if matches >= accumulations:
+                    self.matches += self._match(line, callback)
+                    if self.matches >= accumulations:
+                        if return_matched_line:
+                            return line
                         return
 
         # Start count to set the timeout.
         start_time = time.time()
 
         # Start the file regex monitoring from the last line.
-        with open(self.monitored_object, encoding=encoding) as _file:
+        with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
             # Go to the end of the file.
             _file.seek(0, 2)
             while time.time() - start_time < timeout:
@@ -97,7 +99,9 @@ class FileMonitor(BaseMonitor):
                     time.sleep(0.1)
                 # If we have a new line, check if it matches with the callback.
                 else:
-                    matches += self._match(line, callback)
+                    self.matches += self._match(line, callback)
                     # If it has triggered the callback the expected times, break and leave the loop.
-                    if matches >= accumulations:
+                    if self.matches >= accumulations:
+                        if return_matched_line:
+                            return line
                         return

@@ -69,3 +69,14 @@ def delete_agent(agent_id):
         agent_id (str): Agent ID.
     """
     database.query_wdb(f"global sql DELETE FROM agent where id={int(agent_id)}")
+
+
+def clean_agents_from_db():
+    """
+    Clean agents from DB
+    """
+    command = 'global sql DELETE FROM agent WHERE id != 0'
+    try:
+        database.query_wdb(command)
+    except Exception:
+        raise Exception('Unable to clean agents')

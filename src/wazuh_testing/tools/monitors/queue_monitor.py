@@ -27,7 +27,7 @@ class QueueMonitor(BaseMonitor):
         """
         super().__init__(monitored_object=monitored_object)
 
-    def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1) -> None:
+    def start(self, callback: Callable, timeout: int = 10, accumulations: int = 1, encoding = 'latin-1') -> None:
         """Start monitoring the target queue using the instance provided regex and accumulate matches.
 
         This method monitors the target queue using the regex provided during object instantiation.
@@ -41,7 +41,6 @@ class QueueMonitor(BaseMonitor):
             None
         """
         self._clear_results()
-        matches = 0
 
         # Start count to set the timeout.
         start_time = time.time()
@@ -49,10 +48,22 @@ class QueueMonitor(BaseMonitor):
         while time.time() - start_time < timeout:
             try:
                 item = self.monitored_object.get(block=True, timeout=0.5)
-                msg = item[0] if type(item) is tuple else item
-                matches += self._match(msg.decode() if isinstance(msg, bytes) else msg, callback)
+
+                def check_match(self, msg):
+                    msg = msg.decode(encoding, 'ignore') if isinstance(msg, bytes) else msg
+                    self.matches += self._match(msg, callback)
+
+                if type(item) is tuple:
+                    for msg in item:
+                        check_match(self, msg)
+                        # If it has triggered the callback the expected times, break and leave the loop
+                        if self.matches >= accumulations:
+                            break
+                else:
+                    check_match(self, item)
+
                 # If it has triggered the callback the expected times, break and leave the loop
-                if matches >= accumulations:
+                if self.matches >= accumulations:
                     break
             except queue.Empty:
                 pass

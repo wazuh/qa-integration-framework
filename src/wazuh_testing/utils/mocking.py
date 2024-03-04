@@ -10,7 +10,134 @@ from wazuh_testing.utils import client_keys, file, services
 from wazuh_testing.utils.db_queries import global_db, agent_db
 
 
-def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1', internal_key='',
+SYSTEM_DATA = {
+    'WINDOWS_XP': {'os_name': 'Microsoft Windows XP', 'os_major': '10', 'os_minor': '0',
+                   'os_platform': 'windows', 'name': 'windows_xp', 'os_version': '1000'},
+    'WINDOWS_VISTA': {'os_name': 'Microsoft Windows Vista', 'os_major': '10', 'os_minor': '0',
+                      'os_platform': 'windows', 'name': 'windows_vista', 'os_version': '1000'},
+    'WINDOWS_7': {'os_name': 'Microsoft Windows 7', 'os_major': '10', 'os_minor': '0',
+                  'os_platform': 'windows', 'name': 'windows_7', 'os_version': '1000'},
+    'WINDOWS_8': {'os_name': 'Microsoft Windows 8', 'os_major': '10', 'os_minor': '0',
+                  'os_platform': 'windows', 'name': 'windows_8', 'os_version': '1000'},
+    'WINDOWS_8_1': {'os_name': 'Microsoft Windows 8.1', 'os_major': '10', 'os_minor': '0',
+                    'os_platform': 'windows', 'name': 'windows_8_1', 'os_version': '1000'},
+    'WINDOWS_10': {'os_name': 'Microsoft Windows 10', 'os_major': '10', 'os_minor': '0',
+                   'os_platform': 'windows', 'name': 'windows_10', 'os_version': '1000'},
+    'WINDOWS_11': {'os_name': 'Microsoft Windows 11', 'os_major': '10', 'os_minor': '0',
+                   'os_platform': 'windows', 'name': 'windows_11', 'os_version': '1000'},
+    'WINDOWS_SERVER_2003': {'os_name': 'Microsoft Windows Server 2003', 'os_major': '10', 'os_minor': '0',
+                            'os_platform': 'windows', 'name': 'windows_server_2013', 'os_version': '1000'},
+    'WINDOWS_SERVER_2003_R2': {'os_name': 'Microsoft Windows Server 2003 R2', 'os_major': '10', 'os_minor': '0',
+                               'os_platform': 'windows', 'name': 'windows_server_2003_r2', 'os_version': '1000'},
+    'WINDOWS_SERVER_2008': {'os_name': 'Microsoft Windows Server 2008', 'os_major': '10', 'os_minor': '0',
+                            'os_platform': 'windows', 'name': 'windows_server_2008', 'os_version': '1000'},
+    'WINDOWS_SERVER_2008_R2': {'os_name': 'Microsoft Windows Server 2008 R2', 'os_major': '10', 'os_minor': '0',
+                               'os_platform': 'windows', 'name': 'windows_server_2008_r2', 'os_version': '1000'},
+    'WINDOWS_SERVER_2012': {'os_name': 'Microsoft Windows Server 2012', 'os_major': '10', 'os_minor': '0',
+                            'os_platform': 'windows', 'name': 'windows_server_2012', 'os_version': '1000'},
+    'WINDOWS_SERVER_2012_R2': {'os_name': 'Microsoft Windows Server 2012 R2', 'os_major': '10', 'os_minor': '0',
+                               'os_platform': 'windows', 'name': 'windows_server_2012_r2', 'os_version': '1000'},
+    'WINDOWS_SERVER_2016': {'os_name': 'Microsoft Windows Server 2016', 'os_major': '10', 'os_minor': '0',
+                            'os_platform': 'windows', 'name': 'windows_server_2016', 'os_version': '1000'},
+    'WINDOWS_SERVER_2019': {'os_name': 'Microsoft Windows Server 2019', 'os_major': '10', 'os_minor': '0',
+                            'os_platform': 'windows', 'name': 'windows_server_2019', 'os_version': '1000'},
+    'WINDOWS_SERVER_2022_1': {'os_name': 'Microsoft Windows Server 2022', 'os_major': '10', 'os_minor': '0',
+                              'os_platform': 'windows', 'name': 'windows_server_2022', 'os_version': '1000'},
+    'WINDOWS_SERVER_2022_2': {'os_name': 'Microsoft Windows Server 2022', 'os_major': '10', 'os_minor': '0',
+                              'os_platform': 'windows', 'name': 'windows_server', 'os_version': '1000'},
+    'MAC': {'os_name': 'Mac OS X', 'os_major': '10', 'os_minor': '15', 'os_platform': 'darwin',
+            'name': 'macos-catalina'},
+    'MACS': {'os_name': 'Mac OS X Server', 'os_major': '5', 'os_minor': '10', 'os_platform': 'darwin',
+             'name': 'macos-server'},
+    'ARCH': {'os_name': 'Arch Linux', 'os_major': '', 'os_minor': '', 'os_platform': '', 'name': 'archlinux'},
+    'ALAS': {'hostname': 'amz', 'architecture': 'x86_64', 'os_name': 'Amazon Linux AMI', 'os_version': '2018.03',
+             'os_codename': '', 'os_major': '2018', 'os_minor': '03', 'os_patch': '', 'os_build': '',
+             'os_platform': 'amzn', 'sysname': 'Linux', 'release': '4.14.97-74.72.amzn1.x86_64',
+             'version': 'Wazuh v4.3.0', 'os_release': '', 'checksum': '1645433796303855540', 'os_display_version': '',
+             'triaged': '0', 'reference': '0886f3023b131f5bf1ecbc33f651807114cb5a53', 'name': 'amz', 'ip': '127.0.0.1',
+             'register_ip': '127.0.0.1', 'internal_key': '',
+             'os_uname': 'Linux |amz |4.14.97-74.72.amzn1.x86_64 |#1 SMP Tue Feb 5 20:59:30 UTC 2019 |x86_64',
+             'os_arch': 'x86_64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'amz', 'node_name': 'node01',
+             'date_add': '1645433793', 'last_keepalive': '253402300799', 'sync_status': 'synced',
+             'connection_status': 'active', 'disconnection_time': '0'},
+    'ALAS2': {'hostname': 'alas2', 'architecture': 'x86_64', 'os_name': 'Amazon Linux', 'os_version': '2',
+              'os_codename': '', 'os_major': '2', 'os_minor': '', 'os_patch': '', 'os_build': '', 'os_platform': 'amzn',
+              'sysname': 'Linux', 'release': '4.14.198-152.320.amzn2.x86_64', 'version': 'Wazuh v4.3.0',
+              'os_release': '', 'checksum': '1645538649327530789', 'name': 'alas2', 'ip': '127.0.0.1',
+              'register_ip': '127.0.0.1', 'internal_key': '',
+              'os_uname': 'Linux |alas2 |4.14.198-152.320.amzn2.x86_64 |#1 SMP Wed Sep 23 23:57:28 UTC 2020 |x86_64',
+              'os_arch': 'x86_64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'alas2', 'node_name': 'node01',
+              'date_add': '1645538646', 'last_keepalive': '253402300799', 'sync_status': 'synced',
+              'connection_status': 'active'},
+    'ALAS_2022': {'hostname': 'alas2022', 'architecture': 'x86_64', 'os_name': 'Amazon Linux', 'os_version': '2022',
+                  'os_codename': '', 'os_major': '2022', 'os_minor': '', 'os_patch': '', 'os_build': '',
+                  'os_platform': 'amzn', 'sysname': 'Linux', 'release': '5.15.29-16.111.amzn2022.x86_64',
+                  'version': 'Wazuh v4.4.0', 'os_release': '', 'checksum': '1645538649327530789', 'name': 'alas2022',
+                  'ip': '127.0.0.1', 'register_ip': '127.0.0.1', 'internal_key': '', 'os_arch': 'x86_64',
+                  'config_sum': '', 'merged_sum': '', 'manager_host': 'alas2022',  'node_name': 'node01',
+                  'date_add': '1645538646', 'last_keepalive': '253402300799',  'sync_status': 'synced',
+                  'connection_status': 'active'},
+    'RHEL8': {'os_name': 'CentOS Linux', 'os_major': '8', 'os_minor': '1', 'os_platform': 'centos',
+              'name': 'centos8', 'connection_status': 'active'},
+    'RHEL7': {'os_name': 'CentOS Linux', 'os_major': '7', 'os_minor': '1', 'os_platform': 'centos', 'os_version': '7.0',
+              'name': 'centos7'},
+    'RHEL6': {'os_name': 'CentOS Linux', 'os_major': '6', 'os_minor': '1', 'os_platform': 'centos', 'os_version': '6.0',
+              'name': 'centos6'},
+    'RHEL5': {'os_name': 'CentOS Linux', 'os_major': '5', 'os_minor': '1', 'os_platform': 'centos', 'os_version': '5.0',
+              'name': 'centos5'},
+    'JAMMY': {'os_name': 'Ubuntu', 'os_major': '22', 'os_minor': '04', 'os_platform': 'ubuntu',
+              'name': 'Ubuntu', 'os_version': '22.04 (Jammy Jellyfish)', 'os_codename': 'jammy', 'os_arch': 'x86_64'},
+    'FOCAL': {'hostname': 'focal', 'architecture': 'x86_64', 'os_name': 'Ubuntu', 'os_version': '20.04.3 LTS',
+              'os_codename': 'Focal Fossa', 'os_major': '20', 'os_minor': '04', 'os_patch': '3', 'os_build': '',
+              'os_platform': 'ubuntu', 'sysname': 'Linux', 'release': '5.4.0-99-generic', 'version': 'Wazuh v4.3.0',
+              'os_release': '', 'checksum': '1645531600116313579', 'name': 'focal', 'ip': '127.0.0.1',
+              'register_ip': '127.0.0.1', 'internal_key': '',
+              'os_uname': 'Linux |focal |5.4.0-99-generic |#112-Ubuntu SMP Thu Feb 3 13:50:55 UTC 2022 |x86_64',
+              'os_arch': 'x86_64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'focal', 'node_name': 'node01',
+              'date_add': '1645531596', 'last_keepalive': '253402300799', 'sync_status': 'synced',
+              'connection_status': 'active'},
+    'BIONIC': {'os_name': 'Ubuntu', 'os_major': '18', 'os_minor': '04', 'os_platform': 'ubuntu',
+               'name': 'Ubuntu-bionic'},
+    'XENIAL': {'os_name': 'Ubuntu', 'os_major': '16', 'os_minor': '04', 'os_platform': 'ubuntu',
+               'name': 'Ubuntu-xenial'},
+    'TRUSTY': {'os_name': 'Ubuntu', 'os_major': '14', 'os_minor': '04', 'os_platform': 'ubuntu',
+               'name': 'Ubuntu-trusty'},
+    'BULLSEYE': {'hostname': 'bullseye', 'architecture': 'x86_64', 'os_name': 'Debian GNU/Linux', 'os_version': '11',
+                 'os_codename': 'bullseye', 'os_major': '11', 'os_minor': '', 'os_patch': '', 'os_build': '',
+                 'os_platform': 'debian', 'sysname': 'Linux', 'release': '5.10.0-10-amd64', 'version': 'Wazuh v4.3.0',
+                 'os_release': '', 'checksum': '1645537989645288350', 'name': 'bullseye', 'ip': '127.0.0.1',
+                 'register_ip': '127.0.0.1', 'internal_key': '',
+                 'os_uname': 'Linux |bullseye |5.10.0-10-amd64 |#1 SMP Debian 5.10.84-1 (2021-12-08) |x86_64',
+                 'os_arch': 'x86_64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'bullseye',
+                 'node_name': 'node01', 'date_add': '1645537986', 'last_keepalive': '253402300799',
+                 'sync_status': 'synced', 'connection_status': 'active'},
+    'BUSTER': {'os_name': 'Debian GNU/Linux', 'os_major': '10', 'os_minor': '0', 'os_platform': 'debian',
+               'name': 'debian10'},
+    'STRETCH': {'os_name': 'Debian GNU/Linux', 'os_major': '9', 'os_minor': '0', 'os_platform': 'debian',
+                'name': 'debian9'},
+    'SLED11': {'hostname': 'sled', 'architecture': 'x86_64', 'os_name': 'SLED', 'os_major': '11', 'os_minor': '',
+               'os_platform': 'sled', 'name': 'Desktop11', 'os_codename': 'sled'},
+    'SLED12': {'hostname': 'sled', 'architecture': 'x86_64', 'os_name': 'SLED', 'os_major': '12', 'os_minor': '',
+               'os_platform': 'sled', 'name': 'Desktop12', 'os_codename': 'sled'},
+    'SLED15': {'hostname': 'sled', 'architecture': 'x86_64', 'os_name': 'SLED', 'os_major': '15', 'os_minor': '',
+               'os_platform': 'sled', 'name': 'Desktop15', 'os_codename': 'sled'},
+    'SLES11': {'hostname': 'sles', 'architecture': 'x86_64', 'os_name': 'SLES', 'os_major': '11', 'os_minor': '',
+               'os_platform': 'sles', 'name': 'Server11', 'os_codename': 'sles'},
+    'SLES12': {'hostname': 'sles', 'architecture': 'x86_64', 'os_name': 'SLES', 'os_major': '12', 'os_minor': '',
+               'os_platform': 'sles', 'name': 'Server12', 'os_codename': 'sles'},
+    'SLES15': {'hostname': 'localhost', 'architecture': 'x64', 'os_name': 'SLES', 'os_version': '15.2',
+               'os_codename': '', 'os_major': '15', 'os_minor': '', 'os_patch': '', 'os_build': '',
+               'os_platform': 'sles', 'sysname': 'Linux', 'release': '5.3.18-22-default', 'version': 'Wazuh v4.4.0',
+               'os_release': '', 'checksum': '1652388661375945607', 'name': 'SUSE15', 'ip': '127.0.0.1',
+               'register_ip': 'any', 'internal_key': '',
+               'os_uname': 'Linux |localhost|5.3.18-22-default |#1 SMP Wed Jun 3 12:16:43 UTC 2020 (720aeba)|x86_64',
+               'os_arch': 'x64', 'config_sum': '', 'merged_sum': '', 'manager_host': 'localhost.localdomain',
+               'node_name': 'node01', 'date_add': '1652381429', 'last_keepalive': '253402300799',
+               'sync_status': 'synced', 'connection_status': 'active'}
+}
+
+
+def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1', internal_key='',
                         os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4', os_codename='centos-8',
                         os_build='4.18.0-147.8.1.el8_1.x86_64', os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020',
                         os_uname='x64', os_arch='x64', version='Wazuh v4.3.0', config_sum='', merged_sum='',
@@ -23,6 +150,7 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
     """Mock a new agent creating a new client keys entry, adding it to the global db and creating a new agent id DB.
 
     Args:
+        id (str): Agent ID
         name (str): Agent name.
         ip (str): Agent IP.
         register_ip (str): IP of the registered agent.
@@ -63,10 +191,13 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
         str: Agent ID.
     """
 
-    # Get new agent_id
-    last_id = global_db.get_last_agent_id()
-    agent_id = int(last_id) + 1
-    agent_id_str = str(agent_id).zfill(3)  # Convert from x to 00x
+    if id:
+        agent_id_str = id
+    else:
+        # Get new agent_id
+        last_id = global_db.get_last_agent_id()
+        agent_id = int(last_id) + 1
+        agent_id_str = str(agent_id).zfill(3)  # Convert from x to 00x
 
     client_keys.add_client_keys_entry(agent_id_str, name, ip, client_key_secret)
 
@@ -96,7 +227,7 @@ def create_mocked_agent(name='centos8-agent', ip='127.0.0.1', register_ip='127.0
     return agent_id_str
 
 
-def delete_mocked_agent(agent_id):
+def delete_mocked_agent(agent_id: str) -> None:
     """Delete a mocked agent removing it from the global db, client keys and db file.
 
     Args:
@@ -110,3 +241,33 @@ def delete_mocked_agent(agent_id):
 
     # Remove entry from client keys
     client_keys.delete_client_keys_entry(agent_id)
+
+
+def insert_mocked_packages(agent_id: str = '000', num_packages: int = 10) -> list:
+    """Insert a specific number of mocked packages in the agent DB (package_1, package2 ...).
+
+    Args:
+        agent_id (str): Agent ID.
+        num_packages (int): Number of packages to generate.
+
+    Returns:
+        list(str): List of package names.
+    """
+    package_names = [f"package_{number}" for number in range(1, num_packages + 1)]
+
+    for package_name in package_names:
+        agent_db.insert_package(agent_id=agent_id, name=package_name, version='1.0.0')
+
+    return package_names
+
+
+def delete_mocked_packages(agent_id: str = '000') -> None:
+    """Delete the mocked packages in the agent DB.
+
+    Args:
+        agent_id (str): Agent ID.
+    """
+    package_names = [f"package_{number}" for number in range(1, 11)]
+
+    for package_name in package_names:
+        agent_db.delete_package(package=package_name, agent_id=agent_id)

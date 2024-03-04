@@ -74,6 +74,21 @@ def query_wdb(command) -> List[str]:
     return data
 
 
+def make_sqlite_query(db_path: str, query_list: List[str]) -> None:
+    """Make a query to the database for each passed query.
+    Args:
+        db_path (string): Path where is located the DB.
+        query_list (list): List with queries to run.
+    """
+    services.control_service('stop', daemon=WAZUH_DB_DAEMON)
+    try:
+        with DatabaseAdministrator(db_path) as db:
+            for query in query_list:
+                db.execute_query(query)
+    finally:
+        services.control_service('start', daemon=WAZUH_DB_DAEMON)
+
+
 def get_sqlite_query_result(db_path: str, query: str) -> List[str]:
     """Execute a query in a given database and return the result.
     Args:
