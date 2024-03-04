@@ -7,8 +7,8 @@ import os
 import json
 import socket
 import time
-
 from typing import List, Union
+import select
 
 from wazuh_testing.constants.daemons import WAZUH_DB_DAEMON
 from wazuh_testing.constants.paths.sockets import QUEUE_DB_PATH, WAZUH_DB_SOCKET_PATH
@@ -23,7 +23,7 @@ def delete_dbs():
             os.remove(os.path.join(root, file))
 
 
-def query_wdb(command) -> List[str]:
+def query_wdb(command, response_only=True, multiple_responses=False) -> List[str]:
     """Make queries to wazuh-db using the wdb socket.
 
     Args:
@@ -60,18 +60,37 @@ def query_wdb(command) -> List[str]:
         sock.send(secure_message.pack(len(command)) + command.encode())
 
         rcv = sock.recv(4)
-
+        data_array = []
         if len(rcv) == 4:
             data_len = secure_message.unpack(rcv)
 
             data = sock.recv(data_len).decode()
 
+            if(multiple_responses):
+                while(data != ''):
+                    data_array.append(data)
+                    data = ''
+                    # Wait until there is data to receive
+                    ready = select.select([sock], [], [], 5)
+                    if ready[0]:
+                        rcv = sock.recv(4)
+                        data_len = secure_message.unpack(rcv)
+                        data = sock.recv(data_len).decode()
+
             # Remove response header and cast str to list of dictionaries
             # From --> 'ok [ {data1}, {data2}...]' To--> [ {data1}, data2}...]
             if len(data.split()) > 1 and data.split()[0] == 'ok':
-                data = json.loads(' '.join(data.split(' ')[1:]))
+                if response_only:
+                    try:
+                        data = json.loads(' '.join(data.split(' ')[1:]))
+                    except ValueError as e:
+                        data = ' '.join(data.split(' ')[1:])
+
     finally:
         sock.close()
+
+    if(multiple_responses):
+        return data_array[0] if len(data_array) == 1 else data_array
 
     return data
 

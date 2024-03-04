@@ -2,7 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 from wazuh_testing.utils import database
-
+import hashlib
 
 def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1',
                            internal_key='', os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4',
@@ -10,7 +10,7 @@ def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1',
                            os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020', os_uname='x86_64', os_arch='x86_64',
                            version='Wazuh v4.3.0', config_sum='', merged_sum='', manager_host='centos-8',
                            node_name='node01', date_add='1612942494', last_keepalive='253402300799', group='',
-                           sync_status='synced', connection_status='active', disconnection_time='0'):
+                           sync_status='synced', connection_status='active', disconnection_time='0', status_code='0'):
     """Create an agent or update its info if it already exists (checking agent_id).
 
     Args:
@@ -39,15 +39,16 @@ def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1',
         sync_status (str): Status of the syncronization.
         connection_status (str): Status of the connection.
         disconnection_time (str): Last disconnection time.
+        status_code (str): Last status code.
     """
     query = 'global sql INSERT OR REPLACE INTO AGENT  (id, name, ip, register_ip, internal_key, os_name, os_version, ' \
             'os_major, os_minor, os_codename, os_build, os_platform, os_uname, os_arch, version, config_sum, ' \
             'merged_sum, manager_host, node_name, date_add, last_keepalive, "group", sync_status, connection_status, ' \
-            f"disconnection_time) VALUES  ('{agent_id}', '{name}', '{ip}', '{register_ip}', '{internal_key}', " \
+            f"disconnection_time, status_code) VALUES  ('{agent_id}', '{name}', '{ip}', '{register_ip}', '{internal_key}', " \
             f"'{os_name}', '{os_version}', '{os_major}', '{os_minor}', '{os_codename}', '{os_build}', " \
             f"'{os_platform}', '{os_uname}', '{os_arch}', '{version}', '{config_sum}', '{merged_sum}', " \
             f"'{manager_host}', '{node_name}', '{date_add}', '{last_keepalive}', '{group}', '{sync_status}', " \
-            f"'{connection_status}', '{disconnection_time}')"
+            f"'{connection_status}', '{disconnection_time}', '{status_code}')"
 
     database.query_wdb(query)
 
@@ -62,21 +63,89 @@ def get_last_agent_id():
     return last_id[0]['id']
 
 
-def delete_agent(agent_id):
-    """Delete an agent from the global.db
+def delete_agent(agent_id = None):
+    """Delete one or all agents from the global.db
 
     Args:
-        agent_id (str): Agent ID.
+        agent_id (str): Agent ID. If empty, deletes all agents.
     """
-    database.query_wdb(f"global sql DELETE FROM agent where id={int(agent_id)}")
+    if agent_id == None:
+        id = "id != 0"
+    else:
+        id = f"id = {int(agent_id)}"
+    database.query_wdb(f"global sql DELETE FROM agent where {id}")
 
 
-def clean_agents_from_db():
+def insert_metadata_value(key, value):
     """
-    Clean agents from DB
+    Clean belong table from global.db
     """
-    command = 'global sql DELETE FROM agent WHERE id != 0'
+    command = f'global sql insert into metadata (key,value) VALUES ("{key}","{value}")'
     try:
         database.query_wdb(command)
     except Exception:
-        raise Exception('Unable to clean agents')
+        raise Exception('Unable to insert value')
+
+
+def remove_metadata_value(key):
+    """
+    Clean belong table from global.db
+    """
+    command = f'global sql delete from metadata where key="{key}"'
+    try:
+        database.query_wdb(command)
+    except Exception:
+        raise Exception('Unable to remove value')
+
+
+def set_agent_group(mode='append', sync_status='synced', source='remote', id=1, group='Test_group'):
+    """
+    Sets agent group
+    """
+    command = f'global set-agent-groups {{"mode":"{mode}","sync_status":"{sync_status}","source":"{source}",'\
+              f'"data":[{{"id":{id},"groups":["{group}"]}}]}}'
+    return database.query_wdb(command)
+
+
+def sync_agent_groups(last_id='0', condition='all', get_global_hash='true',
+                      set_synced='false', agent_delta_registration='0'):
+    """
+    Sync agent groups
+    """
+
+    command = f'global sync-agent-groups-get {{"last_id": {last_id}, "condition": "{condition}", "get_global_hash": {get_global_hash},\
+                "set_synced": {set_synced}, "agent_delta_registration": {agent_delta_registration}}}'
+    return database.query_wdb(command)
+
+
+def get_groups_integrity(hash):
+    """
+    Gets groups integrity
+    """
+
+    command = f'global get-groups-integrity {hash}'
+    print(command)
+    return database.query_wdb(command)
+
+
+def get_agent_info(agent_id):
+    """
+    Gets agent info
+    """
+    command = f'global get-agent-info {agent_id}'
+    return database.query_wdb(command)
+
+
+def calculate_global_hash():
+    """Function that calculates and retrieves the actual global groups hash.
+
+    Returns:
+        str: Actual global groups hash.
+    """
+    GET_GROUP_HASH = '''global sql SELECT group_hash FROM agent WHERE
+                     id > 0 AND group_hash IS NOT NULL ORDER BY id'''
+
+    result = database.query_wdb(GET_GROUP_HASH)
+    group_hashes = [item['group_hash'] for item in result]
+
+    return hashlib.sha1("".join(group_hashes).encode()).hexdigest()
