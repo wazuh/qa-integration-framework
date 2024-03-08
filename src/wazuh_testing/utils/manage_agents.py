@@ -11,7 +11,7 @@ from typing import List
 from wazuh_testing.constants.api import AGENTS_ROUTE
 from wazuh_testing.constants.paths.binaries import MANAGE_AGENTS_BINARY
 from wazuh_testing.modules.api.utils import login, get_base_url
-from wazuh_testing.utils.db_queries.global_db import delete_agent
+from wazuh_testing.utils.db_queries import global_db
 
 
 def remove_agents(agents_id: List, remove_type: str = 'wazuhdb') -> None:
@@ -34,7 +34,7 @@ def remove_agents(agents_id: List, remove_type: str = 'wazuhdb') -> None:
                 subprocess.call([MANAGE_AGENTS_BINARY, "-r", f"{agent_id}"], stdout=open(os.devnull, "w"),
                                 stderr=subprocess.STDOUT)
             elif remove_type == 'wazuhdb':
-                delete_agent(agent_id)
+                global_db.delete_agent(agent_id)
         if remove_type == 'api':
             authentication_headers, _ = login()
             url = get_base_url() + AGENTS_ROUTE

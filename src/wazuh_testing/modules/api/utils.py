@@ -6,18 +6,19 @@ This program is free software; you can redistribute it and/or modify it under th
 import json
 import os
 import requests
+import time
 from requests.adapters import HTTPAdapter, Retry
 from base64 import b64encode
 from copy import deepcopy
 from jsonschema import validate
 from typing import Tuple, Union, List
 
+from .patterns import API_LOGIN_ERROR_MSG
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
                                         WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP, \
                                         TARGET_ROUTE_MAP
 from wazuh_testing.constants.paths.api import WAZUH_API_CERTIFICATE
-from wazuh_testing.modules.api.patterns import API_LOGIN_ERROR_MSG
 from wazuh_testing.utils.file import read_json_file
 
 

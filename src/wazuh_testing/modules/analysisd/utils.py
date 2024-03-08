@@ -8,9 +8,8 @@ from copy import deepcopy
 from datetime import datetime
 from jsonschema import validate, exceptions
 
+from .patterns import *
 from wazuh_testing import DATA_PATH
-from wazuh_testing.constants.keys.alerts import *
-from wazuh_testing.constants.keys.events import *
 from wazuh_testing.constants.paths.variables import ANALYSISD_STATE
 from wazuh_testing.constants.platforms import LINUX, WINDOWS
 

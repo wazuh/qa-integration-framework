@@ -136,6 +136,97 @@ SYSTEM_DATA = {
                'sync_status': 'synced', 'connection_status': 'active'}
 }
 
+VULNERABLE_PACKAGES = [
+    {
+        "name": "custom-package-0",
+        "version": "1.0.0",
+        "vendor": "wazuh-mocking",
+        "cveid": "CVE-000"
+    },
+    {
+        "name": "custom-package-1",
+        "version": "1.0.0",
+        "vendor": "wazuh-mocking",
+        "cveid": "CVE-001"
+    },
+    {
+        "name": "custom-package-2",
+        "version": "1.0.0",
+        "vendor": "wazuh-mocking",
+        "cveid": "CVE-002"
+    },
+    {
+        "name": "custom-package-3",
+        "version": "1.0.0",
+        "vendor": "wazuh-mocking",
+        "cveid": "CVE-003"
+    },
+    {
+        "name": "custom-package-4",
+        "version": "1.0.0",
+        "vendor": "wazuh-mocking",
+        "cveid": "CVE-004"
+    }
+]
+
+VULNERABLE_PACKAGES_EMPTY_VENDOR_VERSION = [
+    {
+        "scan": {
+            "id": 0,
+            "time": "2021-11-20T12:41:27Z"
+        },
+        "architecture": "x86_64",
+        "format": "win",
+        "name": "custom-package-0 1.0.0",
+        "size": 0,
+        "vendor": "NULL",
+        "cveid": "CVE-000",
+        "version": "NULL"
+    }
+]
+
+VULNERABLE_PACKAGES_EMPTY_VENDOR = [
+    {
+        "scan": {
+            "id": 0,
+            "time": "2021-11-20T12:41:27Z"
+        },
+        "architecture": "x86_64",
+        "format": "win",
+        "name": "custom-package-0 1.0.0",
+        "size": 0,
+        "vendor": "NULL",
+        "cveid": "CVE-000"
+    }
+]
+
+SUSE_SYSTEM_PACKAGE = {
+    'SLES15': [
+        {
+            "name": "sle-module-basesystem-release",
+            "version": "15.2",
+            "format": "rpm",
+            "vendor": "SUSE LLC <https://www.suse.com/>"
+        }
+    ],
+    'SLES11': [
+        {
+            "name": "sle-module-basesystem-release",
+            "version": "11.2",
+            "format": "rpm",
+            "vendor": "SUSE LLC <https://www.suse.com/>"
+        }
+    ],
+    'SLES12': [
+        {
+            "name": "sle-module-basesystem-release",
+            "version": "12.2",
+            "format": "rpm",
+            "vendor": "SUSE LLC <https://www.suse.com/>"
+        }
+    ]
+}
+
 
 def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1', internal_key='',
                         os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4', os_codename='centos-8',
@@ -270,3 +361,52 @@ def delete_mocked_packages(agent_id: str = '000') -> None:
 
     for package_name in package_names:
         agent_db.delete_package(package=package_name, agent_id=agent_id)
+
+
+def insert_vulnerable_packages(agent_id: str = '000', vendor: str = 'Red Hat, Inc.', count: int = 5) -> None:
+    """Insert vulnerable packages to an agent.
+
+    Args:
+        agent_id (str): Agent ID.
+        vendor (str): Package vendor.
+        count (int): Number of vulnerable packages to insert.
+
+    Raises:
+        ValueError: If count parameter has an invalid value.
+    """
+    if count > len(VULNERABLE_PACKAGES):
+        raise ValueError(f"Count parameter must be lower or equal than {len(VULNERABLE_PACKAGES)}")
+
+    for package in VULNERABLE_PACKAGES[:count]:
+        agent_db.insert_package(name=package['name'], version=package['version'], source=package['name'],
+                                agent_id=agent_id, vendor=vendor)
+
+
+def insert_vulnerabilities_agent_inventory(agent_id: str = '000', status: str = 'VALID') -> None:
+    """Insert vulnerabilities in the agent inventory.
+
+    Args:
+        agent_id (str): Agent ID.
+        status (str): Vulnerability status (PENDING, VALID, OBSOLETE).
+    """
+    for package in VULNERABLE_PACKAGES:
+        agent_db.insert_vulnerability_in_agent_inventory(agent_id=agent_id, name=package['name'],
+                                                         cve=package['cveid'], status=status)
+
+
+def insert_suse_system_package(agent_id: str = '000', version: str = 'SLES15') -> None:
+    """Insert suse OS package to an agent.
+
+    Args:
+        agent_id (str): Agent ID.
+        version (str): Package version.
+
+    Raises:
+        ValueError: If version parameter has an invalid value.
+    """
+    if version not in SUSE_SYSTEM_PACKAGE:
+        raise ValueError('Suse system parameter invalid.')
+
+    for package in SUSE_SYSTEM_PACKAGE[version]:
+        agent_db.insert_package(name=package['name'], version=package['version'], source=package['name'],
+                                agent_id=agent_id, vendor=package['vendor'])
