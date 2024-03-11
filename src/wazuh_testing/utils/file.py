@@ -424,8 +424,8 @@ def create_files(files: list[Union[str, os.PathLike]]) -> list:
     Raises:
         FileExistsError: When a file already exists.
     """
-    if not isinstance(file, list):
-        raise TypeError(f"`file` should be a 'list', not a '{type(file)}'")
+    if not isinstance(files, list):
+        raise TypeError(f"`files` should be a 'list', not a '{type(files)}'")
 
     created_files = []
     for file in files:

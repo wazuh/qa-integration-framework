@@ -8,6 +8,11 @@ IGNORING_DUE_TO_PATTERN = r".*?Ignoring path '(.*)' due to pattern '(.*)'.*"
 REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodata engine started.*'
 MONITORING_PATH = r'.*Monitoring path:.*'
 
+NUM_INOTIFY_WATCHES = r'.*Folders monitored with real-time engine: (\d+)'
+PATH_MONITORED_REALTIME = r".*Directory added for real time monitoring: (.*)"
+PATH_MONITORED_WHODATA = r".*Added audit rule for monitoring directory: (.*)"
+PATH_MONITORED_WHODATA_WINDOWS = r".*Setting up SACL for (.*)"
+
 # Events
 SENDING_FIM_EVENT = r'.*Sending FIM event: .*"type":"event".*'
 EVENT_TYPE_ADDED = r'.*Sending FIM event: .*"type":"added".*'
