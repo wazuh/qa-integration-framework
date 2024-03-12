@@ -386,7 +386,7 @@ def create_parent_directories(path: os.PathLike) -> list:
     for parent in reversed(path.parents):
         # If the folder exist do not add it to the `created_files` list, otherwise add it
         try:
-            parent.mkdir(exist_ok=False)
+            parent.mkdir(exist_ok=True)
             created_parents.append(parent)
         except FileExistsError:
             pass
