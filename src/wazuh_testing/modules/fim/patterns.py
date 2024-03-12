@@ -16,8 +16,8 @@ PATH_MONITORED_WHODATA_WINDOWS = r".*Setting up SACL for (.*)"
 # Events
 SENDING_FIM_EVENT = r'.*Sending FIM event: .*"type":"event".*'
 EVENT_TYPE_ADDED = r'.*Sending FIM event: .*"type":"added".*'
-EVENT_TYPE_MODIFIED = r'.*"type":"modified".*'
-EVENT_TYPE_DELETED = r'.*"type":"deleted".*'
+EVENT_TYPE_MODIFIED = r'.*Sending FIM event: .*"type":"modified".*'
+EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 
 INODE_ENTRIES_PATH_COUNT = r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
