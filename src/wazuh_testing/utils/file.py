@@ -22,7 +22,6 @@ import filetype
 import requests
 import yaml
 from wazuh_testing.constants import platforms
-from wazuh_testing.constants.platforms import WINDOWS
 
 def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
     """
@@ -443,21 +442,6 @@ def delete_files(files: list[Union[str, os.PathLike]]) -> None:
     """
     for file in files:
         remove_file(file)
-
-
-def copy(source, destination):
-    """
-    Copy file with metadata and ownership to a specific destination.
-
-    Args:
-        source (str): Source file path to copy.
-        destination (str): Destination file.
-    """
-    shutil.copy2(source, destination)
-    source_stats = os.stat(source)
-
-    if sys.platform != WINDOWS:
-        os.chown(destination, source_stats[stat.ST_UID], source_stats[stat.ST_GID])
 
 
 def copy_files_in_folder(src_folder, dst_folder='/tmp', files_to_move=None):
