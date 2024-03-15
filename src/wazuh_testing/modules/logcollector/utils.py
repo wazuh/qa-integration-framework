@@ -65,6 +65,8 @@ def validate_test_config_with_module_config(test_configuration):
                     config['log_format'] = config.pop('logformat')
                 if config.get('file'):
                     config['location'] = config.pop('file')
+                if config.get('frequency'):
+                    config['frequency'] = str(config.pop('frequency'))
 
                 if all([config.get(key) == value for key, value in test_config.items()]):
                     configuration_in_module = True
