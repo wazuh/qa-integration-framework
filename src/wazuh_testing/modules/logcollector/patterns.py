@@ -21,6 +21,7 @@ LOGCOLLECTOR_MACOS_MISSING_LOCATION = r'.*Missing \'location\' element when usin
 LOGCOLLECTOR_EVENTCHANNEL_BAD_FORMAT = r'.*ERROR: Could not EvtSubscribe\(\) for \({event_location}\) which returned \(\d+\)'
 LOGCOLLECTOR_ANALYZING_EVENT_LOG = r'.*INFO: \(\d+\): Analyzing event log: \'{event_location}\''
 LOGCOLLECTOR_INVALID_RECONNECTION_TIME_VALUE = r'.*{severity}: Invalid reconnection time value. Changed to {default_value} seconds.'
+LOGCOLLECTOR_MODULE_START = r'.*LogCollectorStart\(\): INFO: Started \(pid: \d+\).'
 
 ERROR_COMMAND_MONITORING = 'The expected command monitoring log has not been produced'
 ERROR_CONFIGURATION = 'The expected configuration was not found in the module configuration response'
