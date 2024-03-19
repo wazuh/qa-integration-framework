@@ -36,8 +36,3 @@ ERROR_MISSING_LOCATION_VALUE = 'The expected warning missing location value has 
 ERROR_MACOS_LOG_NOT_PRODUCED = 'The expected macos log monitoring has not been produced'
 ERROR_EVENTCHANNEL = 'Did not receive the expected "ERROR: Could not EvtSubscribe() for ... which returned ... event.'
 ERROR_INVALID_RECONNECTION_TIME = 'The expected invalid reconnection time error has not been produced'
-
-START_UP_TIMEOUT = 10
-LOG_COLLECTOR_GLOBAL_TIMEOUT = 40
-
-MACOS_LOG_COMMAND_PATH = '/usr/bin/log'

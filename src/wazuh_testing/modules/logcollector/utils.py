@@ -3,9 +3,12 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 import json
+from time import sleep
 from wazuh_testing.constants.paths.sockets import LOGCOLLECTOR_SOCKET_PATH
 from wazuh_testing.utils import sockets
 from wazuh_testing.modules.logcollector import patterns
+from wazuh_testing.tools.socket_controller import SocketController
+
 
 def validate_test_config_with_module_config(test_configuration):
     """Assert if configuration values provided are the same that configuration provided for module response.
@@ -76,3 +79,24 @@ def validate_test_config_with_module_config(test_configuration):
                     configuration_in_module = True
 
         assert configuration_in_module, patterns.ERROR_CONFIGURATION
+
+
+def check_logcollector_socket(timeout=10):
+    """Assert if the internal logcollector socket is ready.
+
+    Args:
+        timeout: maximum time to wait for the socket to be ready.
+    """
+    socket_ready = False
+    for i in range(0, timeout):
+        try:
+            connection = SocketController(address=LOGCOLLECTOR_SOCKET_PATH, family='AF_UNIX', timeout=timeout - i)
+            connection.close()
+            socket_ready = True
+            break
+        except (FileNotFoundError, ConnectionRefusedError):
+            sleep(1)
+        except TimeoutError:
+            break
+
+    assert socket_ready, "Logcollector socket is not ready"
