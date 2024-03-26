@@ -30,17 +30,20 @@ class DatabaseAdministrator:
             sql = file.read()
             self.cursor.executescript(sql)
 
+
     def execute_query(self, query: str) -> list:
         self.cursor.execute(query)
         rows = self.cursor.fetchall()
 
         return rows
 
+
     def execute_fetch_one_query(self, query: str) -> list:
         self.cursor.execute(query)
         row = self.cursor.fetchone()
 
         return row
+    
 
     def insert(self, table_name: str, values: Tuple) -> None:
         placeholders = ', '.join(itertools.repeat('?', len(values)))
