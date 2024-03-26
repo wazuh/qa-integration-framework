@@ -10,8 +10,10 @@ from . import WAZUH_PATH
 
 if sys.platform == WINDOWS:
     BIN_PATH = WAZUH_PATH
+    AGENT_AUTH_PATH = os.path.join(WAZUH_PATH, 'agent-auth.exe')
 else:
     BIN_PATH = os.path.join(WAZUH_PATH, 'bin')
+    AGENT_AUTH_PATH= os.path.join(BIN_PATH, 'agent-auth')
 
 WAZUH_CONTROL_PATH = os.path.join(BIN_PATH, 'wazuh-control')
 AGENT_AUTH_PATH = os.path.join(BIN_PATH, 'agent-auth')
