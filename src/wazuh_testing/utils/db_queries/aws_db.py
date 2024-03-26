@@ -7,7 +7,7 @@ This module will contain data structures, queries and db utils to manage AWS ser
 """
 
 # Local imports
-from wazuh_testing.utils.database import get_query_result, get_fetch_one_query_result
+from wazuh_testing.utils.database import get_sqlite_query_result, get_fetch_one_query_result
 from wazuh_testing.constants.paths.aws import S3_CLOUDTRAIL_DB_PATH, AWS_SERVICES_DB_PATH
 
 """ Database data structures  """
@@ -147,7 +147,7 @@ def get_multiple_s3_db_row(table_name):
     """
     row_type = _get_s3_row_type(table_name)
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    rows = get_query_result(S3_CLOUDTRAIL_DB_PATH, query)
+    rows = get_sqlite_query_result(S3_CLOUDTRAIL_DB_PATH, query)
 
     for row in rows:
         yield row_type(*row)
@@ -172,7 +172,7 @@ def table_exists(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
                 type ='table' AND
                 name NOT LIKE 'sqlite_%';
             """
-    results = get_query_result(db_path, query)
+    results = get_sqlite_query_result(db_path, query)
 
     return table_name in [result[0] for result in results]
 
@@ -189,7 +189,7 @@ def table_exists_or_has_values(table_name, db_path=S3_CLOUDTRAIL_DB_PATH):
     """
     try:
         query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-        result = get_query_result(db_path, query)
+        result = get_sqlite_query_result(db_path, query)
         return bool(result)
     except sqlite3.OperationalError:
         return False
@@ -226,7 +226,7 @@ def get_multiple_service_db_row(table_name):
     row_type = _get_service_row_type(table_name)
 
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
-    rows = get_query_result(AWS_SERVICES_DB_PATH, query)
+    rows = get_sqlite_query_result(AWS_SERVICES_DB_PATH, query)
 
     for row in rows:
         yield row_type(*row)
