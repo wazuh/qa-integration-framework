@@ -36,6 +36,7 @@ class AuthdSimulator(BaseSimulator):
     def __init__(self,
                  server_ip: str = '127.0.0.1',
                  port: int = 1515,
+                 family: str = 'AF_INET',
                  secret: str = 'SuperSecretKey',
                  mode: Literal['ACCEPT', 'REJECT'] = 'ACCEPT',
                  key_path: str = f'{BASE_CONF_PATH}/manager.key',
@@ -53,6 +54,7 @@ class AuthdSimulator(BaseSimulator):
         """
         super().__init__(server_ip=server_ip, port=port, running=False)
 
+        self.family = family
         self.secret = secret
         self.mode = mode
         self.key_path = key_path
@@ -62,7 +64,7 @@ class AuthdSimulator(BaseSimulator):
         self.cert_controller = CertificateController()
 
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
-                                     family='AF_INET', connection_protocol='SSL',
+                                     family=self.family, connection_protocol='SSL',
                                      func=self.__authd_response_simulation)
 
     # Properties

@@ -32,6 +32,9 @@ class CertificateController:
     def get_root_ca_cert(self):
         return self.root_ca_cert
 
+    def get_root_ca_key(self):
+        return self.root_ca_key
+
     def generate_agent_certificates(self, agent_key_path: str, agent_cert_path: str, agentname: str,
                                     key_bits: int = 4096, signed: bool = True) -> None:
         """
