@@ -14,3 +14,4 @@ pywin32>=305; sys_platform == "win32"
 setuptools>=56.0.0
 lockfile>=0.10
 urllib3<1.27,>=1.26.2
+distro>=1.8.0
