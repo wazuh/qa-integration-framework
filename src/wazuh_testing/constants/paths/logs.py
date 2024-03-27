@@ -28,3 +28,5 @@ WAZUH_API_LOG_FILE_PATH = os.path.join(BASE_LOGS_PATH, 'api.log')
 WAZUH_API_JSON_LOG_FILE_PATH = os.path.join(BASE_LOGS_PATH, 'api.json')
 
 WAZUH_CLUSTER_LOGS_PATH = os.path.join(BASE_LOGS_PATH, 'cluster.log')
+
+MACOS_LOG_COMMAND_PATH = '/usr/bin/log'
