@@ -114,7 +114,7 @@ def read_yaml(file_path):
        dict: Yaml structure.
     """
     with open(file_path) as f:
-        return yaml.load(f,  yaml.Loader)
+        return yaml.load(f, yaml.Loader)
 
 
 def read_json_file(file_path: Union[str, os.PathLike]) -> dict:
@@ -556,20 +556,20 @@ def modify_symlink_target(target:str, link_path: str) -> None:
 
 def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
     """Check if a file or folder is inside a certain directory.
-    
+
     Args:
         file_or_folder_name (str): The name of the file or folder to check.
         directory_path (str): The path to the directory to check in.
-    
+
     Returns:
         bool: True if the file or folder is inside the directory, False otherwise.
     """
     # Get the absolute path of the directory
     directory_path = os.path.abspath(directory_path)
-    
+
     # Get the absolute path of the file or folder
     file_or_folder_path = os.path.join(directory_path, file_or_folder_name)
-    
+
     # Check if the file or folder exists and is not a symbolic link
     return os.path.exists(file_or_folder_path) and not os.path.islink(file_or_folder_path)
 
