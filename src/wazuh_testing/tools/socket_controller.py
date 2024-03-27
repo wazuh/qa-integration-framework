@@ -91,8 +91,11 @@ class SocketController:
 
     def close(self):
         """Close the socket gracefully."""
-        self.sock.shutdown(socket.SHUT_RDWR)
-        self.sock.close()
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+            self.sock.close()
+        except Exception:
+            pass
 
     def send(self, message, size=False):
         """Send a message to the socket.
