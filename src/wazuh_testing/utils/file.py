@@ -2,6 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
+import sys
 import bz2
 import gzip
 import json
@@ -22,8 +23,13 @@ import filetype
 import requests
 import yaml
 from wazuh_testing.constants import platforms
+from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.platforms import LINUX
 
-def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
+from wazuh_testing.utils import commands
+
+
+def write_file(file_path: str, data: Union[List[str], str, bytes] = '') -> None:
     """
     Write the specified data to the specified file.
 
@@ -32,8 +38,13 @@ def write_file(file_path: str, data: Union[List[str], str] = '') -> None:
         data (List[str], str): The data to write to the file. This can either
                                be a string or a list of strings.
     """
-    with open(file_path, 'w') as f:
-        f.writelines(data)
+
+    if isinstance(data, bytes):
+        with open(file_path, 'wb') as f:
+            f.write(data)
+    else:
+        with open(file_path, 'w') as f:
+            f.writelines(data)
 
 
 def read_file(path: str) -> str:
@@ -103,7 +114,7 @@ def read_yaml(file_path):
        dict: Yaml structure.
     """
     with open(file_path) as f:
-        return yaml.safe_load(f)
+        return yaml.load(f, yaml.Loader)
 
 
 def read_json_file(file_path: Union[str, os.PathLike]) -> dict:
@@ -340,7 +351,9 @@ def remove_file(file_path: str) -> None:
     Args:
         file_path (str): File or directory path to remove.
     """
-    if os.path.exists(file_path):
+    if os.path.islink(file_path):
+        os.unlink(file_path)
+    elif os.path.exists(file_path):
         if os.path.isfile(file_path):
             os.remove(file_path)
         elif os.path.isdir(file_path):
@@ -373,7 +386,7 @@ def create_parent_directories(path: os.PathLike) -> list:
     for parent in reversed(path.parents):
         # If the folder exist do not add it to the `created_files` list, otherwise add it
         try:
-            parent.mkdir(exist_ok=False)
+            parent.mkdir(exist_ok=True)
             created_parents.append(parent)
         except FileExistsError:
             pass
@@ -411,8 +424,8 @@ def create_files(files: list[Union[str, os.PathLike]]) -> list:
     Raises:
         FileExistsError: When a file already exists.
     """
-    if not isinstance(file, list):
-        raise TypeError(f"`file` should be a 'list', not a '{type(file)}'")
+    if not isinstance(files, list):
+        raise TypeError(f"`files` should be a 'list', not a '{type(files)}'")
 
     created_files = []
     for file in files:
@@ -423,7 +436,8 @@ def create_files(files: list[Union[str, os.PathLike]]) -> list:
         # If file does not have suffixes, consider it a directory
         if file.suffixes == []:
             # Add a dummy file to the target directory to create the directory
-            created_files.extend(create_parent_directories(Path(file).joinpath('dummy.file')))
+            created_files.extend(create_parent_directories(
+                Path(file).joinpath('dummy.file')))
             return create_files
 
         created_files.extend(create_parent_directories(file))
@@ -483,3 +497,84 @@ def get_list_of_content_yml(file_path, separator='_'):
         value_list.append(yaml.safe_load(f), file_path.split(separator)[0])
 
     return value_list
+
+
+def delete_files_in_folder(folder_path):
+    """Delete all files in a folder.
+
+    Args:
+        folder_path (str): Path of the folder containing the files to be deleted.
+    """
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'Failed to delete {file_path}. Reason: {e}')
+
+
+def move(source_path: str, destination_path: str) -> None:
+    try:
+        # Check if the source path exists
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(f"Source path '{source_path}' does not exist.")
+
+        # Check if the destination path exists
+        if os.path.exists(destination_path):
+            raise FileExistsError(f"Destination path '{destination_path}' already exists.")
+
+        # Move the file or folder
+        shutil.move(source_path, destination_path)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+def rename(source_path: str, destination_path: str) -> None:
+    # Check if the source path exists
+    if not os.path.exists(source_path):
+        raise FileNotFoundError(f"Source path '{source_path}' does not exist.")
+
+    # Check if the destination path exists
+    if os.path.exists(destination_path):
+        raise FileExistsError(f"Destination path '{destination_path}' already exists.")
+
+    # Rename the file or folder
+    os.rename(source_path, destination_path)
+
+
+def modify_symlink_target(target:str, link_path: str) -> None:
+    if sys.platform == LINUX:
+        commands.run(['ln', '-sfn', target, link_path])
+    else:
+        if os.path.exists(link_path):
+            os.remove(link_path)
+        os.symlink(target, link_path)
+
+
+def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
+    """Check if a file or folder is inside a certain directory.
+
+    Args:
+        file_or_folder_name (str): The name of the file or folder to check.
+        directory_path (str): The path to the directory to check in.
+
+    Returns:
+        bool: True if the file or folder is inside the directory, False otherwise.
+    """
+    # Get the absolute path of the directory
+    directory_path = os.path.abspath(directory_path)
+
+    # Get the absolute path of the file or folder
+    file_or_folder_path = os.path.join(directory_path, file_or_folder_name)
+
+    # Check if the file or folder exists and is not a symbolic link
+    return os.path.exists(file_or_folder_path) and not os.path.islink(file_or_folder_path)
+
+
+def exists(path:str) -> bool:
+    return os.path.exists(path) or os.path.islink(path)
+
+
