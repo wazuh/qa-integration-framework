@@ -19,3 +19,7 @@ AGENTD_SERVER_RESPONDED = r'.*Server responded. Releasing lock'
 AGENTD_SERVER_UNAVAILABLE = r'.*Server unavailable. Setting lock'
 AGENTD_UNABLE_TO_CONNECT_ENROLLMENT = r'.*Unable to connect to enrollment service'
 AGENTD_UNABLE_TO_CONNECT = r'.*Unable to connect to .*{IP}.*{PORT}'
+
+ENROLLMENT_INVALID_SERVER = r".*ERROR: \(\d+\): Invalid server address found: '{server_ip}'"
+ENROLLMENT_RESOLVE_ERROR = r".*ERROR: Could not resolve hostname: {server_ip}"
+ENROLLMENT_CONNECTED = r".*Connected to enrollment service at '\[{server_ip}\]:{port}'"

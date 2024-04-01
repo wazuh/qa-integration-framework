@@ -29,7 +29,7 @@ from typing import Tuple
 
 from wazuh_testing import DATA_PATH
 from wazuh_testing.utils import secure_message
-from wazuh_testing.utils.database import query_wdb
+from wazuh_testing.utils.db_queries import global_db
 from wazuh_testing.utils.decorators import retry
 from wazuh_testing.utils.network import TCP, UDP, is_udp, is_tcp
 from wazuh_testing.utils.random import get_random_ip, get_random_string
@@ -729,7 +729,7 @@ class Agent:
             self.winevt = GeneratorWinevt(self.name, self.id)
 
     def get_agent_info(self, field):
-        agent_info = query_wdb(f"global get-agent-info {self.id}")
+        agent_info = global_db.get_agent_info(self.id)
 
         if len(agent_info) > 0:
             field_value = agent_info[0][field]

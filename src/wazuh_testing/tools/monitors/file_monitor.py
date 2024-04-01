@@ -73,23 +73,22 @@ class FileMonitor(BaseMonitor):
         if encoding is None:
             encoding = file.get_file_encoding(self.monitored_object)
 
+        with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
         # Check if current file content lines triggers the callback (only when new events has False value)
-        if not only_new_events:
-            with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
+            if not only_new_events:
                 for line in _file:
                     self.matches += self._match(line, callback)
                     if self.matches >= accumulations:
                         if return_matched_line:
                             return line
                         return
+            else:
+                # Go to the end of the file.
+                _file.seek(0, 2)
 
-        # Start count to set the timeout.
-        start_time = time.time()
+            # Start count to set the timeout.
+            start_time = time.time()
 
-        # Start the file regex monitoring from the last line.
-        with open(self.monitored_object, encoding=encoding, errors='ignore') as _file:
-            # Go to the end of the file.
-            _file.seek(0, 2)
             while time.time() - start_time < timeout:
                 current_position = _file.tell()
                 line = _file.readline()

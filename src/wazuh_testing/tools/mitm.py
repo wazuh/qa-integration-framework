@@ -18,7 +18,7 @@ from typing import Union
 
 from wazuh_testing.constants.users import WAZUH_UNIX_USER, WAZUH_UNIX_GROUP
 from wazuh_testing.utils import secure_message
-from wazuh_testing.modules.clusterd.utils import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
+from wazuh_testing.utils.cluster import CLUSTER_DATA_HEADER_SIZE, cluster_msg_build
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
@@ -360,7 +360,7 @@ class WorkerMID(ManInTheMiddle):
             message = data[CLUSTER_DATA_HEADER_SIZE:]
             response = cluster_msg_build(cmd=b'send_sync', counter=2, payload=bytes(self.cluster_output.encode()),
                                          encrypt=False)
-            print(f'Received message from wazuh-authd: {message}')
+            print(f'Received message: {message}')
             print(f'Response to send: {self.cluster_output}')
             self.pause()
             return response
