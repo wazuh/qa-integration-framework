@@ -37,6 +37,7 @@ WAZUH_SOCKETS = {
     'wazuh-apid': [],
     'wazuh-agentlessd': [],
     'wazuh-csyslogd': [],
+    'wazuh-integratord': [],
     'wazuh-analysisd': [
         ANALYSISD_ANALISIS_SOCKET_PATH,
         ANALYSISD_QUEUE_SOCKET_PATH

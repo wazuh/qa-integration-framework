@@ -4,6 +4,7 @@
 from . import PREFIX
 from . import WMODULES_PREFIX
 
+
 # Callback messages
 CB_MODULE_STARTING = fr'{PREFIX}DEBUG: Starting Syscollector.'
 CB_MODULE_STARTED = fr'{PREFIX}INFO: Module started.'

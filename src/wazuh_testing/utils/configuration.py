@@ -115,6 +115,27 @@ def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> 
         else:
             return str_list
 
+    def purge_characters_for_xml(str_list: List[str]) -> List[str]:
+        """
+        Remove '&' from the str_list.
+
+        This operation is necessary before trying to convert the list to ElementTree because the '&' need to be
+        escaped so that XMLParser can read it.
+
+        Args:
+            str_list (list or str): List of str to be purge.
+
+        Returns:
+            list of str : List of str with the character '&' escaped to '&amp;'.
+        """
+        processed_list = []
+        for string in str_list:
+            # Replace '&' with '&amp;' if it is not followed by 'amp;'
+            processed_string = string.replace('&', '&amp;').replace('&amp;', '&', string.count('&amp;'))
+            processed_list.append(processed_string)
+
+        return processed_list
+
     def to_elementTree(str_list: List[str]) -> ET.ElementTree:
         """
         Turn a list of str into an ElementTree object.
@@ -129,6 +150,7 @@ def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> 
             ElementTree: A ElementTree object with the data of the `str_list`
         """
         str_list = purge_multiple_root_elements(str_list)
+        str_list = purge_characters_for_xml(str_list)
         return ET.ElementTree(ET.fromstringlist(str_list))
 
     def to_str_list(elementTree: ET.ElementTree) -> List[str]:
@@ -374,37 +396,3 @@ def update_configuration_template(configurations, old_values, new_values):
         configurations_to_update = configurations_to_update.replace(old_value, new_value)
 
     return json.loads(configurations_to_update)
-
-
-def update_feed_path_configurations(configurations, metadata, feeds_path):
-    """Replace feed path tags in the configuration template, using the metadata information.
-
-    Args:
-        configurations (list(dict)): List of configuration templates.
-        metadata (list(dict)): List of configuration templates metadata.
-        feeds_path (str): Absolute path where the feeds are located.
-
-    Returns:
-        list(dict): List of configurations with the feeds path updated.
-    """
-    new_configurations = deepcopy(configurations)
-
-    for index, _ in enumerate(configurations):
-        if 'json_feed' in metadata[index] and metadata[index]['json_feed'] is not None:
-            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
-                                                   replace(metadata[index]['json_feed_tag'],
-                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
-                                                                metadata[index]['json_feed'])))
-
-        if 'oval_feed' in metadata[index] and metadata[index]['oval_feed'] is not None:
-            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
-                                                   replace(metadata[index]['oval_feed_tag'],
-                                                   os.path.join(feeds_path, metadata[index]['provider_name'],
-                                                                metadata[index]['oval_feed'])))
-
-        if 'nvd_feed_tag' in metadata[index] and 'nvd_feed' in metadata[index]:
-            new_configurations[index] = json.loads(json.dumps(new_configurations[index]).
-                                                   replace(metadata[index]['nvd_feed_tag'],
-                                                   os.path.join(feeds_path, 'nvd', metadata[index]['nvd_feed'])))
-
-    return new_configurations

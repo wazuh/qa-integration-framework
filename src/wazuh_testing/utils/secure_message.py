@@ -247,9 +247,8 @@ def set_algorithm_header(message: bytes, algorithm: str) -> bytes:
 
     return header + message
 
+
 # Internal methods
-
-
 def __get_cipher_and_data(payload: bytes, key: bytes, algorithm: str) -> Tuple[object, bytes]:
     """
     Creates a cipher object and prepares the payload for encryption or decryption.

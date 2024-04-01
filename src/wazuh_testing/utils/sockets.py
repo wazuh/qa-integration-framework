@@ -93,3 +93,13 @@ def send_active_response_message(active_response_command):
     sock.connect(ACTIVE_RESPONSE_SOCKET_PATH)
     sock.send(f"{active_response_command}".encode())
     sock.close()
+
+
+def get_host_name():
+    """
+    Gets the system host name.
+
+    Returns:
+        str: The host name.
+    """
+    return socket.gethostname()
