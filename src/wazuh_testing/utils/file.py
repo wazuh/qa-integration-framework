@@ -150,13 +150,14 @@ def truncate_file(file_path: str) -> None:
         f.truncate()
 
 
-def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], file_path: str) -> None:
+def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], file_path: str, use_dotall: bool = False) -> None:
     """Perform replacements in a file data according to the specified regex.
 
     Args:
         search_regex (List[str]): Search regex list.
         replace_regex (List[str]): Replacements regex list.
         file_path (str): File path to read and update.
+        use_dotall (bool, optional): Whether to use re.DOTALL flag for the regex operation. Defaults to False.
     """
     if (len(search_regex) != len(replace_regex)):
         raise ValueError('search_regex has to have the same number of items than replace_regex. '
@@ -166,8 +167,9 @@ def replace_regex_in_file(search_regex: List[str], replace_regex: List[str], fil
     file_data = read_file(file_path)
 
     # Perform the replacements
+    flags = re.DOTALL if use_dotall else 0
     for search, replace in zip(search_regex, replace_regex):
-        file_data = re.sub(search, replace, file_data)
+        file_data = re.sub(search, replace, file_data, flags=flags)
 
     # Write the file data
     write_file(file_path, file_data)
