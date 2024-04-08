@@ -10,6 +10,27 @@ from wazuh_testing.modules.logcollector import patterns
 from wazuh_testing.tools.socket_controller import SocketController
 
 
+def get_localfile_runtime_configuration():
+    """Get the runtime configuration of the localfile section.
+
+    Returns:
+        dict: Dictionary with the runtime configuration of the localfile section.
+    """
+    msg_request = 'getconfig localfile'
+    response = sockets.send_request_socket(query=msg_request, socket_path=LOGCOLLECTOR_SOCKET_PATH)
+    if response[:2] != b'ok':
+        raise Exception(f'Error getting configuration: {response}')
+
+    json_response = json.loads(response[3:])
+
+    # Get 'localfile' configuration
+    localfile_section = json_response.get('localfile')
+
+    if not localfile_section:
+        localfile_section = []
+    
+    return localfile_section
+
 def validate_test_config_with_module_config(test_configuration):
     """Assert if configuration values provided are the same that configuration provided for module response.
 
