@@ -31,6 +31,7 @@ def get_localfile_runtime_configuration():
     
     return localfile_section
 
+
 def validate_test_config_with_module_config(test_configuration):
     """Assert if configuration values provided are the same that configuration provided for module response.
 
