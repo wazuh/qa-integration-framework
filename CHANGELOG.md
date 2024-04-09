@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file.
 ## [4.9.0]
 
 ### Added
-- Added `/manager/configuration` endpoint route constant. ([#63](https://github.com/wazuh/qa-integration-framework/pull/63))
 - Added support for the `enrollment` integration tests. ([#123](https://github.com/wazuh/qa-integration-framework/pull/123))
 - Added support for the `wazuh-logcollector` integration tests. ([#122](https://github.com/wazuh/qa-integration-framework/pull/122))
 - Added patterns for inotify and max eps cases in the FIM integration tests. ([#119](https://github.com/wazuh/qa-integration-framework/pull/119))
