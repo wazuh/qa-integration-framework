@@ -119,7 +119,7 @@ class VPCDataGenerator(DataGenerator):
     BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, US_EAST_1_REGION)
     BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{VPC_FLOW_LOGS}_{US_EAST_1_REGION}_"
 
-    def get_filename(self):
+    def get_filename(self, **kwargs):
         """Return the filename in the VPC format.
 
         Example:
@@ -131,7 +131,7 @@ class VPCDataGenerator(DataGenerator):
         now = datetime.utcnow()
         path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}{FLOW_LOG_ID}_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}"
+            f"{self.BASE_FILE_NAME}{kwargs['flow_log_id']}_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}"
             f"{LOG_EXT}"
         )
 
@@ -154,7 +154,7 @@ class VPCDataGenerator(DataGenerator):
             data.append(
                 [
                     '2', RANDOM_ACCOUNT_ID, get_random_interface_id(), get_random_ip(), get_random_ip(),
-                    get_random_port(), get_random_port(), '6', '39', '4698', '1622505433', '1622505730', 'ACCEPT', 'OK'
+                    get_random_port(), get_random_port(), '6', '39', '4698', '1622505433', '1622505730', 'REJECT', 'OK'
                 ]
             )
         buffer = StringIO()
@@ -986,7 +986,7 @@ class WAFDataGenerator(DataGenerator):
         return join(path, name)
 
     def get_data_sample(self):
-        """Return a sample of data according to the cloudtrail format.
+        """Return a sample of data according to the WAF format.
 
         Returns:
             str: Synthetic data.
@@ -1111,7 +1111,7 @@ class UmbrellaDataGenerator(DataGenerator):
     BASE_FILE_NAME = ''
 
     def get_filename(self):
-        """Return the filename in the umbrella format.
+        """Return the filename in the Umbrella format.
 
         Example:
             <prefix>/<year>-<month>-<day>
@@ -1125,7 +1125,7 @@ class UmbrellaDataGenerator(DataGenerator):
         return join(path, name)
 
     def get_data_sample(self):
-        """Return a sample of data according to the cloudtrail format.
+        """Return a sample of data according to the Umbrella format.
 
         Returns:
             str: Synthetic data.

@@ -31,6 +31,7 @@ aws_profile = os.environ.get("AWS_PROFILE", "dev")
 # Session setup
 session = boto3.Session(profile_name=f'{aws_profile}')
 s3 = session.resource(service_name="s3")
+ec2 = session.client(service_name="ec2")
 logs = session.client(service_name="logs", region_name=US_EAST_1_REGION)
 sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
 
@@ -111,7 +112,7 @@ def delete_bucket_files(bucket_name: str):
         raise error
 
 
-def generate_file(bucket_type: str, bucket_name: str):
+def generate_file(bucket_type: str, bucket_name: str, **kwargs):
     """ Generate a file for a specific bucket type.
 
     Parameters
@@ -131,7 +132,7 @@ def generate_file(bucket_type: str, bucket_name: str):
     """
 
     dg = get_data_generator(bucket_type, bucket_name)
-    filename = dg.get_filename()
+    filename = dg.get_filename(**kwargs)
     data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
 
     return data, filename
@@ -205,6 +206,72 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
         last_key = ''
     return last_key
 
+"""VPC related utils"""
+
+def create_vpc(vpc_name):
+    """Create a VPC.
+    
+    Args:
+        vpc_name (str): Name to tag the created VPC.
+    """
+    try:
+        vpc = ec2.create_vpc(CidrBlock= '10.0.0.0/16',
+                             TagSpecifications=[
+                                {   
+                                    'ResourceType': 'vpc',
+                                    'Tags': [
+                                        {
+                                            'Key': 'Name',
+                                            'Value': vpc_name
+                                        },
+                                    ]
+                                },
+                            ]
+        )
+        return vpc['Vpc']['VpcId']
+    except ClientError as error:
+        raise error
+    except Exception as error:
+        logger.error(f"Found a problem creating a VPC: {error}.")
+
+
+def delete_vpc(vpc_id: str):
+    """Delete a VPC.
+    
+    Args:
+        vpc_id (str): Id of the VPC to delete.
+    """
+    try:
+        ec2.delete_vpc(VpcId=vpc_id)
+    except ClientError as error:
+        raise error
+    except Exception as error:
+        logger.error(f"Found a problem deleting VPC related resources: {error}.")
+
+
+def create_flow_log(vpc_name: str, bucket_name: str):
+    """Create a Flow Log and the VPC to which it will belong.
+
+    Args:
+        vpc_name (str): Name to tag the created VPC.
+        bucket_name (str): Name of the bucket to define as destination of the logs.
+    """
+    try:
+        vpc_id = create_vpc(vpc_name)
+        flow_log_id = ec2.create_flow_logs(ResourceIds=[vpc_id], 
+                                           ResourceType='VPC',
+                                           TrafficType='REJECT',
+                                           LogDestinationType='s3',
+                                           LogDestination=f'arn:aws:s3:::{bucket_name}')['FlowLogIds'][0]
+
+        return flow_log_id, vpc_id
+    
+    except ClientError as error:
+        raise error
+    except Exception as error:
+        logger.error(f"Found a problem creating VPC related resources: {error}.")
+
+
 
 """AWS CloudWatch related utils"""
 
@@ -274,7 +341,7 @@ def create_log_stream(log_group: str, log_stream: str):
     except ClientError as error:
         # Check if the resource exist
         if error.response['Error']['Code'] == 'ResourceAlreadyExists':
-            logger.error(f"Log Stream {log_stream} im {log_group} already exist.")
+            logger.error(f"Log Stream {log_stream} in {log_group} already exists.")
             pass
         else:
             raise error
@@ -322,22 +389,22 @@ def upload_log_events(log_stream: str, log_group: str, events: list) -> None:
 
     """
     # Put events
-    for event in events:
-        try:
-            logs.put_log_events(
-                logGroupName=log_group, logStreamName=log_stream, logEvents=events,
-            )
-        except ClientError as error:
-            # Check if the resource exist
-            if error.response['Error']['Code'] == 'DataAlreadyAccepted':
-                logger.error(
-                    f"Event {event} already uploaded in log stream: {log_stream} withi log_group: {log_group}.")
-                pass
-            else:
-                raise error
 
-        except Exception as error:
+    try:
+        logs.put_log_events(
+            logGroupName=log_group, logStreamName=log_stream, logEvents=events,
+        )
+    except ClientError as error:
+        # Check if the resource exist
+        if error.response['Error']['Code'] == 'DataAlreadyAccepted':
+            logger.error(
+                f"Event {event} already uploaded in log stream: {log_stream} withi log_group: {log_group}.")
+            pass
+        else:
             raise error
+
+    except Exception as error:
+        raise error
 
 
 def log_stream_exists(log_group, log_stream) -> bool:
