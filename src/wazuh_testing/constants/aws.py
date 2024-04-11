@@ -12,7 +12,6 @@ AWS_MODULE_CALL = "Calling AWS module with: '%s'"
 
 RANDOM_ACCOUNT_ID = '819751203818'
 VPC_FLOW_LOGS = 'vpcflowlogs'
-FLOW_LOG_ID = 'fl-0754d951c16f517fa'
 GUARDDUTY = 'GuardDuty'
 CONFIG = 'Config'
 ELASTIC_LOAD_BALANCING = 'elasticloadbalancing'
