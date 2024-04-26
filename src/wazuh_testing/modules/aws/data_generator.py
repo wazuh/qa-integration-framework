@@ -8,7 +8,7 @@
 
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from os.path import join
 from uuid import uuid4
@@ -28,10 +28,22 @@ class DataGenerator:
 
     compress = False
 
+    def __init__(self, date: datetime) -> None:
+        """
+        Initialize a DataGenerator instance.
+
+        Parameters
+        ----------
+        date: datetime
+            The time to be used to generate the filename and dates inside the data sample.
+        """
+        self.date = date 
+
     def get_filename(self, *args, **kwargs):
         """Return the filename according to the integration format.
 
-        Returns:
+        Returns
+        -------
             str: Synthetic filename.
         """
         raise NotImplementedError()
@@ -55,12 +67,12 @@ class CloudTrailDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/CloudTrail/<region>/<year>/<month>/<day>
 
-        Returns:
+        Returns
+        -------
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -78,7 +90,7 @@ class CloudTrailDataGenerator(DataGenerator):
                         'type': 'AWSService',
                         'invokedBy': 'ec2.amazonaws.com'
                     },
-                    'eventTime': datetime.utcnow().strftime(EVENT_TIME_FORMAT),
+                    'eventTime': self.date.strftime(EVENT_TIME_FORMAT),
                     'eventSource': 'sts.amazonaws.com',
                     'eventName': 'AssumeRole',
                     'awsRegion': US_EAST_1_REGION,
@@ -128,10 +140,9 @@ class VPCDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}{kwargs['flow_log_id']}_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}"
+            f"{self.BASE_FILE_NAME}{kwargs['flow_log_id']}_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}"
             f"{LOG_EXT}"
         )
 
@@ -176,9 +187,8 @@ class ConfigDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_NO_PADED_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_NO_PADED_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -244,10 +254,9 @@ class ALBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}_app.ALB-qatests_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{self.BASE_FILE_NAME}_app.ALB-qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}_pczeay_{LOG_EXT}"
         )
 
@@ -259,14 +268,13 @@ class ALBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic data.
         """
-        now = datetime.utcnow()
         data = []
 
         for _ in range(5):
             data.append(
                 [
                     'http',  # type
-                    now.strftime(ALB_DATE_FORMAT),  # time
+                    self.date.strftime(ALB_DATE_FORMAT),  # time
                     'app/ALB-qatests',  # elb
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
                     f"{get_random_ip()}:{get_random_port()}",  # target:port
@@ -287,7 +295,7 @@ class ALBDataGenerator(DataGenerator):
                     '-',  # domain_name
                     '-',  # chosen_cert_arn
                     0,  # matched_rule_priority
-                    now.strftime(ALB_DATE_FORMAT),  # request_creation_time
+                    self.date.strftime(ALB_DATE_FORMAT),  # request_creation_time
                     'forward',  # actions_executed
                     '-',  # redirect_url
                     '-',  # error_reason
@@ -316,10 +324,9 @@ class CLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}qatests-APIClassi_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{self.BASE_FILE_NAME}qatests-APIClassi_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}{LOG_EXT}"
         )
 
@@ -331,12 +338,11 @@ class CLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic data.
         """
-        now = datetime.utcnow()
         data = []
         for _ in range(5):
             data.append(
                 [
-                    now.strftime(ALB_DATE_FORMAT),  # time
+                    self.date.strftime(ALB_DATE_FORMAT),  # time
                     'qatests-APIClassi',  # elb
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
                     f"{get_random_ip()}:{get_random_port()}",  # backend:port
@@ -372,10 +378,9 @@ class NLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}net.qatests_{now.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(now))}_"
+            f"{self.BASE_FILE_NAME}net.qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}{LOG_EXT}"
         )
 
@@ -387,14 +392,13 @@ class NLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic data.
         """
-        now = datetime.utcnow()
         data = []
         for _ in range(5):
             data.append(
                 [
                     'tls',  # type
                     '2.0',  # version
-                    now.strftime(ALB_DATE_FORMAT),  # time
+                    self.date.strftime(ALB_DATE_FORMAT),  # time
                     'net/qatests',  # elb
                     get_random_string(16),  # listener
                     f"{get_random_ip()}:{get_random_port()}",  # client:port
@@ -434,9 +438,8 @@ class KMSDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -518,9 +521,8 @@ class MacieDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -624,9 +626,8 @@ class TrustedAdvisorDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -643,7 +644,7 @@ class TrustedAdvisorDataGenerator(DataGenerator):
                 'detail-type': 'Trusted Advisor Check Item Refresh Notification',
                 'source': 'aws.trustedadvisor',
                 'account': RANDOM_ACCOUNT_ID,
-                'time': datetime.utcnow().strftime(FILENAME_DATE_FORMAT),
+                'time': self.date.strftime(FILENAME_DATE_FORMAT),
                 'region': 'us-east-1',
                 'resources': [],
                 'detail': {
@@ -676,9 +677,8 @@ class GuardDutyDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -817,7 +817,7 @@ class GuardDutyDataGenerator(DataGenerator):
                     'updatedAt': '2021-07-08T03:31:04.017Z',
                     'title': 'Unprotected port on EC2 instance i-3bf6a5c5 is being probed.',
                     'description': (
-                        'EC2 instance has an unprotected port which is being probed by a known malicious host.'
+                        'EC2 instance has an unprotected port which is being probed by a kdaten malicious host.'
                         )
                 }
             }
@@ -839,8 +839,7 @@ class NativeGuardDutyDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
         name = f"{str(uuid4())}{JSON_GZ_EXT}"
 
         return join(path, name)
@@ -979,9 +978,8 @@ class WAFDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{now.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -1068,9 +1066,8 @@ class ServerAccessDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
         date_format = '%Y-%m-%d-%H-%M-%S'
-        name = f"{now.strftime(date_format)}-{get_random_string(16).upper()}"
+        name = f"{self.date.strftime(date_format)}-{get_random_string(16).upper()}"
         return join(self.BASE_PATH, name)
 
     def get_data_sample(self):
@@ -1085,7 +1082,7 @@ class ServerAccessDataGenerator(DataGenerator):
             data.append(
                 [
                     str(uuid4()), 'wazuh-server-access-integration-tests',
-                    datetime.utcnow().strftime('[%d/%b/%Y:%H:%M:%S %z]'), get_random_ip(),
+                    self.date.strftime('[%d/%b/%Y:%H:%M:%S %z]'), get_random_ip(),
                     f"arn:aws:iam::{RANDOM_ACCOUNT_ID}:user/fake.user", get_random_string(16).upper(),
                     'REST.GET.WEBSITE', '-', 'GET, /wazuh-server-access-integration-tests?website= HTTP/1.1',
                     '404', 'NoSuchWebsiteConfiguration', '343', '-', '85', '-', '-',
@@ -1118,9 +1115,8 @@ class UmbrellaDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        now = datetime.utcnow()
-        path = join(self.BASE_PATH, now.strftime('%Y-%m-%d'))
-        name = f"{self.BASE_FILE_NAME}{now.strftime('%Y-%m-%d')}-00-00-ioxa{CSV_EXT}"
+        path = join(self.BASE_PATH, self.date.strftime('%Y-%m-%d'))
+        name = f"{self.BASE_FILE_NAME}{self.date.strftime('%Y-%m-%d')}-00-00-ioxa{CSV_EXT}"
 
         return join(path, name)
 
@@ -1135,7 +1131,7 @@ class UmbrellaDataGenerator(DataGenerator):
         for _ in range(5):
             data.append(
                 [
-                    datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                    self.date.strftime('%Y-%m-%d %H:%M:%S'),
                     'ActiveDirectoryUserName',
                     'ActiveDirectoryUserName,ADSite,Network',
                     get_random_ip(),
@@ -1172,14 +1168,20 @@ buckets_data_mapping = {
 }
 
 
-def get_data_generator(bucket_type, bucket_name):
+def get_data_generator(bucket_type, bucket_name, creation_date):
     """Given the bucket type return the correspondant data generator instance.
 
-    Args:
-        bucket_type (str): Bucket type to match the data generator.
-        bucket_name (str): Bucket name to match in case of custom or guardduty types.
-
-    Returns:
+    Parameters
+    ----------
+    bucket_type : str
+        Bucket type to match the data generator.
+    bucket_name : str
+        Bucket name to match in case of custom or guardduty types.
+    creation_date: datetime
+        Date to use for file creation.
+        
+    Returns
+    -------
         DataGenerator: Data generator for the given bucket.
     """
     if bucket_type == CUSTOM_TYPE:
@@ -1187,4 +1189,4 @@ def get_data_generator(bucket_type, bucket_name):
     elif bucket_type == GUARD_DUTY_TYPE and 'native' in bucket_name:
         bucket_type = NATIVE_GUARD_DUTY_TYPE
 
-    return buckets_data_mapping[bucket_type]()
+    return buckets_data_mapping[bucket_type](date=creation_date)
