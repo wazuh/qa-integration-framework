@@ -10,7 +10,7 @@ import subprocess
 import gzip
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import boto3
 
@@ -19,7 +19,7 @@ from botocore.exceptions import ClientError
 
 # Local imports
 from wazuh_testing.constants.aws import (US_EAST_1_REGION, AWS_MODULE_CALL,
-                                         RESULTS_FOUND, RESULTS_EXPECTED)
+                                         RESULTS_FOUND, RESULTS_EXPECTED, ONLY_LOGS_AFTER_FORMAT)
 from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH, S3_CLOUDTRAIL_DB_PATH,
                                                AWS_SERVICES_DB_PATH)
 from wazuh_testing.logger import logger
@@ -40,6 +40,8 @@ sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
 class OutputAnalysisError(Exception):
     pass
 
+# CloudWatch Logs maximum creation delta time
+CLOUDWATCH_LOG_MAX_DAYS = 14
 
 """S3 utils"""
 
@@ -112,7 +114,7 @@ def delete_bucket_files(bucket_name: str):
         raise error
 
 
-def generate_file(bucket_type: str, bucket_name: str, **kwargs):
+def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs):
     """ Generate a file for a specific bucket type.
 
     Parameters
@@ -121,6 +123,8 @@ def generate_file(bucket_type: str, bucket_name: str, **kwargs):
         The type of bucket.
     bucket_name : str
         The bucket name.
+    date : str
+        Date to use for data generation.
 
     Returns
     -------
@@ -130,8 +134,10 @@ def generate_file(bucket_type: str, bucket_name: str, **kwargs):
     filename: str
         The name of the generated file.
     """
+    files_creation_date = datetime.strptime(date, ONLY_LOGS_AFTER_FORMAT) if date \
+                            else datetime.now()
 
-    dg = get_data_generator(bucket_type, bucket_name)
+    dg = get_data_generator(bucket_type, bucket_name, creation_date=files_creation_date)
     filename = dg.get_filename(**kwargs)
     data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
 
@@ -375,8 +381,8 @@ def delete_log_stream(log_group: str, log_stream: str):
         raise error
 
 
-def upload_log_events(log_stream: str, log_group: str, events: list) -> None:
-    """Upload a log event within the given log stream and group.
+def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bool, events_number: int) -> None:
+    """Create one or more log events within the given log stream and group in a determined date.
 
     Parameters
     ----------
@@ -384,12 +390,38 @@ def upload_log_events(log_stream: str, log_group: str, events: list) -> None:
         The name of the log group.
     log_stream : str
         The name of the log stream.
-    events : list
-        The event to store in log stream.
-
+    date : str
+        The date to transform into timestamp of the uploaded messages.
+    type_json : bool
+        Whether the messages to create are JSON or simple text.
+    events_number: int
+        Number of messages to generate and upload to the log stream.
     """
-    # Put events
+    today_date = datetime.now()
 
+    # This variable was used as the max date allowed to put log events but 
+    # the service does not behave as expected when using other dates that are not the execution one.
+    max_allowed_past_date = today_date - timedelta(days = CLOUDWATCH_LOG_MAX_DAYS)
+
+    log_date = datetime.strptime(date, ONLY_LOGS_AFTER_FORMAT) if date \
+                    else today_date
+    
+    log_timestamp = datetime.timestamp(today_date) \
+                        if (today_date - log_date).days > CLOUDWATCH_LOG_MAX_DAYS \
+                        else datetime.timestamp(log_date)
+    # Generate event information
+    if type_json:
+        events = [
+            {'timestamp': int(log_timestamp * 1000 + i*100),
+             'message': f'{{"message":"Test event number {i}"}}'} for i in range(events_number)
+                   ]
+    else:
+        events = [
+            {'timestamp': int(log_timestamp * 1000 + i) ,
+             'message': f'Test event number {i}'} for i in range(events_number)
+        ]
+
+    # Put events
     try:
         logs.put_log_events(
             logGroupName=log_group, logStreamName=log_stream, logEvents=events,
@@ -398,8 +430,8 @@ def upload_log_events(log_stream: str, log_group: str, events: list) -> None:
         # Check if the resource exist
         if error.response['Error']['Code'] == 'DataAlreadyAccepted':
             logger.error(
-                f"Event {event} already uploaded in log stream: {log_stream} withi log_group: {log_group}.")
-            pass
+                f"Event already uploaded in log stream: {log_stream} within log_group: {log_group}.")
+            raise error
         else:
             raise error
 

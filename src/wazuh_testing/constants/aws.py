@@ -22,6 +22,7 @@ RESULTS_FOUND = 'Results found: %s'
 RESULTS_EXPECTED = 'Results expected: %s'
 
 # Formats
+ONLY_LOGS_AFTER_FORMAT = '%Y-%b-%d'
 EVENT_TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 PATH_DATE_FORMAT = '%Y/%m/%d'
 PATH_DATE_NO_PADED_FORMAT = '%Y/%-m/%-d'
