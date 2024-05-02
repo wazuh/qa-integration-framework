@@ -16,6 +16,7 @@ import boto3
 
 from pathlib import Path
 from botocore.exceptions import ClientError
+from typing import Tuple
 
 # Local imports
 from wazuh_testing.constants.aws import (US_EAST_1_REGION, AWS_MODULE_CALL,
@@ -114,7 +115,7 @@ def delete_bucket_files(bucket_name: str):
         raise error
 
 
-def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs):
+def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs) -> Tuple[str, str]:
     """ Generate a file for a specific bucket type.
 
     Parameters
@@ -129,7 +130,7 @@ def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs):
     Returns
     -------
     data : str
-        The encoded data content
+        The encoded data content.
 
     filename: str
         The name of the generated file.
@@ -149,12 +150,12 @@ def upload_bucket_file(bucket_name: str, data: str, key: str):
 
     Parameters
     ----------
-    bucket_name : str
+    bucket_name : str.
         Bucket to upload.
     data : str
-        Data to upload in bucket
+        Data to upload in bucket.
     key : str
-        Key
+        Key.
     """
     # Set bucket
     try:
@@ -197,7 +198,8 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
     execution_datetime : datetime
         Datetime to use as prefix.
 
-    Returns:
+    Returns
+    -------
         str: The last key in the bucket.
     """
 
@@ -214,11 +216,18 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
 
 """VPC related utils"""
 
-def create_vpc(vpc_name):
+def create_vpc(vpc_name: str) -> str:
     """Create a VPC.
     
-    Args:
-        vpc_name (str): Name to tag the created VPC.
+    Parameters
+    ----------
+        vpc_name : str
+            Name to tag the created VPC.
+        
+    Returns
+    -------
+        vpc_id : str
+             ID of the VPC created.
     """
     try:
         vpc = ec2.create_vpc(CidrBlock= '10.0.0.0/16',
@@ -241,10 +250,11 @@ def create_vpc(vpc_name):
         logger.error(f"Found a problem creating a VPC: {error}.")
 
 
-def delete_vpc(vpc_id: str):
+def delete_vpc(vpc_id: str) -> None:
     """Delete a VPC.
     
-    Args:
+    Parameters
+    ----------
         vpc_id (str): Id of the VPC to delete.
     """
     try:
@@ -258,9 +268,19 @@ def delete_vpc(vpc_id: str):
 def create_flow_log(vpc_name: str, bucket_name: str):
     """Create a Flow Log and the VPC to which it will belong.
 
-    Args:
-        vpc_name (str): Name to tag the created VPC.
-        bucket_name (str): Name of the bucket to define as destination of the logs.
+    Parameters
+    ----------
+        vpc_name : str
+            Name to tag the created VPC.
+        bucket_name : str 
+            Name of the bucket to define as destination of the logs.
+    
+    Returns
+    -------
+        flow_log_id : str
+            Created flow log ID.
+        vpc_id : str
+             Created VPC ID.
     """
     try:
         vpc_id = create_vpc(vpc_name)
@@ -337,7 +357,6 @@ def create_log_stream(log_group: str, log_stream: str):
         The name of the log group.
     log_stream : str
         The name of the log stream.
-
     """
     try:
 
@@ -451,7 +470,7 @@ def log_stream_exists(log_group, log_stream) -> bool:
 
     Returns
     -------
-        bool: True if exists else False
+        bool: True if exists else False.
     """
     try:
         response = logs.describe_log_streams(logGroupName=log_group)
@@ -647,7 +666,8 @@ def delete_sqs_queue(sqs_queue_url: str) -> None:
 def call_aws_module(*parameters):
     """Given some parameters call the AWS module and return the output.
 
-    Returns:
+    Returns
+    -------
         str: The command output.
     """
     command = [AWS_BINARY_PATH, *parameters]
@@ -727,7 +747,8 @@ def path_exist(path: Path) -> bool:
     path : Path
         The path to check.
 
-    Return:
-        bool: True if exist else False
+    Returns
+    -------
+        bool: True if exist else False.
     """
     return path.exists()
