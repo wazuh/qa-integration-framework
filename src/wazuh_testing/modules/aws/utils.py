@@ -9,32 +9,19 @@
 import subprocess
 import gzip
 import json
-import os
 from datetime import datetime, timedelta
-
-import boto3
 
 from pathlib import Path
 from botocore.exceptions import ClientError
 from typing import Tuple
 
 # Local imports
-from wazuh_testing.constants.aws import (US_EAST_1_REGION, AWS_MODULE_CALL,
+from wazuh_testing.constants.aws import (AWS_MODULE_CALL,
                                          RESULTS_FOUND, RESULTS_EXPECTED, ONLY_LOGS_AFTER_FORMAT)
 from wazuh_testing.constants.paths.aws import (AWS_MODULE_PATH, AWS_BINARY_PATH, S3_CLOUDTRAIL_DB_PATH,
                                                AWS_SERVICES_DB_PATH)
 from wazuh_testing.logger import logger
 from wazuh_testing.modules.aws.data_generator import get_data_generator
-
-# Use the environment variable or default to 'dev'
-aws_profile = os.environ.get("AWS_PROFILE", "dev")
-
-# Session setup
-session = boto3.Session(profile_name=f'{aws_profile}')
-s3 = session.resource(service_name="s3")
-ec2 = session.client(service_name="ec2")
-logs = session.client(service_name="logs", region_name=US_EAST_1_REGION)
-sqs = session.client(service_name="sqs", region_name=US_EAST_1_REGION)
 
 
 # Custom exception
@@ -47,14 +34,15 @@ CLOUDWATCH_LOG_MAX_DAYS = 14
 """S3 utils"""
 
 
-def create_bucket(bucket_name: str):
+def create_bucket(bucket_name: str, client):
     """Create an S3 bucket.
 
     Args:
         bucket_name (str): The bucket name.
+        client (boto3.resources.base.ServiceResource): S3 client used to create the bucket.
     """
     try:
-        s3.create_bucket(
+        client.create_bucket(
             Bucket=bucket_name
         )
 
@@ -70,15 +58,16 @@ def create_bucket(bucket_name: str):
         raise error
 
 
-def delete_bucket(bucket_name: str):
+def delete_bucket(bucket_name: str, client):
     """Delete an S3 bucket.
 
     Args:
         bucket_name (str): Bucket to delete.
+        client (boto3.resources.base.ServiceResource): S3 client used to delete the bucket.
     """
     try:
         # Get bucket
-        bucket = s3.Bucket(name=bucket_name)
+        bucket = client.Bucket(name=bucket_name)
 
         # Delete bucket
         bucket.delete()
@@ -91,15 +80,16 @@ def delete_bucket(bucket_name: str):
             raise error
 
 
-def delete_bucket_files(bucket_name: str):
+def delete_bucket_files(bucket_name: str, client):
     """Delete all files in the bucket.
 
     Args:
         bucket_name (str): The bucket name.
+        client (boto3.resources.base.ServiceResource): S3 client used to delete the bucket files.
     """
     try:
         # Get bucket
-        bucket = s3.Bucket(name=bucket_name)
+        bucket = client.Bucket(name=bucket_name)
 
         # Delete all objects
         bucket.objects.all().delete()
@@ -109,7 +99,7 @@ def delete_bucket_files(bucket_name: str):
         raise error
 
 
-def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs) -> Tuple[str, str]:
+def generate_file(bucket_type: str, bucket_name: str, date: str, region: str, **kwargs) -> Tuple[str, str]:
     """ Generate a file for a specific bucket type.
 
     Args:
@@ -124,25 +114,26 @@ def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs) -> Tu
     files_creation_date = datetime.strptime(date, ONLY_LOGS_AFTER_FORMAT) if date \
                             else datetime.now()
 
-    dg = get_data_generator(bucket_type, bucket_name, creation_date=files_creation_date)
+    dg = get_data_generator(bucket_type, bucket_name, creation_date=files_creation_date, region=region)
     filename = dg.get_filename(**kwargs)
     data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
 
     return data, filename
 
 
-def upload_bucket_file(bucket_name: str, data: str, key: str):
+def upload_bucket_file(bucket_name: str, data: str, key: str, client):
     """Upload a file to an S3 bucket.
 
     Args:
         bucket_name (str): Bucket to upload.
         data (str): Data to upload in bucket.
         key (str): Bucket key.
+        client (boto3.resources.base.ServiceResource): S3 client used to upload file to the bucket.
     """
     # Set bucket
     try:
         # Get bucket
-        bucket = s3.Bucket(name=bucket_name)
+        bucket = client.Bucket(name=bucket_name)
 
         # Upload the file
         bucket.put_object(
@@ -155,30 +146,32 @@ def upload_bucket_file(bucket_name: str, data: str, key: str):
         raise error
 
 
-def delete_bucket_file(filename: str, bucket_name: str):
+def delete_bucket_file(filename: str, bucket_name: str, client):
     """Delete a given file from the bucket.
 
     Args:
         filename (str): Full filename to delete.
         bucket_name (str): Bucket that contains the file.
+        client (boto3.resources.base.ServiceResource): S3 client used to delete tbe file from the bucket.
     """
-    s3.Object(bucket_name, filename).delete()
+    client.Object(bucket_name, filename).delete()
 
 
-def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime):
+def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime, client):
     """Return the last file key contained in a default path of a bucket.
 
     Args:
         bucket_type (str): Bucket type to obtain the data generator.
         bucket_name (str): Bucket that contains the file.
         execution_datetime (datetime): Datetime to use as prefix.
+        client (boto3.resources.base.ServiceResource): S3 client to access the bucket.
 
     Returns:
         str: The last key in the bucket.
     """
 
     dg = get_data_generator(bucket_type, bucket_name)
-    bucket = s3.Bucket(bucket_name)
+    bucket = client.Bucket(bucket_name)
     last_key = None
 
     try:
@@ -190,17 +183,18 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
 
 """VPC related utils"""
 
-def create_vpc(vpc_name: str) -> str:
+def create_vpc(vpc_name: str, client) -> str:
     """Create a VPC.
     
     Args:
         vpc_name (str): Name to tag the created VPC.
+        client (Service client instance): EC2 client to create a VPC.
         
     Returns:
         vpc_id (str): ID of the VPC created.
     """
     try:
-        vpc = ec2.create_vpc(CidrBlock= '10.0.0.0/16',
+        vpc = client.create_vpc(CidrBlock= '10.0.0.0/16',
                              TagSpecifications=[
                                 {   
                                     'ResourceType': 'vpc',
@@ -220,34 +214,36 @@ def create_vpc(vpc_name: str) -> str:
         logger.error(f"Found a problem creating a VPC: {error}.")
 
 
-def delete_vpc(vpc_id: str) -> None:
+def delete_vpc(vpc_id: str, client) -> None:
     """Delete a VPC.
     
     Args:
         vpc_id (str): Id of the VPC to delete.
+        client (Service client instance): EC2 client to delete the VPC and its inner resources.
     """
     try:
-        ec2.delete_vpc(VpcId=vpc_id)
+        client.delete_vpc(VpcId=vpc_id)
     except ClientError as error:
         raise error
     except Exception as error:
         logger.error(f"Found a problem deleting VPC related resources: {error}.")
 
 
-def create_flow_log(vpc_name: str, bucket_name: str):
+def create_flow_log(vpc_name: str, bucket_name: str, client):
     """Create a Flow Log and the VPC to which it will belong.
 
     Args:
         vpc_name (str): Name to tag the created VPC.
         bucket_name (str): Name of the bucket to define as destination of the logs.
+        client (Service client instance): EC2 client to create the flow log and the VPC.
     
     Returns:
         flow_log_id (str): Created flow log ID.
         vpc_id (str): Created VPC ID.
     """
     try:
-        vpc_id = create_vpc(vpc_name)
-        flow_log_id = ec2.create_flow_logs(ResourceIds=[vpc_id], 
+        vpc_id = create_vpc(vpc_name, client)
+        flow_log_id = client.create_flow_logs(ResourceIds=[vpc_id], 
                                            ResourceType='VPC',
                                            TrafficType='REJECT',
                                            LogDestinationType='s3',
@@ -265,14 +261,15 @@ def create_flow_log(vpc_name: str, bucket_name: str):
 """AWS CloudWatch related utils"""
 
 
-def create_log_group(log_group_name: str):
+def create_log_group(log_group_name: str, client):
     """Create a log group.
 
     Args:
         log_group_name (str): The name of the log group.
+        client (Service client instance): CloudWatch Logs client to create the log group.
     """
     try:
-        logs.create_log_group(logGroupName=log_group_name)
+        client.create_log_group(logGroupName=log_group_name)
 
     except ClientError as error:
         # Check if the resource exist
@@ -286,14 +283,15 @@ def create_log_group(log_group_name: str):
         raise error
 
 
-def delete_log_group(log_group_name):
+def delete_log_group(log_group_name: str, client):
     """Delete a log group.
 
     Args:
         log_group_name (str): The name of the log group.
+        client (Service client instance): CloudWatch Logs client to delete the log group.
     """
     try:
-        logs.delete_log_group(logGroupName=log_group_name)
+        client.delete_log_group(logGroupName=log_group_name)
 
     except ClientError as error:
         # Check if the resource exist
@@ -307,16 +305,17 @@ def delete_log_group(log_group_name):
         raise error
 
 
-def create_log_stream(log_group: str, log_stream: str):
+def create_log_stream(log_group: str, log_stream: str, client):
     """Create a log stream within the log group.
 
     Args:
         log_group (str): The name of the log group.
         log_stream (str): The name of the log stream.
+        client (Service client instance): CloudWatch Logs client to create the log stream.
     """
     try:
 
-        logs.create_log_stream(logGroupName=log_group,
+        client.create_log_stream(logGroupName=log_group,
                                logStreamName=log_stream)
 
     except ClientError as error:
@@ -331,16 +330,17 @@ def create_log_stream(log_group: str, log_stream: str):
         raise error
 
 
-def delete_log_stream(log_group: str, log_stream: str):
+def delete_log_stream(log_group: str, log_stream: str, client):
     """Delete a log stream from a log group.
 
     Args:
         log_group (str): The name of the log group.
         log_stream (str): The name of the log stream.
+        client (Service client instance): CloudWatch Logs client to delete the log stream.
     """
     try:
 
-        logs.delete_log_stream(logGroupName=log_group, logStreamName=log_stream)
+        client.delete_log_stream(logGroupName=log_group, logStreamName=log_stream)
     except ClientError as error:
         # Check if the resource exist
         if error.response['Error']['Code'] == 'ResourceNotFound':
@@ -353,7 +353,8 @@ def delete_log_stream(log_group: str, log_stream: str):
         raise error
 
 
-def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bool, events_number: int) -> None:
+def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bool, events_number: int, 
+                      client) -> None:
     """Create one or more log events within the given log stream and group in a determined date.
 
     Args:
@@ -362,6 +363,7 @@ def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bo
         date (str): The date to transform into timestamp of the uploaded messages.
         type_json (bool): Whether the messages to create are JSON or simple text.
         events_number (int): Number of messages to generate and upload to the log stream.
+        client (Service client instance): CloudWatch Logs client to upload log.
     """
     today_date = datetime.now()
 
@@ -389,7 +391,7 @@ def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bo
 
     # Put events
     try:
-        logs.put_log_events(
+        client.put_log_events(
             logGroupName=log_group, logStreamName=log_stream, logEvents=events,
         )
     except ClientError as error:
@@ -405,18 +407,19 @@ def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bo
         raise error
 
 
-def log_stream_exists(log_group, log_stream) -> bool:
+def log_stream_exists(log_group, log_stream, client) -> bool:
     """Check if a log stream exists in a group.
 
     Args:
         log_group (str): The name of the log group.
         log_stream (str): The name of the log stream.
+        client (Service client instance): CloudWatch Logs client to check log stream existence.
 
     Returns:
         bool: True if exists else False.
     """
     try:
-        response = logs.describe_log_streams(logGroupName=log_group)
+        response = client.describe_log_streams(logGroupName=log_group)
         log_streams = [item['logStreamName'] for item in response['logStreams']]
 
         return log_stream in log_streams
@@ -432,17 +435,18 @@ def log_stream_exists(log_group, log_stream) -> bool:
 """SQS utils"""
 
 
-def create_sqs_queue(sqs_name: str) -> str:
+def create_sqs_queue(sqs_name: str, client) -> str:
     """Create a sqs queue.
 
     Args:
         sqs_name (str): The name of the sqs queue.
+        client (Service client instance): SQS client to create the SQS queue.
 
     Returns:
         sqs_url (str): SQS queue url.
     """
     try:
-        response = sqs.create_queue(
+        response = client.create_queue(
             QueueName=sqs_name
         )
         return response["QueueUrl"]
@@ -459,18 +463,19 @@ def create_sqs_queue(sqs_name: str) -> str:
         raise error
 
 
-def get_sqs_queue_arn(sqs_url: str) -> str:
+def get_sqs_queue_arn(sqs_url: str, client) -> str:
     """Get the SQS Queue ARN.
 
     Args:
         sqs_url (str): The SQS Queue URL.
+        client (Service client instance): SQS client to get the SQS queue ARN.
 
     Returns:
         sqs_queue_arn (str): The SQS queue ARN.
     """
     try:
         # Fetch queue's ARN
-        response = sqs.get_queue_attributes(
+        response = client.get_queue_attributes(
             QueueUrl=sqs_url,
             AttributeNames=["QueueArn"]
         )
@@ -483,13 +488,14 @@ def get_sqs_queue_arn(sqs_url: str) -> str:
         raise error
 
 
-def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> None:
+def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str, client) -> None:
     """Set a policy for the SQS queue
 
     Args:
         bucket_name (str): The bucket name.
         sqs_queue_url (str): The SQS queue Url to apply policy.
         sqs_queue_arn (str): The SQS queue ARN.
+        client (Service client instance): SQS client to set the SQS queue policy.
     """
     # Get account id
     account_id = sqs_queue_arn.split(':')[4]
@@ -520,7 +526,7 @@ def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> 
     }
     # Set policy
     try:
-        sqs.set_queue_attributes(
+        client.set_queue_attributes(
             QueueUrl=sqs_queue_url,
             Attributes={
                 'Policy': json.dumps(policy)
@@ -534,12 +540,13 @@ def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> 
         raise error
 
 
-def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn: str) ->None:
+def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn: str, client) ->None:
     """Configure a bucket for event notification.
 
     Args:
         bucket_name (str): The name of the bucket.
         sqs_queue_arn (str): The SQS queue arn.
+        client (boto3.resources.base.ServiceResource): S3 client used to set the bucket notification config.
     """
     # Create notification config dict
     notification_configuration = {
@@ -552,7 +559,7 @@ def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn:
     }
     try:
         # Get bucket
-        bucket = s3.Bucket(name=bucket_name)
+        bucket = client.Bucket(name=bucket_name)
 
         bucket.Notification().put(NotificationConfiguration=notification_configuration)
 
@@ -563,14 +570,15 @@ def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn:
         raise error
 
 
-def delete_sqs_queue(sqs_queue_url: str) -> None:
+def delete_sqs_queue(sqs_queue_url: str, client) -> None:
     """Delete a SQS queue.
 
     Args:
         sqs_queue_url (str): The SQS queue url.
+        client (Service client instance): SQS client to delete the SQS queue.
     """
     try:
-        sqs.delete_queue(
+        client.delete_queue(
             QueueUrl=sqs_queue_url
         )
 
