@@ -12,20 +12,17 @@ AWS_MODULE_CALL = "Calling AWS module with: '%s'"
 
 RANDOM_ACCOUNT_ID = '819751203818'
 VPC_FLOW_LOGS = 'vpcflowlogs'
-FLOW_LOG_ID = 'fl-0754d951c16f517fa'
 GUARDDUTY = 'GuardDuty'
 CONFIG = 'Config'
 ELASTIC_LOAD_BALANCING = 'elasticloadbalancing'
 SERVER_ACCESS_TABLE_NAME = 's3_server_access'
-PERMANENT_CLOUDWATCH_LOG_GROUP = 'wazuh-cloudwatchlogs-integration-tests'
-TEMPORARY_CLOUDWATCH_LOG_GROUP = 'temporary-log-group'
-FAKE_CLOUDWATCH_LOG_GROUP = 'fake-log-group'
 
 # Log messages
 RESULTS_FOUND = 'Results found: %s'
 RESULTS_EXPECTED = 'Results expected: %s'
 
 # Formats
+ONLY_LOGS_AFTER_FORMAT = '%Y-%b-%d'
 EVENT_TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 PATH_DATE_FORMAT = '%Y/%m/%d'
 PATH_DATE_NO_PADED_FORMAT = '%Y/%-m/%-d'
