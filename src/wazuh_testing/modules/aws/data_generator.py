@@ -29,21 +29,17 @@ class DataGenerator:
     compress = False
 
     def __init__(self, date: datetime) -> None:
-        """
-        Initialize a DataGenerator instance.
+        """Initialize a DataGenerator instance.
 
-        Parameters
-        ----------
-        date: datetime
-            The time to be used to generate the filename and dates inside the data sample.
+        Args:
+            date (datetime): Time to be used to generate the filename and dates inside the data sample.
         """
         self.date = date 
 
     def get_filename(self, *args, **kwargs) -> str:
         """Return the filename according to the integration format.
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         raise NotImplementedError()
@@ -67,8 +63,7 @@ class CloudTrailDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/CloudTrail/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -137,8 +132,7 @@ class VPCDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/vpcflowlogs/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -185,8 +179,7 @@ class ConfigDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/Config/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_NO_PADED_FORMAT))
@@ -253,8 +246,7 @@ class ALBDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/elasticloadbalancing/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -324,8 +316,7 @@ class CLBDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/elasticloadbalancing/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -379,8 +370,7 @@ class NLBDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<organization_id>/<account_id>/elasticloadbalancing/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -440,8 +430,7 @@ class KMSDataGenerator(DataGenerator):
         Example:
             <prefix>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -524,8 +513,7 @@ class MacieDataGenerator(DataGenerator):
         Example:
             <prefix>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -630,8 +618,8 @@ class TrustedAdvisorDataGenerator(DataGenerator):
 
         Example:
             <prefix>/<year>/<month>/<day>
-        Returns
-        -------
+
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -682,6 +670,7 @@ class GuardDutyDataGenerator(DataGenerator):
 
         Example:
             <prefix>/<year>/<month>/<day>
+
         Returns:
             str: Synthetic filename.
         """
@@ -693,8 +682,7 @@ class GuardDutyDataGenerator(DataGenerator):
     def get_data_sample(self):
         """Return a sample of data according to the Guard Duty format.
 
-        Returns
-        -------
+        Returns:
             str: Synthetic data.
         """
         return json.dumps(
@@ -845,8 +833,7 @@ class NativeGuardDutyDataGenerator(DataGenerator):
         Example:
             <prefix>/AWSLogs/<suffix>/<account_id>/GuardDuty/<region>/<year>/<month>/<day>
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -986,8 +973,7 @@ class WAFDataGenerator(DataGenerator):
         Example:
             <prefix>/<year>/<month>/<day>
         
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
@@ -1075,8 +1061,7 @@ class ServerAccessDataGenerator(DataGenerator):
         Example:
             <prefix>/
 
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         date_format = '%Y-%m-%d-%H-%M-%S'
@@ -1126,8 +1111,7 @@ class UmbrellaDataGenerator(DataGenerator):
         Example:
             <prefix>/<year>-<month>-<day>
         
-        Returns
-        -------
+        Returns:
             str: Synthetic filename.
         """
         path = join(self.BASE_PATH, self.date.strftime('%Y-%m-%d'))
@@ -1186,17 +1170,12 @@ buckets_data_mapping = {
 def get_data_generator(bucket_type, bucket_name, creation_date) -> DataGenerator:
     """Given the bucket type return the correspondant data generator instance.
 
-    Parameters
-    ----------
-    bucket_type : str
-        Bucket type to match the data generator.
-    bucket_name : str
-        Bucket name to match in case of custom or guardduty types.
-    creation_date: datetime
-        Date to use for file creation.
+    Args:
+        bucket_type (str): Bucket type to match the data generator.
+        bucket_name (str): Bucket name to match in case of custom or guardduty types.
+        creation_date (datetime): Date to use for file creation.
         
-    Returns
-    -------
+    Returns:
         DataGenerator: Data generator for the given bucket.
     """
     if bucket_type == CUSTOM_TYPE:
