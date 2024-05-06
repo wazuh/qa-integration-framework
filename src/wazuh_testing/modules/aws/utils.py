@@ -50,10 +50,8 @@ CLOUDWATCH_LOG_MAX_DAYS = 14
 def create_bucket(bucket_name: str):
     """Create an S3 bucket.
 
-    Parameters
-    ----------
-    bucket_name : str
-        The bucket name.
+    Args:
+        bucket_name (str): The bucket name.
     """
     try:
         s3.create_bucket(
@@ -75,10 +73,8 @@ def create_bucket(bucket_name: str):
 def delete_bucket(bucket_name: str):
     """Delete an S3 bucket.
 
-    Parameters
-    ----------
-    bucket_name : str
-        Bucket to delete.
+    Args:
+        bucket_name (str): Bucket to delete.
     """
     try:
         # Get bucket
@@ -98,10 +94,8 @@ def delete_bucket(bucket_name: str):
 def delete_bucket_files(bucket_name: str):
     """Delete all files in the bucket.
 
-    Parameters
-    ----------
-    bucket_name : str
-        The bucket name.
+    Args:
+        bucket_name (str): The bucket name.
     """
     try:
         # Get bucket
@@ -118,22 +112,14 @@ def delete_bucket_files(bucket_name: str):
 def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs) -> Tuple[str, str]:
     """ Generate a file for a specific bucket type.
 
-    Parameters
-    ----------
-    bucket_type : str
-        The type of bucket.
-    bucket_name : str
-        The bucket name.
-    date : str
-        Date to use for data generation.
+    Args:
+        bucket_type (str): The type of bucket.
+        bucket_name (str): The bucket name.
+        date (str): Date to use for data generation.
 
-    Returns
-    -------
-    data : str
-        The encoded data content.
-
-    filename: str
-        The name of the generated file.
+    Returns:
+        data (str): The encoded data content.
+        filename (str): The name of the generated file.
     """
     files_creation_date = datetime.strptime(date, ONLY_LOGS_AFTER_FORMAT) if date \
                             else datetime.now()
@@ -148,14 +134,10 @@ def generate_file(bucket_type: str, bucket_name: str, date: str, **kwargs) -> Tu
 def upload_bucket_file(bucket_name: str, data: str, key: str):
     """Upload a file to an S3 bucket.
 
-    Parameters
-    ----------
-    bucket_name : str.
-        Bucket to upload.
-    data : str
-        Data to upload in bucket.
-    key : str
-        Key.
+    Args:
+        bucket_name (str): Bucket to upload.
+        data (str): Data to upload in bucket.
+        key (str): Bucket key.
     """
     # Set bucket
     try:
@@ -176,12 +158,9 @@ def upload_bucket_file(bucket_name: str, data: str, key: str):
 def delete_bucket_file(filename: str, bucket_name: str):
     """Delete a given file from the bucket.
 
-    Parameters
-    ----------
-    filename : str
-        Full filename to delete.
-    bucket_name : str
-        Bucket that contains the file.
+    Args:
+        filename (str): Full filename to delete.
+        bucket_name (str): Bucket that contains the file.
     """
     s3.Object(bucket_name, filename).delete()
 
@@ -189,17 +168,12 @@ def delete_bucket_file(filename: str, bucket_name: str):
 def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime):
     """Return the last file key contained in a default path of a bucket.
 
-    Parameters
-    ----------
-    bucket_type : str
-        Bucket type to obtain the data generator.
-    bucket_name : str
-        Bucket that contains the file.
-    execution_datetime : datetime
-        Datetime to use as prefix.
+    Args:
+        bucket_type (str): Bucket type to obtain the data generator.
+        bucket_name (str): Bucket that contains the file.
+        execution_datetime (datetime): Datetime to use as prefix.
 
-    Returns
-    -------
+    Returns:
         str: The last key in the bucket.
     """
 
@@ -219,15 +193,11 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
 def create_vpc(vpc_name: str) -> str:
     """Create a VPC.
     
-    Parameters
-    ----------
-        vpc_name : str
-            Name to tag the created VPC.
+    Args:
+        vpc_name (str): Name to tag the created VPC.
         
-    Returns
-    -------
-        vpc_id : str
-             ID of the VPC created.
+    Returns:
+        vpc_id (str): ID of the VPC created.
     """
     try:
         vpc = ec2.create_vpc(CidrBlock= '10.0.0.0/16',
@@ -253,8 +223,7 @@ def create_vpc(vpc_name: str) -> str:
 def delete_vpc(vpc_id: str) -> None:
     """Delete a VPC.
     
-    Parameters
-    ----------
+    Args:
         vpc_id (str): Id of the VPC to delete.
     """
     try:
@@ -268,19 +237,13 @@ def delete_vpc(vpc_id: str) -> None:
 def create_flow_log(vpc_name: str, bucket_name: str):
     """Create a Flow Log and the VPC to which it will belong.
 
-    Parameters
-    ----------
-        vpc_name : str
-            Name to tag the created VPC.
-        bucket_name : str 
-            Name of the bucket to define as destination of the logs.
+    Args:
+        vpc_name (str): Name to tag the created VPC.
+        bucket_name (str): Name of the bucket to define as destination of the logs.
     
-    Returns
-    -------
-        flow_log_id : str
-            Created flow log ID.
-        vpc_id : str
-             Created VPC ID.
+    Returns:
+        flow_log_id (str): Created flow log ID.
+        vpc_id (str): Created VPC ID.
     """
     try:
         vpc_id = create_vpc(vpc_name)
@@ -305,10 +268,8 @@ def create_flow_log(vpc_name: str, bucket_name: str):
 def create_log_group(log_group_name: str):
     """Create a log group.
 
-    Parameters
-    ----------
-    log_group_name : str
-        The name of the log group.
+    Args:
+        log_group_name (str): The name of the log group.
     """
     try:
         logs.create_log_group(logGroupName=log_group_name)
@@ -328,10 +289,8 @@ def create_log_group(log_group_name: str):
 def delete_log_group(log_group_name):
     """Delete a log group.
 
-    Parameters
-    ----------
-    log_group_name : str
-        The name of the log group.
+    Args:
+        log_group_name (str): The name of the log group.
     """
     try:
         logs.delete_log_group(logGroupName=log_group_name)
@@ -351,12 +310,9 @@ def delete_log_group(log_group_name):
 def create_log_stream(log_group: str, log_stream: str):
     """Create a log stream within the log group.
 
-    Parameters
-    ----------
-    log_group : str
-        The name of the log group.
-    log_stream : str
-        The name of the log stream.
+    Args:
+        log_group (str): The name of the log group.
+        log_stream (str): The name of the log stream.
     """
     try:
 
@@ -378,12 +334,9 @@ def create_log_stream(log_group: str, log_stream: str):
 def delete_log_stream(log_group: str, log_stream: str):
     """Delete a log stream from a log group.
 
-    Parameters
-    ----------
-    log_group : str
-        The name of the log group.
-    log_stream : str
-        The name of the log stream.
+    Args:
+        log_group (str): The name of the log group.
+        log_stream (str): The name of the log stream.
     """
     try:
 
@@ -403,18 +356,12 @@ def delete_log_stream(log_group: str, log_stream: str):
 def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bool, events_number: int) -> None:
     """Create one or more log events within the given log stream and group in a determined date.
 
-    Parameters
-    ----------
-    log_group : str
-        The name of the log group.
-    log_stream : str
-        The name of the log stream.
-    date : str
-        The date to transform into timestamp of the uploaded messages.
-    type_json : bool
-        Whether the messages to create are JSON or simple text.
-    events_number: int
-        Number of messages to generate and upload to the log stream.
+    Args:
+        log_group (str): The name of the log group.
+        log_stream (str): The name of the log stream.
+        date (str): The date to transform into timestamp of the uploaded messages.
+        type_json (bool): Whether the messages to create are JSON or simple text.
+        events_number (int): Number of messages to generate and upload to the log stream.
     """
     today_date = datetime.now()
 
@@ -461,15 +408,11 @@ def upload_log_events(log_stream: str, log_group: str, date : str, type_json: bo
 def log_stream_exists(log_group, log_stream) -> bool:
     """Check if a log stream exists in a group.
 
-    Parameters
-    ----------
-    log_group : str
-        The name of the log group.
-    log_stream : str
-        The name of the log stream.
+    Args:
+        log_group (str): The name of the log group.
+        log_stream (str): The name of the log stream.
 
-    Returns
-    -------
+    Returns:
         bool: True if exists else False.
     """
     try:
@@ -492,15 +435,11 @@ def log_stream_exists(log_group, log_stream) -> bool:
 def create_sqs_queue(sqs_name: str) -> str:
     """Create a sqs queue.
 
-    Parameters
-    ----------
-    sqs_name : str
-        The name of the sqs queue.
+    Args:
+        sqs_name (str): The name of the sqs queue.
 
-    Returns
-    -------
-    sqs_url: str
-        Sqs queue url.
+    Returns:
+        sqs_url (str): SQS queue url.
     """
     try:
         response = sqs.create_queue(
@@ -523,15 +462,11 @@ def create_sqs_queue(sqs_name: str) -> str:
 def get_sqs_queue_arn(sqs_url: str) -> str:
     """Get the SQS Queue ARN.
 
-    Parameters
-    ----------
-    sqs_url : str
-        The SQS Queue URL.
+    Args:
+        sqs_url (str): The SQS Queue URL.
 
-    Returns
-    -------
-    sqs_queue_arn : str
-        The SQS queue ARN.
+    Returns:
+        sqs_queue_arn (str): The SQS queue ARN.
     """
     try:
         # Fetch queue's ARN
@@ -551,14 +486,10 @@ def get_sqs_queue_arn(sqs_url: str) -> str:
 def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> None:
     """Set a policy for the SQS queue
 
-    Parameters
-    ----------
-    bucket_name : str
-        The bucket name.
-    sqs_queue_url : str
-        The SQS queue Url to apply policy.
-    sqs_queue_arn : str
-        The SQS queue ARN.
+    Args:
+        bucket_name (str): The bucket name.
+        sqs_queue_url (str): The SQS queue Url to apply policy.
+        sqs_queue_arn (str): The SQS queue ARN.
     """
     # Get account id
     account_id = sqs_queue_arn.split(':')[4]
@@ -606,12 +537,9 @@ def set_sqs_policy(bucket_name: str, sqs_queue_url: str, sqs_queue_arn: str) -> 
 def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn: str) ->None:
     """Configure a bucket for event notification.
 
-    Parameters
-    ----------
-    bucket_name : str
-        The name of the bucket.
-    sqs_queue_arn : str
-        The SQS queue arn.
+    Args:
+        bucket_name (str): The name of the bucket.
+        sqs_queue_arn (str): The SQS queue arn.
     """
     # Create notification config dict
     notification_configuration = {
@@ -638,10 +566,8 @@ def set_bucket_event_notification_configuration(bucket_name: str, sqs_queue_arn:
 def delete_sqs_queue(sqs_queue_url: str) -> None:
     """Delete a SQS queue.
 
-    Parameters
-    ----------
-    sqs_queue_url : str
-        The SQS queue url.
+    Args:
+        sqs_queue_url (str): The SQS queue url.
     """
     try:
         sqs.delete_queue(
@@ -666,8 +592,7 @@ def delete_sqs_queue(sqs_queue_url: str) -> None:
 def call_aws_module(*parameters):
     """Given some parameters call the AWS module and return the output.
 
-    Returns
-    -------
+    Returns:
         str: The command output.
     """
     command = [AWS_BINARY_PATH, *parameters]
@@ -687,16 +612,11 @@ def analyze_command_output(
 ):
     """Analyze a given command output searching for a pattern.
 
-    Parameters
-    ----------
-    command_output : str
-        The output to analyze.
-    callback : Callable
-        A callback to process each line. Defaults to _default_callback.
-    expected_results : int
-        Number of expected results. Defaults to 1.
-    error_message : str
-        Message to show with the exception. Defaults to ''.
+    Args:
+        command_output (str): The output to analyze.
+        callback (Callable): A callback to process each line. Defaults to _default_callback.
+        expected_results (int): Number of expected results. Defaults to 1.
+        error_message (str): Message to show with the exception. Defaults to ''.
 
     Raises:
         OutputAnalysisError: When the expected results are not correct.
@@ -742,13 +662,10 @@ def delete_services_db() -> None:
 def path_exist(path: Path) -> bool:
     """Check if given path exists.
 
-    Parameters
-    ----------
-    path : Path
-        The path to check.
+    Args:
+        path (Path): The path to check.
 
-    Returns
-    -------
+    Returns:
         bool: True if exist else False.
     """
     return path.exists()
