@@ -23,18 +23,20 @@ def get_random_interface_id():
 
 
 class DataGenerator:
-    BASE_PATH = ''
-    BASE_FILE_NAME = ''
+    """Base class to generate AWS Bucket related data."""
 
-    compress = False
-
-    def __init__(self, date: datetime) -> None:
+    def __init__(self, date: datetime, region: str) -> None:
         """Initialize a DataGenerator instance.
 
         Args:
             date (datetime): Time to be used to generate the filename and dates inside the data sample.
+            region (str): The region name for the file path and file key.
         """
-        self.date = date 
+        self.date = date
+        self.region = region if region else US_EAST_1_REGION
+        self.base_path = ''
+        self.base_file_name = ''
+        self.compress = False
 
     def get_filename(self, *args, **kwargs) -> str:
         """Return the filename according to the integration format.
@@ -54,8 +56,10 @@ class DataGenerator:
 
 
 class CloudTrailDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUDTRAIL, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CLOUDTRAIL}_{US_EAST_1_REGION}_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUDTRAIL, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{CLOUDTRAIL}_{self.region}_"
 
     def get_filename(self) -> str:
         """Return the filename in the cloudtrail format.
@@ -66,8 +70,8 @@ class CloudTrailDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -88,7 +92,7 @@ class CloudTrailDataGenerator(DataGenerator):
                     'eventTime': self.date.strftime(EVENT_TIME_FORMAT),
                     'eventSource': 'sts.amazonaws.com',
                     'eventName': 'AssumeRole',
-                    'awsRegion': US_EAST_1_REGION,
+                    'awsRegion': self.region,
                     'sourceIPAddress': 'ec2.amazonaws.com',
                     'userAgent': 'ec2.amazonaws.com',
                     'requestParameters': {
@@ -123,8 +127,10 @@ class CloudTrailDataGenerator(DataGenerator):
 
 
 class VPCDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{VPC_FLOW_LOGS}_{US_EAST_1_REGION}_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{VPC_FLOW_LOGS}_{self.region}_"
 
     def get_filename(self, **kwargs) -> str:
         """Return the filename in the VPC format.
@@ -135,9 +141,9 @@ class VPCDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}{kwargs['flow_log_id']}_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}"
+            f"{self.base_file_name}{kwargs['flow_log_id']}_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}"
             f"{LOG_EXT}"
         )
 
@@ -170,8 +176,10 @@ class VPCDataGenerator(DataGenerator):
 
 
 class ConfigDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CONFIG, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{CONFIG}_{US_EAST_1_REGION}_ConfigHistory_AWS_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CONFIG, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{CONFIG}_{self.region}_ConfigHistory_AWS_"
 
     def get_filename(self) -> str:
         """Return the filename in the Config format.
@@ -182,8 +190,8 @@ class ConfigDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_NO_PADED_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_NO_PADED_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}{JSON_EXT}"
 
         return join(path, name)
 
@@ -237,8 +245,11 @@ class ConfigDataGenerator(DataGenerator):
 
 
 class ALBDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
+
 
     def get_filename(self) -> str:
         """Return the filename in the ALB format.
@@ -249,9 +260,9 @@ class ALBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}_app.ALB-qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
+            f"{self.base_file_name}_app.ALB-qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}_pczeay_{LOG_EXT}"
         )
 
@@ -307,8 +318,10 @@ class ALBDataGenerator(DataGenerator):
 
 
 class CLBDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
 
     def get_filename(self) -> str:
         """Return the filename in the CLB format.
@@ -319,9 +332,9 @@ class CLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}qatests-APIClassi_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
+            f"{self.base_file_name}qatests-APIClassi_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}{LOG_EXT}"
         )
 
@@ -361,8 +374,10 @@ class CLBDataGenerator(DataGenerator):
 
 
 class NLBDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, US_EAST_1_REGION)
-    BASE_FILE_NAME = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{US_EAST_1_REGION}_"
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
 
     def get_filename(self) -> str:
         """Return the filename in the NLB format.
@@ -373,9 +388,9 @@ class NLBDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
         name = (
-            f"{self.BASE_FILE_NAME}net.qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
+            f"{self.base_file_name}net.qatests_{self.date.strftime(FILENAME_DATE_FORMAT)}_{abs(hash(self.date))}_"
             f"{get_random_ip()}{LOG_EXT}"
         )
 
@@ -421,8 +436,10 @@ class NLBDataGenerator(DataGenerator):
 
 
 class KMSDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = 'firehose_kms-1-'
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = ''
+        self.base_file_name = 'firehose_kms-1-'
 
     def get_filename(self) -> str:
         """Return the filename in the KMS format.
@@ -433,8 +450,8 @@ class KMSDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -504,8 +521,10 @@ class KMSDataGenerator(DataGenerator):
 
 
 class MacieDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = 'firehose_macie-1-'
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = ''
+        self.base_file_name = 'firehose_macie-1-'
 
     def get_filename(self) -> str:
         """Return the filename in the Macie format.
@@ -516,8 +535,8 @@ class MacieDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}_{str(uuid4())}{JSON_EXT}"
 
         return join(path, name)
 
@@ -610,9 +629,11 @@ class MacieDataGenerator(DataGenerator):
 
 
 class TrustedAdvisorDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = 'firehose_trustedadvisor-1-'
-
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = ''
+        self.base_file_name = 'firehose_trustedadvisor-1-'
+        
     def get_filename(self) -> str:
         """Return the filename in the Trusted Advisor format.
 
@@ -622,8 +643,8 @@ class TrustedAdvisorDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -662,8 +683,10 @@ class TrustedAdvisorDataGenerator(DataGenerator):
 
 
 class GuardDutyDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = 'firehose_guardduty-1-'
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = ''
+        self.base_file_name = 'firehose_guardduty-1-'
 
     def get_filename(self) -> str:
         """Return the filename in the Guard Duty format.
@@ -674,8 +697,8 @@ class GuardDutyDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -822,10 +845,11 @@ class GuardDutyDataGenerator(DataGenerator):
 
 
 class NativeGuardDutyDataGenerator(DataGenerator):
-    BASE_PATH = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARDDUTY, US_EAST_1_REGION)
-    BASE_FILE_NAME = ''
-
-    compress = True
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARDDUTY, self.region)
+        self.base_file_name = ''
+        self.compress = True
 
     def get_filename(self) -> str:
         """Return the filename in the Native Guard Duty format.
@@ -836,7 +860,7 @@ class NativeGuardDutyDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
         name = f"{str(uuid4())}{JSON_GZ_EXT}"
 
         return join(path, name)
@@ -964,8 +988,10 @@ class NativeGuardDutyDataGenerator(DataGenerator):
 
 
 class WAFDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = 'aws-waf-logs-delivery-stream-1-'
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = ''
+        self.base_file_name = 'aws-waf-logs-delivery-stream-1-'
 
     def get_filename(self) -> str:
         """Return the filename in the KMS format.
@@ -976,8 +1002,8 @@ class WAFDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime(PATH_DATE_FORMAT))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
+        path = join(self.base_path, self.date.strftime(PATH_DATE_FORMAT))
+        name = f"{self.base_file_name}{self.date.strftime(FILENAME_DATE_FORMAT)}{JSON_EXT}"
 
         return join(path, name)
 
@@ -1052,9 +1078,6 @@ class WAFDataGenerator(DataGenerator):
 
 
 class ServerAccessDataGenerator(DataGenerator):
-    BASE_PATH = ''
-    BASE_FILE_NAME = ''
-
     def get_filename(self) -> str:
         """Return the filename in the server access format.
 
@@ -1066,7 +1089,7 @@ class ServerAccessDataGenerator(DataGenerator):
         """
         date_format = '%Y-%m-%d-%H-%M-%S'
         name = f"{self.date.strftime(date_format)}-{get_random_string(16).upper()}"
-        return join(self.BASE_PATH, name)
+        return join(self.base_path, name)
 
     def get_data_sample(self):
         """Return a sample of data according to the server access format.
@@ -1102,8 +1125,10 @@ class ServerAccessDataGenerator(DataGenerator):
 
 
 class UmbrellaDataGenerator(DataGenerator):
-    BASE_PATH = 'dnslogs'
-    BASE_FILE_NAME = ''
+    def __init__(self, date: datetime, region: str) -> None:
+        super().__init__(date, region)
+        self.base_path = 'dnslogs'
+        self.base_file_name = ''
 
     def get_filename(self) -> str:
         """Return the filename in the Umbrella format.
@@ -1114,8 +1139,8 @@ class UmbrellaDataGenerator(DataGenerator):
         Returns:
             str: Synthetic filename.
         """
-        path = join(self.BASE_PATH, self.date.strftime('%Y-%m-%d'))
-        name = f"{self.BASE_FILE_NAME}{self.date.strftime('%Y-%m-%d')}-00-00-ioxa{CSV_EXT}"
+        path = join(self.base_path, self.date.strftime('%Y-%m-%d'))
+        name = f"{self.base_file_name}{self.date.strftime('%Y-%m-%d')}-00-00-ioxa{CSV_EXT}"
 
         return join(path, name)
 
@@ -1167,13 +1192,14 @@ buckets_data_mapping = {
 }
 
 
-def get_data_generator(bucket_type, bucket_name, creation_date) -> DataGenerator:
+def get_data_generator(bucket_type, bucket_name, creation_date, region) -> DataGenerator:
     """Given the bucket type return the correspondant data generator instance.
 
     Args:
         bucket_type (str): Bucket type to match the data generator.
         bucket_name (str): Bucket name to match in case of custom or guardduty types.
         creation_date (datetime): Date to use for file creation.
+        region (str): Region where the data will be generated.
         
     Returns:
         DataGenerator: Data generator for the given bucket.
@@ -1183,4 +1209,4 @@ def get_data_generator(bucket_type, bucket_name, creation_date) -> DataGenerator
     elif bucket_type == GUARD_DUTY_TYPE and 'native' in bucket_name:
         bucket_type = NATIVE_GUARD_DUTY_TYPE
 
-    return buckets_data_mapping[bucket_type](date=creation_date)
+    return buckets_data_mapping[bucket_type](date=creation_date, region=region)
