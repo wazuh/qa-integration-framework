@@ -38,7 +38,7 @@ class DatabaseAdministrator:
         return rows
 
 
-    def execute_fetch_one_query(self, query: str) -> list:
+    def execute_fetch_one_query(self, query: str) -> Tuple:
         self.cursor.execute(query)
         row = self.cursor.fetchone()
 
