@@ -99,13 +99,16 @@ def delete_bucket_files(bucket_name: str, client):
         raise error
 
 
-def generate_file(bucket_type: str, bucket_name: str, date: str, region: str, **kwargs) -> Tuple[str, str]:
+def generate_file(bucket_type: str, bucket_name: str, date: str, region: str, 
+                  prefix: str, suffix: str, **kwargs) -> Tuple[str, str]:
     """ Generate a file for a specific bucket type.
 
     Args:
         bucket_type (str): The type of bucket.
         bucket_name (str): The bucket name.
         date (str): Date to use for data generation.
+        prefix (str): Path prefix.
+        suffix (str): Path suffix.
 
     Returns:
         data (str): The encoded data content.
@@ -114,7 +117,8 @@ def generate_file(bucket_type: str, bucket_name: str, date: str, region: str, **
     files_creation_date = datetime.strptime(date, ONLY_LOGS_AFTER_FORMAT) if date \
                             else datetime.now()
 
-    dg = get_data_generator(bucket_type, bucket_name, creation_date=files_creation_date, region=region)
+    dg = get_data_generator(bucket_type, bucket_name, creation_date=files_creation_date, 
+                            prefix=prefix, suffix=suffix, region=region)
     filename = dg.get_filename(**kwargs)
     data = dg.get_data_sample().encode() if not dg.compress else gzip.compress(data=dg.get_data_sample().encode())
 
@@ -152,30 +156,32 @@ def delete_bucket_file(filename: str, bucket_name: str, client):
     Args:
         filename (str): Full filename to delete.
         bucket_name (str): Bucket that contains the file.
-        client (boto3.resources.base.ServiceResource): S3 client used to delete tbe file from the bucket.
+        client (boto3.resources.base.ServiceResource): S3 client used to delete the file from the bucket.
     """
     client.Object(bucket_name, filename).delete()
 
 
-def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime, client):
+def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: datetime, region: str, 
+                      client, **kwargs):
     """Return the last file key contained in a default path of a bucket.
 
     Args:
         bucket_type (str): Bucket type to obtain the data generator.
         bucket_name (str): Bucket that contains the file.
         execution_datetime (datetime): Datetime to use as prefix.
+        region (str): Expected region in the path of the bucket.
         client (boto3.resources.base.ServiceResource): S3 client to access the bucket.
 
     Returns:
         str: The last key in the bucket.
     """
 
-    dg = get_data_generator(bucket_type, bucket_name)
+    dg = get_data_generator(bucket_type, bucket_name, creation_date=execution_datetime, region=region, **kwargs)
     bucket = client.Bucket(bucket_name)
     last_key = None
 
     try:
-        *_, last_item = bucket.objects.filter(Prefix=dg.BASE_PATH or str(execution_datetime.year))
+        *_, last_item = bucket.objects.filter(Prefix=dg.base_path or str(execution_datetime.year))
         last_key = last_item.key
     except ValueError:
         last_key = ''
@@ -194,7 +200,7 @@ def create_vpc(vpc_name: str, client) -> str:
         vpc_id (str): ID of the VPC created.
     """
     try:
-        vpc = client.create_vpc(CidrBlock= '10.0.0.0/16',
+        vpc = client.create_vpc(CidrBlock='10.0.0.0/16',
                              TagSpecifications=[
                                 {   
                                     'ResourceType': 'vpc',

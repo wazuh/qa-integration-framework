@@ -8,13 +8,34 @@
 
 import csv
 import json
-from datetime import datetime, timezone
+import os
+from boto3.session import Session
+from datetime import datetime
+from functools import wraps
 from io import StringIO
 from os.path import join
 from uuid import uuid4
 
 from wazuh_testing.constants.aws import *
 from wazuh_testing.utils.random import get_random_ip, get_random_port, get_random_string
+
+# Use the environment variable or default to 'dev'
+aws_profile = os.environ.get("AWS_PROFILE", "dev")
+
+def verify_region(func):
+    """Decorator to apply to functions receiving a region as parameter to verify its existence in AWS."""
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        
+        session = Session(profile_name=f'{aws_profile}')
+        service_regions = session.get_available_regions('s3')
+        if kwargs['region'] not in service_regions:
+            raise Exception(f"Invalid region {kwargs['region']}, "
+                            f"available regions are: {', '.join(service_regions)}")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def get_random_interface_id():
@@ -25,7 +46,7 @@ def get_random_interface_id():
 class DataGenerator:
     """Base class to generate AWS Bucket related data."""
 
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         """Initialize a DataGenerator instance.
 
         Args:
@@ -56,9 +77,10 @@ class DataGenerator:
 
 
 class CloudTrailDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CLOUDTRAIL, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'], 
+                              RANDOM_ACCOUNT_ID, CLOUDTRAIL, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{CLOUDTRAIL}_{self.region}_"
 
     def get_filename(self) -> str:
@@ -127,9 +149,10 @@ class CloudTrailDataGenerator(DataGenerator):
 
 
 class VPCDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
-        super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, self.region)
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
+        super().__init__(date, region, **kwargs)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'], 
+                              RANDOM_ACCOUNT_ID, VPC_FLOW_LOGS, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{VPC_FLOW_LOGS}_{self.region}_"
 
     def get_filename(self, **kwargs) -> str:
@@ -176,9 +199,10 @@ class VPCDataGenerator(DataGenerator):
 
 
 class ConfigDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, CONFIG, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'], 
+                              RANDOM_ACCOUNT_ID, CONFIG, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{CONFIG}_{self.region}_ConfigHistory_AWS_"
 
     def get_filename(self) -> str:
@@ -245,9 +269,10 @@ class ConfigDataGenerator(DataGenerator):
 
 
 class ALBDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'], 
+                              RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
 
 
@@ -318,9 +343,10 @@ class ALBDataGenerator(DataGenerator):
 
 
 class CLBDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'],
+                              RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
 
     def get_filename(self) -> str:
@@ -374,9 +400,10 @@ class CLBDataGenerator(DataGenerator):
 
 
 class NLBDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'],
+                              RANDOM_ACCOUNT_ID, ELASTIC_LOAD_BALANCING, self.region)
         self.base_file_name = f"{RANDOM_ACCOUNT_ID}_{ELASTIC_LOAD_BALANCING}_{self.region}_"
 
     def get_filename(self) -> str:
@@ -436,9 +463,9 @@ class NLBDataGenerator(DataGenerator):
 
 
 class KMSDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = ''
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = 'firehose_kms-1-'
 
     def get_filename(self) -> str:
@@ -521,9 +548,9 @@ class KMSDataGenerator(DataGenerator):
 
 
 class MacieDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = ''
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = 'firehose_macie-1-'
 
     def get_filename(self) -> str:
@@ -629,9 +656,9 @@ class MacieDataGenerator(DataGenerator):
 
 
 class TrustedAdvisorDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = ''
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = 'firehose_trustedadvisor-1-'
         
     def get_filename(self) -> str:
@@ -683,9 +710,9 @@ class TrustedAdvisorDataGenerator(DataGenerator):
 
 
 class GuardDutyDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = ''
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = 'firehose_guardduty-1-'
 
     def get_filename(self) -> str:
@@ -845,9 +872,10 @@ class GuardDutyDataGenerator(DataGenerator):
 
 
 class NativeGuardDutyDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(AWS_LOGS, RANDOM_ACCOUNT_ID, GUARDDUTY, self.region)
+        self.base_path = join(kwargs['prefix'], AWS_LOGS, kwargs['suffix'], 
+                              RANDOM_ACCOUNT_ID, GUARDDUTY, self.region)
         self.base_file_name = ''
         self.compress = True
 
@@ -988,9 +1016,9 @@ class NativeGuardDutyDataGenerator(DataGenerator):
 
 
 class WAFDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = ''
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = 'aws-waf-logs-delivery-stream-1-'
 
     def get_filename(self) -> str:
@@ -1078,6 +1106,10 @@ class WAFDataGenerator(DataGenerator):
 
 
 class ServerAccessDataGenerator(DataGenerator):
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
+        super().__init__(date, region)
+        self.base_path = join(kwargs['prefix'])
+
     def get_filename(self) -> str:
         """Return the filename in the server access format.
 
@@ -1125,9 +1157,9 @@ class ServerAccessDataGenerator(DataGenerator):
 
 
 class UmbrellaDataGenerator(DataGenerator):
-    def __init__(self, date: datetime, region: str) -> None:
+    def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = 'dnslogs'
+        self.base_path = join(kwargs['prefix'], 'dnslogs')
         self.base_file_name = ''
 
     def get_filename(self) -> str:
@@ -1192,7 +1224,8 @@ buckets_data_mapping = {
 }
 
 
-def get_data_generator(bucket_type, bucket_name, creation_date, region) -> DataGenerator:
+@verify_region
+def get_data_generator(bucket_type, bucket_name, creation_date: datetime, region: str, **kwargs) -> DataGenerator:
     """Given the bucket type return the correspondant data generator instance.
 
     Args:
@@ -1200,6 +1233,7 @@ def get_data_generator(bucket_type, bucket_name, creation_date, region) -> DataG
         bucket_name (str): Bucket name to match in case of custom or guardduty types.
         creation_date (datetime): Date to use for file creation.
         region (str): Region where the data will be generated.
+        **kwargs: May include prefix and suffix for the file paths.
         
     Returns:
         DataGenerator: Data generator for the given bucket.
@@ -1209,4 +1243,7 @@ def get_data_generator(bucket_type, bucket_name, creation_date, region) -> DataG
     elif bucket_type == GUARD_DUTY_TYPE and 'native' in bucket_name:
         bucket_type = NATIVE_GUARD_DUTY_TYPE
 
-    return buckets_data_mapping[bucket_type](date=creation_date, region=region)
+    return buckets_data_mapping[bucket_type](date=creation_date, 
+                                             region=region, 
+                                             prefix=kwargs.get('prefix', ''), 
+                                             suffix=kwargs.get('suffix', ''))

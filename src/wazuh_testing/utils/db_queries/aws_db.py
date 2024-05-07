@@ -132,7 +132,6 @@ def get_s3_db_row(table_name) -> S3CloudTrailRow:
     row_type = _get_s3_row_type(table_name)
     query = SELECT_QUERY_TEMPLATE.format(table_name=table_name)
     row = get_sqlite_fetch_one_query_result(S3_CLOUDTRAIL_DB_PATH, query)[0]
-    
     return row_type(*row)
 
 
