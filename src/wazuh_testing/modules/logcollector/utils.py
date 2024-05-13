@@ -96,7 +96,7 @@ def validate_test_config_with_module_config(test_configuration):
                 if all([config.get(key) == value for key, value in test_config.items()]):
                     configuration_in_module = True
         elif test_section == 'socket':
-            for config in json_response['target']:
+            for config in json_response['socket']:
                 if all([config.get(key) == value for key, value in test_config.items()]):
                     configuration_in_module = True
 
