@@ -1159,7 +1159,7 @@ class ServerAccessDataGenerator(DataGenerator):
 class UmbrellaDataGenerator(DataGenerator):
     def __init__(self, date: datetime, region: str, **kwargs) -> None:
         super().__init__(date, region)
-        self.base_path = join(kwargs['prefix'], 'dnslogs')
+        self.base_path = join(kwargs['prefix'])
         self.base_file_name = ''
 
     def get_filename(self) -> str:

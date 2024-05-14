@@ -38,6 +38,7 @@ EVENT_SENT = "DEBUG: \+\+\+ Sent \d+ events to Analysisd"
 MARKER = ".*DEBUG: \+\+\+ Marker: "
 AWS_MODULE_STARTED = ".*DEBUG: Launching S3 Command: .*"
 AWS_MODULE_STARTED_PARAMETRIZED = ".*DEBUG: Launching S3 Command: "
+REMOVE_S3_FILE = ".*DEBUG: \+\+\+ Remove file from S3 Bucket:"
 
 # Logs
 NEW_LOG_FOUND = ".*Found new log: .*"

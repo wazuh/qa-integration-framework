@@ -187,6 +187,27 @@ def get_last_file_key(bucket_type: str, bucket_name: str, execution_datetime: da
         last_key = ''
     return last_key
 
+
+def file_exists(filename, bucket_name, client):
+    """Check if a file exists in a bucket.
+
+    Args:
+        filename (str): Full filename to check.
+        bucket_name (str): Bucket that contains the file.
+        client (boto3.resources.base.ServiceResource): S3 client to access the bucket.
+    Returns:
+        bool: True if exists else False.
+    """
+    exists = True
+    try:
+        client.Object(bucket_name, filename).load()
+    except ClientError as error:
+        if error.response['Error']['Code'] == '404':
+            exists = False
+
+    return exists
+
+
 """VPC related utils"""
 
 def create_vpc(vpc_name: str, client) -> str:
@@ -220,14 +241,16 @@ def create_vpc(vpc_name: str, client) -> str:
         logger.error(f"Found a problem creating a VPC: {error}.")
 
 
-def delete_vpc(vpc_id: str, client) -> None:
-    """Delete a VPC.
+def delete_vpc(vpc_id: str, flow_log_id: str, client) -> None:
+    """Delete a VPC and its inner flow logs.
     
     Args:
         vpc_id (str): Id of the VPC to delete.
+        flow_log_id (str): Id of the Flow Log to delete.
         client (Service client instance): EC2 client to delete the VPC and its inner resources.
     """
     try:
+        client.delete_flow_logs(FlowLogIds=[flow_log_id])
         client.delete_vpc(VpcId=vpc_id)
     except ClientError as error:
         raise error
@@ -622,7 +645,7 @@ def _default_callback(line: str):
 
 
 def analyze_command_output(
-        command_output, callback=_default_callback, expected_results=1, error_message=''
+        command_output, callback=_default_callback, expected_results=1, error_message='', match_exact_number=True
 ):
     """Analyze a given command output searching for a pattern.
 
@@ -631,6 +654,7 @@ def analyze_command_output(
         callback (Callable): A callback to process each line. Defaults to _default_callback.
         expected_results (int): Number of expected results. Defaults to 1.
         error_message (str): Message to show with the exception. Defaults to ''.
+        match_exact_number (bool): Determine if expected_results should exactly match the number of results found.
 
     Raises:
         OutputAnalysisError: When the expected results are not correct.
@@ -647,7 +671,10 @@ def analyze_command_output(
 
     results_len = len(results)
 
-    if results_len != expected_results:
+    if not match_exact_number and results_len:
+        return
+
+    if results_len != expected_results and match_exact_number:
         if error_message:
             logger.error(error_message)
             logger.error(RESULTS_FOUND, results_len)
