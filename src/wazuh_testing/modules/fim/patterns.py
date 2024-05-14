@@ -31,3 +31,5 @@ FILE_LIMIT_AMOUNT = r".*Maximum number of files to be monitored: '(\d+)'"
 
 LINKS_SCAN_FINALIZED = r'.*Links check finalized.*'
 AUDIT_RULES_RELOADED = r'.*Audit rules reloaded\. Rules loaded: (.+)'
+
+WIN_CONVERT_FOLDER = r".*fim_adjust_path.*Convert '(.*) to '(.*)' to process the FIM events."
