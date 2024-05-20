@@ -36,3 +36,8 @@ LINKS_SCAN_FINALIZED = r'.*Links check finalized.*'
 AUDIT_RULES_RELOADED = r'.*Audit rules reloaded\. Rules loaded: (.+)'
 
 WIN_CONVERT_FOLDER = r".*fim_adjust_path.*Convert '(.*) to '(.*)' to process the FIM events."
+
+DIFF_MAXIMUM_FILE_SIZE = r".*Maximum file size limit to generate diff information configured to \'(\d+) KB\'.*"
+
+ERROR_MSG_MAXIMUM_FILE_SIZE_EVENT = 'Did not receive expected "Maximum file size limit configured to \'... KB\'..." event'
+ERROR_MSG_WRONG_VALUE_MAXIMUM_FILE_SIZE = 'Wrong value for diff_size_limit'
