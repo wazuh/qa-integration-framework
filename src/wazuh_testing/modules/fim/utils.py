@@ -65,3 +65,38 @@ def create_registry(key, sub_key, arch):
         print(f"Registry could not be created: {e}")
     except pywintypes.error as e:
         print(f"Registry could not be created: {e}")
+
+
+def delete_registry_value(key, sub_key, value_name, arch):
+    """Delete a registry value from a registry key.
+
+    Args:
+        key_h (pyHKEY): the key handle of the registry.
+        value_name (str): the value to be deleted.
+    """
+    try:
+        key_h = win32api.RegOpenKeyEx(key, sub_key, 0, win32con.KEY_ALL_ACCESS | arch)
+        win32api.RegDeleteValue(key_h, value_name)
+    except OSError as e:
+        print(f"Couldn't remove registry value {value_name}: {e}")
+    except pywintypes.error as e:
+        print(f"Couldn't remove registry value {value_name}: {e}")
+
+
+def create_registry_value(key, sub_key, value_name, type, value, arch):
+    """
+    Modify the content of a registry. If the value doesn't not exists, it will be created.
+
+    Args:
+        key_h (pyHKEY): the key handle of the registry.
+        value_name (str): the value to be set.
+        type (int): type of the value.
+        value (str): the content that will be written to the registry value.
+    """
+    try:
+        key_h = win32api.RegOpenKeyEx(key, sub_key, 0, win32con.KEY_ALL_ACCESS | arch)
+        win32api.RegSetValueEx(key_h, value_name, 0, type, value)
+    except OSError as e:
+        print(f"Could not modify registry value content: {e}")
+    except pywintypes.error as e:
+        print(f"Could not modify registry value content: {e}")

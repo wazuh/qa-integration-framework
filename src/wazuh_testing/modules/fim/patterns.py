@@ -21,6 +21,7 @@ EVENT_TYPE_MODIFIED = r'.*Sending FIM event: .*"type":"modified".*'
 EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 FIM_EVENT_RESTRICT = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
+EVENT_TYPE_SCAN_END = r'.*Sending FIM event: .*"type":"scan_end".*'
 
 INODE_ENTRIES_PATH_COUNT = r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 FILE_ENTRIES_PATH_COUNT = r".*Fim file entries count: '(\d+)'"
