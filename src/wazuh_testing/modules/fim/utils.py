@@ -71,8 +71,10 @@ def delete_registry_value(key, sub_key, value_name, arch):
     """Delete a registry value from a registry key.
 
     Args:
-        key_h (pyHKEY): the key handle of the registry.
+        key (pyHKEY): the key of the registry (HKEY_* constants).
+        subkey (str): the subkey (name) of the registry.
         value_name (str): the value to be deleted.
+        arch (int): architecture of the registry (KEY_WOW64_32KEY or KEY_WOW64_64KEY).
     """
     try:
         key_h = win32api.RegOpenKeyEx(key, sub_key, 0, win32con.KEY_ALL_ACCESS | arch)
@@ -88,10 +90,12 @@ def create_registry_value(key, sub_key, value_name, type, value, arch):
     Modify the content of a registry. If the value doesn't not exists, it will be created.
 
     Args:
-        key_h (pyHKEY): the key handle of the registry.
+        key (pyHKEY): the key of the registry (HKEY_* constants).
+        subkey (str): the subkey (name) of the registry.
         value_name (str): the value to be set.
         type (int): type of the value.
         value (str): the content that will be written to the registry value.
+        arch (int): architecture of the registry (KEY_WOW64_32KEY or KEY_WOW64_64KEY).
     """
     try:
         key_h = win32api.RegOpenKeyEx(key, sub_key, 0, win32con.KEY_ALL_ACCESS | arch)
