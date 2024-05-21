@@ -4,9 +4,12 @@
 
 import json
 import re
-import win32con
-import win32api
-import pywintypes
+import sys
+
+if sys.platform == 'win32':
+    import win32con
+    import win32api
+    import pywintypes
 
 from .patterns import FIM_EVENT_JSON
 
