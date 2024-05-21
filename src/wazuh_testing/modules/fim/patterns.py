@@ -5,6 +5,7 @@
 # Callback patterns to find events in log file.
 IGNORING_DUE_TO_SREGEX = r".*?Ignoring path '(.*)' due to sregex '(.*)'.*"
 IGNORING_DUE_TO_PATTERN = r".*?Ignoring path '(.*)' due to pattern '(.*)'.*"
+IGNORING_DUE_TO_RESTRICTION = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
 REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodata engine started.*'
 MONITORING_PATH = r'.*Monitoring path:.*'
 
@@ -20,6 +21,7 @@ EVENT_TYPE_MODIFIED = r'.*Sending FIM event: .*"type":"modified".*'
 EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 FIM_EVENT_RESTRICT = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
+EVENT_TYPE_SCAN_END = r'.*Sending FIM event: .*"type":"scan_end".*'
 
 INODE_ENTRIES_PATH_COUNT = r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 FILE_ENTRIES_PATH_COUNT = r".*Fim file entries count: '(\d+)'"
