@@ -226,17 +226,6 @@
                                           "syscollector_processes",
                                           "deprecated"
                                         ]
-                                      },
-                                      "vulnerability": {
-                                        "type": "object",
-                                        "properties": {
-                                          "vuln_cves": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "vuln_cves"
-                                        ]
                                       }
                                     },
                                     "required": [
@@ -245,8 +234,7 @@
                                       "sca",
                                       "sync",
                                       "syscheck",
-                                      "syscollector",
-                                      "vulnerability"
+                                      "syscollector"
                                     ]
                                   }
                                 },
@@ -769,17 +757,6 @@
                                           "syscollector_processes",
                                           "deprecated"
                                         ]
-                                      },
-                                      "vulnerability": {
-                                        "type": "object",
-                                        "properties": {
-                                          "vuln_cves": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "vuln_cves"
-                                        ]
                                       }
                                     },
                                     "required": [
@@ -788,8 +765,7 @@
                                       "sca",
                                       "sync",
                                       "syscheck",
-                                      "syscollector",
-                                      "vulnerability"
+                                      "syscollector"
                                     ]
                                   }
                                 },
