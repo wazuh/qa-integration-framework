@@ -19,8 +19,8 @@ from uuid import uuid4
 from wazuh_testing.constants.aws import *
 from wazuh_testing.utils.random import get_random_ip, get_random_port, get_random_string
 
-# Use the environment variable or default to 'dev'
-aws_profile = os.environ.get("AWS_PROFILE", "dev")
+# Use the environment variable or default to 'default'
+aws_profile = os.environ.get("AWS_PROFILE", "default")
 
 def verify_region(func):
     """Decorator to apply to functions receiving a region as parameter to verify its existence in AWS."""
