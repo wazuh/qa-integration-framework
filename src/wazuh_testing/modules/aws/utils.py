@@ -239,6 +239,7 @@ def create_vpc(vpc_name: str, client) -> str:
         raise error
     except Exception as error:
         logger.error(f"Found a problem creating a VPC: {error}.")
+        raise error
 
 
 def delete_vpc(vpc_id: str, flow_log_id: str, client) -> None:
@@ -284,6 +285,7 @@ def create_flow_log(vpc_name: str, bucket_name: str, client):
         raise error
     except Exception as error:
         logger.error(f"Found a problem creating VPC related resources: {error}.")
+        raise error
 
 
 
