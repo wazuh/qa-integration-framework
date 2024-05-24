@@ -5,6 +5,8 @@
 import json
 import re
 import sys
+import os
+import hashlib
 
 if sys.platform == 'win32':
     import win32con
@@ -12,6 +14,9 @@ if sys.platform == 'win32':
     import pywintypes
 
 from .patterns import FIM_EVENT_JSON
+
+
+from wazuh_testing.constants.paths import WAZUH_PATH
 
 
 def get_fim_event_data(message: str) -> dict:
@@ -104,3 +109,30 @@ def create_registry_value(key, sub_key, value_name, type, value, arch):
         print(f"Could not modify registry value content: {e}")
     except pywintypes.error as e:
         print(f"Could not modify registry value content: {e}")
+
+
+def make_diff_file_path(folder='/testdir1', filename='regular_0'):
+    """
+    Generate diff file path.
+
+    Parameters
+    ----------
+    folder : str, optional
+        Containing folder. Default `/testdir1`
+    filename : str, optional
+        File name. Default `regular_0`
+
+    Returns
+    -------
+    diff_file_path : str
+        Path to compressed file.
+    """
+
+    file_path = os.path.join(folder, filename)
+    sha_1 = hashlib.sha1()
+    sha_1.update(file_path.encode('utf-8'))
+    file_sha1 = sha_1.hexdigest()
+
+    diff_file_path = os.path.join(WAZUH_PATH, 'queue', 'diff', 'file', file_sha1, 'last-entry.gz')
+
+    return diff_file_path
