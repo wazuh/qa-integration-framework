@@ -5,6 +5,7 @@
 # Internal configuration options
 SYSCHECK_DEBUG = 'syscheck.debug'
 SYMLINK_SCAN_INTERVAL = 'syscheck.symlink_scan_interval'
+FILE_MAX_SIZE = 'syscheck.file_max_size'
 
 # Attributes constants.
 ATTR_SHA1SUM = 'hash_sha1'
