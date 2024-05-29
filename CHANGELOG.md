@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Added patterns for inotify and max eps cases in the FIM integration tests. ([#119](https://github.com/wazuh/qa-integration-framework/pull/119))
 - Added support for the `integratord` integration tests. ([#118](https://github.com/wazuh/qa-integration-framework/pull/118))
 - Added support for `logtest` and `remoted` integration tests. ([#102](https://github.com/wazuh/qa-integration-framework/pull/102))
+- Added AWS module related functions and data generation methods. ([#25](https://github.com/wazuh/qa-integration-framework/pull/25))
 
 ### Changed
 - Updated the API script file name. ([#154](https://github.com/wazuh/qa-integration-framework/pull/154))

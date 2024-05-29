@@ -28,4 +28,13 @@ def get_random_ip() -> str:
     Return:
         str: Random ip address.
     """
-    return f"{randint(0,255)}.{randint(0,255)}.{randint(0,255)}.{randint(0,255)}"
+    return f"{randint(0, 255)}.{randint(0, 255)}.{randint(0, 255)}.{randint(0, 255)}"
+
+
+def get_random_port() -> str:
+    """Create a port number.
+
+    Return:
+        String: Random port number.
+    """
+    return f"{randint(0, 10000)}"
