@@ -14,6 +14,9 @@ if sys.platform == 'win32':
     import pywintypes
 
 from .patterns import FIM_EVENT_JSON
+from .configuration import LAST_ENTRY_FILE
+from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.paths.sockets import DIFF_PATH_FILE
 
 
 from wazuh_testing.constants.paths import WAZUH_PATH
@@ -129,12 +132,12 @@ def make_diff_file_path(folder='/testdir1', filename='regular_0'):
     """
 
     file_path = os.path.join(folder, filename)
-    if sys.platform == 'win32':
+    if sys.platform == WINDOWS:
         file_path = file_path.lower()
     sha_1 = hashlib.sha1()
     sha_1.update(file_path.encode('utf-8'))
     file_sha1 = sha_1.hexdigest()
 
-    diff_file_path = os.path.join(WAZUH_PATH, 'queue', 'diff', 'file', file_sha1, 'last-entry.gz')
+    diff_file_path = os.path.join(DIFF_PATH_FILE, file_sha1, LAST_ENTRY_FILE)
 
     return diff_file_path
