@@ -47,6 +47,20 @@ def write_file(file_path: str, data: Union[List[str], str, bytes] = '') -> None:
             f.writelines(data)
 
 
+def write_file_write(file_path, content=''):
+    """
+    Write the specified data to the specified file using only write.
+
+    Args:
+        file_path (str): The path to the file to write to.
+        content: The data to write to the file.
+    """
+    mode = 'wb' if isinstance(content, bytes) else 'w'
+
+    with open(file_path, mode) as f:
+        f.write(content)
+
+
 def read_file(path: str) -> str:
     """
     Read a file and return its content.
