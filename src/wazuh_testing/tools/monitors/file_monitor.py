@@ -89,7 +89,11 @@ class FileMonitor(BaseMonitor):
             # Start count to set the timeout.
             start_time = time.time()
 
-            while time.time() - start_time < timeout:
+            # Forces the first read if the timeout is 0.
+            force_first_read = True if timeout == 0 and not only_new_events else False
+
+            while time.time() - start_time < timeout or force_first_read:
+                force_first_read = False
                 current_position = _file.tell()
                 line = _file.readline()
                 # If we have not new changes wait for the next try.

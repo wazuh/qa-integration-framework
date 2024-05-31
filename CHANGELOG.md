@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
 - Added patterns for inotify and max eps cases in the FIM integration tests. ([#119](https://github.com/wazuh/qa-integration-framework/pull/119))
 - Added support for the `integratord` integration tests. ([#118](https://github.com/wazuh/qa-integration-framework/pull/118))
 - Added support for `logtest` and `remoted` integration tests. ([#102](https://github.com/wazuh/qa-integration-framework/pull/102))
+- Added AWS module related functions and data generation methods. ([#25](https://github.com/wazuh/qa-integration-framework/pull/25))
+
+### Changed
+- Updated the API script file name. ([#154](https://github.com/wazuh/qa-integration-framework/pull/154))
 
 ### Fixed
 - Fixed bug in the service control function for Windows agents. ([#121](https://github.com/wazuh/qa-integration-framework/pull/121))
@@ -30,6 +34,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Updated name of the `vulnerability-detection` configuration block in the `all_disabled_ossec.conf` file. ([#51](https://github.com/wazuh/qa-integration-framework/pull/51))
 - Updated the `wazuh-db_template.json` to remove vulnerability detector fields. ([#89](https://github.com/wazuh/qa-integration-framework/pull/89))
+
+## [4.7.5]
 
 ## [4.7.4]
 
