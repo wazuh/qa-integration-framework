@@ -44,6 +44,20 @@ def write_file(file_path: str, data: Union[List[str], str, bytes] = '') -> None:
             f.writelines(data)
 
 
+def write_file_write(file_path, content=''):
+    """
+    Write the specified data to the specified file using only write.
+
+    Args:
+        file_path (str): The path to the file to write to.
+        content: The data to write to the file.
+    """
+    mode = 'wb' if isinstance(content, bytes) else 'w'
+
+    with open(file_path, mode) as f:
+        f.write(content)
+
+
 def read_file(path: str) -> str:
     """
     Read a file and return its content.
@@ -575,3 +589,31 @@ def exists_in_directory(file_or_folder_name: str, directory_path: str) -> bool:
 
 def exists(path:str) -> bool:
     return os.path.exists(path) or os.path.islink(path)
+
+
+def translate_size(configured_size='1KB'):
+    """
+    Translate the configured size from string to number in bytes.
+
+    Parameters
+    ----------
+    configured_size: str, optional
+        Configured size to translate. Default `'1KB'`
+
+    Returns
+    -------
+    translated_size: int
+        Configured value in bytes.
+    """
+    translated_size = 0
+    configured_value = int(configured_size[:-2])  # Store value ignoring the data unit
+    data_unit = str(configured_size[-2:])
+
+    if data_unit == 'KB':
+        translated_size = configured_value * 1024
+    elif data_unit == 'MB':
+        translated_size = configured_value * 1024 * 1024
+    elif data_unit == 'GB':
+        translated_size = configured_value * 1024 * 1024 * 1024
+
+    return translated_size
