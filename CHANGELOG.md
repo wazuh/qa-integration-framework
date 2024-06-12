@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+
 ## [5.0.0]
 
 ## [4.9.0]
@@ -21,8 +22,6 @@ All notable changes to this project will be documented in this file.
 - Fixed bug in the service control function for Windows agents. ([#121](https://github.com/wazuh/qa-integration-framework/pull/121))
 - Fixed bug in the RemotedSimulator udp connections mocker. ([#86](https://github.com/wazuh/qa-integration-framework/pull/86))
 - Fixed agent_simulator response for active-response configuration commands. ([#139](https://github.com/wazuh/qa-integration-framework/pull/139))
-
-## [4.8.2]
 
 ## [4.8.1]
 
