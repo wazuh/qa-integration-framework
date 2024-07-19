@@ -8,8 +8,6 @@ IGNORING_DUE_TO_PATTERN = r".*?Ignoring path '(.*)' due to pattern '(.*)'.*"
 IGNORING_DUE_TO_RESTRICTION = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
 REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodata engine started.*'
 MONITORING_PATH = r'.*Monitoring path:.*'
-IGNORING_DUE_TO_INVALID_NAME = r".*Ignoring file '(.*)' due to unsupported name.*"
-SYNC_INTEGRITY_MESSAGE = r".*Sending integrity control message: {(.*)}.*"
 
 NUM_INOTIFY_WATCHES = r'.*Folders monitored with real-time engine: (\d+)'
 PATH_MONITORED_REALTIME = r".*Directory added for real time monitoring: (.*)"
