@@ -20,6 +20,8 @@ PATH_MONITORED_WHODATA_WINDOWS = r".*Setting up SACL for (.*)"
 SENDING_FIM_EVENT = r'.*Sending FIM event: .*"type":"event".*'
 EVENT_TYPE_ADDED = r'.*Sending FIM event: .*"type":"added".*'
 EVENT_TYPE_MODIFIED = r'.*Sending FIM event: .*"type":"modified".*'
+EVENT_TYPE_REPORT_CHANGES = r".*Sending FIM event: .*\"content_changes\":\"([^\"]*)\".*"
+EVENT_UNABLE_DIFF = r".*Sending FIM event: .*\"content_changes\":\"(Unable to calculate diff due to [^\"]* limit has been reached.)\".*"
 EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 FIM_EVENT_RESTRICT = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
@@ -40,8 +42,8 @@ AUDIT_RULES_RELOADED = r'.*Audit rules reloaded\. Rules loaded: (.+)'
 WIN_CONVERT_FOLDER = r".*fim_adjust_path.*Convert '(.*) to '(.*)' to process the FIM events."
 
 DIFF_MAXIMUM_FILE_SIZE = r".*Maximum file size limit to generate diff information configured to \'(\d+) KB\'.*"
-DISK_QUOTA_LIMIT_CONFIGURED_VALUE = r'.*Maximum disk quota size limit configured to \'(\d+) KB\'.*'
-FILE_EXCEEDS_DISK_QUOTA = r'.*The (.*) of the file size \'(.*)\' exceeds the disk_quota.*'
+DIFF_DISK_QUOTA_LIMIT = r'.*Maximum disk quota size limit configured to \'(\d+) KB\'.*'
+DISK_QUOTA_LIMIT_REACHED = r'.*The (.*) of the file size \'(.*)\' exceeds the disk_quota.*'
 FILE_SIZE_LIMIT_REACHED = r'.*File \'(.*)\' is too big for configured maximum size to perform diff operation\.'
 DIFF_FOLDER_DELETED = r'.*Folder \'(.*)\' has been deleted.*'
 
@@ -50,4 +52,5 @@ ERROR_MSG_WRONG_VALUE_MAXIMUM_FILE_SIZE = 'Wrong value for diff_size_limit'
 ERROR_MSG_DISK_QUOTA_LIMIT = 'Did not receive "Maximum disk quota size limit configured to \'... KB\'." event'
 ERROR_MSG_FIM_EVENT_NOT_DETECTED = 'Did not receive expected "Sending FIM event: ..." event.'
 ERROR_MSG_FILE_LIMIT_REACHED = 'Did not receive "File ... is too big ... to perform diff operation" event.'
+ERROR_MSG_REPORT_CHANGES_EVENT_NOT_DETECTED = 'Did not receive event with \'content_changes\' field.'
 ERROR_MSG_FOLDER_DELETED = 'Did not receive expected "Folder ... has been deleted." event.'
