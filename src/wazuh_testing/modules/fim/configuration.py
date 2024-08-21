@@ -6,6 +6,7 @@
 SYSCHECK_DEBUG = 'syscheck.debug'
 SYMLINK_SCAN_INTERVAL = 'syscheck.symlink_scan_interval'
 FILE_MAX_SIZE = 'syscheck.file_max_size'
+RT_DELAY = 'syscheck.rt_delay'
 
 # File names
 LAST_ENTRY_FILE = 'last-entry.gz'
