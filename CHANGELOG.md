@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.9.2]
+
 ## [4.9.1]
 
 ## [4.9.0]
