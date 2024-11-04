@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 ## [4.10.0]
 
+## [4.9.2]
+
 ## [4.9.1]
 
 ## [4.9.0]
