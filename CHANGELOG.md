@@ -10,8 +10,6 @@ All notable changes to this project will be documented in this file.
 
 ## [4.11.0]
 
-## [4.10.2]
-
 ## [4.10.1]
 
 ## [4.10.0]
