@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [4.12.0]
 
+### Added
+
+- Added a script to parse pytest results. ([#283](https://github.com/wazuh/qa-integration-framework/pull/283))
+
 ## [4.11.0]
 
 ## [4.10.2]
