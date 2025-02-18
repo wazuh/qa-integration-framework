@@ -5,6 +5,7 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import shutil
 
+import json
 from pathlib import Path
 from setuptools import setup, find_packages
 from typing import List
@@ -59,9 +60,18 @@ def get_install_requires() -> List[str]:
     return targets
 
 
+def get_version_from_json() -> str:
+    version_file = 'VERSION.json'
+
+    fname = Path(__file__).parent / version_file
+    with open(fname, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    return data.get("version", "")
+
+
 setup(
     name='wazuh_testing',
-    version='4.12.0',
+    version=get_version_from_json(),
     description='Wazuh testing utilities to help programmers automate tests',
     url='https://github.com/wazuh',
     author='Wazuh',
