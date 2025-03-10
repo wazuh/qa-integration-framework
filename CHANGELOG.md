@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [4.11.1]
 
+### Changed
+
+- Updated the `ERROR_BIND_PORT` message due to agent connectivity improvements. ([#311](https://github.com/wazuh/qa-integration-framework/pull/311))
+
 ## [4.11.0]
 
 ## [4.10.2]
