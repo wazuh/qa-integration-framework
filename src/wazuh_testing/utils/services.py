@@ -1,6 +1,7 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import json
 import os
 import platform
 import psutil
@@ -57,8 +58,9 @@ def get_version() -> str:
 
     if platform.system() in ['Windows', WINDOWS]:
         with open(VERSION_FILE, 'r') as f:
-            version = f.read()
-            return version[:version.rfind('\n')]
+            data = json.load(f)
+            version = data.get("version", "")
+            return f"v{version}"
 
     else:  # Linux, sunos5, darwin, aix...
         return subprocess.check_output([
