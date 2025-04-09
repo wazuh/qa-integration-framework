@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.12.1]
+
 ## [4.12.0]
 
 ### Added
