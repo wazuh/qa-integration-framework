@@ -7,7 +7,7 @@ if [ "$#" -ne 2 ]; then
 fi
 
 NEW_VERSION="$1"
-STAGE="$2"
+NEW_STAGE="$2"
 VERSION_FILE="VERSION.json"
 LOGFILE="tools/repository_bumper_$(date +'%Y-%m-%d_%H-%M-%S').log"
 
@@ -25,9 +25,9 @@ echo "Current version: $CURRENT_VERSION"
 echo "Current stage: $CURRENT_STAGE"
 
 # Update the JSON file with the new version and stage
-jq --arg new_version "$NEW_VERSION" --arg new_stage "$STAGE" \
+jq --arg new_version "$NEW_VERSION" --arg new_stage "$NEW_STAGE" \
    '.version = $new_version | .stage = $new_stage' "$VERSION_FILE" > tmp.$.json && mv tmp.$.json "$VERSION_FILE"
 
 # Log the changes
-echo "Modified files:" > "$LOGFILE"
-echo "$VERSION_FILE: version $CURRENT_VERSION -> $NEW_VERSION, stage $CURRENT_STAGE -> $STAGE" >> "$LOGFILE"
+echo "Modified files:" | tee "$LOGFILE"
+echo "$VERSION_FILE: version $CURRENT_VERSION -> $NEW_VERSION, stage $CURRENT_STAGE -> $NEW_STAGE" | tee -a "$LOGFILE"
