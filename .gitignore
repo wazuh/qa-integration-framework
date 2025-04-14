@@ -28,3 +28,5 @@ dist/
 *.egg-info/
 venv
 dist
+
+tools/repository_bumper_*.log
