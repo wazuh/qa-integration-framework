@@ -233,7 +233,7 @@ def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_
                         os_build='4.18.0-147.8.1.el8_1.x86_64', os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020',
                         os_uname='x64', os_arch='x64', version='Wazuh v4.3.0', config_sum='', merged_sum='',
                         manager_host='centos-8', node_name='node01', date_add='1612942494', hostname='centos-8',
-                        last_keepalive='253402300799', group='default', sync_status='synced', connection_status='active',
+                        last_keepalive='253402300799', group='', sync_status='synced', connection_status='active',
                         client_key_secret=None, os_release='', os_patch='', release='', sysname='Linux',
                         checksum='checksum', os_display_version='', reference='', disconnection_time='0',
                         architecture='x64'):
