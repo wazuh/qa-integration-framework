@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [4.13.0]
 
-## [4.12.2]
-
 ## [4.12.1]
 
 ## [4.12.0]
