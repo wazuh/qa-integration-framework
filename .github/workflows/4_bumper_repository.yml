@@ -1,5 +1,5 @@
 name: Repository bumper
-run-name: Bump ${{ github.ref_name }} to ${{ inputs.version }} ${{ inputs.stage }} (${{ inputs.id }})
+run-name: Bump ${{ github.ref_name }} (${{ inputs.id }})
 
 on:
   workflow_dispatch:
@@ -71,19 +71,20 @@ jobs:
 
       - name: Determine branch name
         id: vars
+        env:
+          VERSION: ${{ inputs.version }}
+          STAGE: ${{ inputs.stage }}
         run: |
-          declare bump_dest
-          declare script_params
-          declare version="${{ github.event.inputs.version }}"
-          declare stage="${{ github.event.inputs.stage }}"
+          script_params=""
+          version=${{ env.VERSION }}
+          stage=${{ env.STAGE }}
 
+          # Both version and stage provided
           script_params="${version} ${stage}"
-          bump_dest="${version}-${stage}"
 
-          issue_number=$(echo "${{ github.event.inputs.issue-link }}" | awk -F'/' '{print $NF}')
-          BRANCH_NAME="enhancement/wqa${issue_number}-bump-${{ github.ref_name }}-to-${bump_dest}"
+          issue_number=$(echo "${{ inputs.issue-link }}" | awk -F'/' '{print $NF}')
+          BRANCH_NAME="enhancement/wqa${issue_number}-bump-${{ github.ref_name }}"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "bump_dest=${bump_dest}" >> $GITHUB_OUTPUT
           echo "script_params=${script_params}" >> $GITHUB_OUTPUT
 
       - name: Create and switch to bump branch
@@ -98,7 +99,7 @@ jobs:
       - name: Commit and push changes
         run: |
           git add .
-          git commit -m "feat: bump to ${{ steps.vars.outputs.bump_dest }}"
+          git commit -m "feat: bump ${{ github.ref_name }}"
           git push origin ${{ steps.vars.outputs.branch_name }}
 
       - name: Create pull request
@@ -106,8 +107,8 @@ jobs:
         run: |
           gh auth setup-git
           PR_URL=$(gh pr create \
-            --title "Bump ${{ steps.vars.outputs.branch_name }} branch to ${{ steps.vars.outputs.bump_dest }}" \
-            --body "Issue: ${{ github.event.inputs.issue-link }}" \
+            --title "Bump ${{ github.ref_name }} branch" \
+            --body "Issue: ${{ inputs.issue-link }}" \
             --base ${{ github.ref_name }} \
             --head ${{ steps.vars.outputs.branch_name }})
 
@@ -121,7 +122,7 @@ jobs:
 
       - name: Show logs
         run: |
-          echo "Bump complete for version ${{ steps.vars.outputs.bump_dest }}"
+          echo "Bump complete."
           echo "Branch: ${{ steps.vars.outputs.branch_name }}"
           echo "PR: https://github.com/${{ github.repository }}/pull/${{ steps.create_pr.outputs.pull_request_number }}"
           echo "Bumper scripts logs:"
