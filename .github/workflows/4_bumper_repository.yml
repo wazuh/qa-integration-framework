@@ -5,14 +5,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Target version (e.g. 4.12.0)'
-        default: ''
-        required: false
+        description: 'Target version (e.g. 1.2.3)'
+        required: true
         type: string
       stage:
         description: 'Version stage (e.g. alpha0)'
-        default: ''
-        required: false
+        required: true
         type: string
       issue-link:
         description: 'Issue link in format https://github.com/wazuh/<REPO>/issues/<ISSUE-NUMBER>'
