@@ -27,12 +27,14 @@ CB_PROCESSES_SCAN_STARTED = fr'{PREFIX}DEBUG: Starting processes scan'
 CB_PROCESSES_SCAN_FINISHED = fr'{PREFIX}DEBUG: Ending processes scan'
 CB_HOTFIXES_SCAN_STARTED = fr'{PREFIX}DEBUG: Starting hotfixes scan'
 CB_HOTFIXES_SCAN_FINISHED = fr'{PREFIX}DEBUG: Ending hotfixes scan'
+CB_GROUPS_SCAN_STARTED = fr'{PREFIX}DEBUG: Starting groups scan'
+CB_GROUPS_SCAN_FINISHED = fr'{PREFIX}DEBUG: Ending groups scan'
 CB_FIELDS_MAX_EPS = fr"{WMODULES_PREFIX}WARNING:.* Invalid value for element 'max_eps': .*"
 CB_FIELDS_INTERVAL = fr"{WMODULES_PREFIX}ERROR: Invalid interval at module 'syscollector'"
 CB_FIELDS_ALL = fr"{WMODULES_PREFIX}ERROR: Invalid content for tag '{{0}}' at module 'syscollector'."
 CB_CHECK_CONFIG = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'\
     '"interval":3600,"network":"yes","os":"yes","hardware":"yes","packages":"yes",'\
-    '"ports":"yes","ports_all":"no","processes":"yes","sync_max_eps":10.*'
+    '"ports":"yes","ports_all":"no","processes":"yes","groups":"yes","sync_max_eps":10.*'
 CB_CHECK_CONFIG_WIN = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'\
     '"interval":3600,"network":"yes","os":"yes","hardware":"yes","packages":"yes",'\
-    '"ports":"yes","ports_all":"no","processes":"yes","hotfixes":"yes","sync_max_eps":10.*'
+    '"ports":"yes","ports_all":"no","processes":"yes","groups":"yes","hotfixes":"yes","sync_max_eps":10.*'
