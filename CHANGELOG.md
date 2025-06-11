@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [4.13.0]
 
+### Added
+
+- Added a GitHub Actions workflow to automate the bump process. ([#390](https://github.com/wazuh/qa-integration-framework/pull/390))
+
+### Fixed
+
+- Fixed a secret reference in the bump workflow. ([#396](https://github.com/wazuh/qa-integration-framework/pull/396))
+
 ## [4.12.1]
 
 ### Added
