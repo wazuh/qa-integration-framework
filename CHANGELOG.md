@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [4.13.0]
 
-## [4.12.1]
-
 ### Added
 
 - Added missing ruleset files in the ossec.conf. ([#380](https://github.com/wazuh/qa-integration-framework/pull/380))
