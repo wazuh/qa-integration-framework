@@ -3,15 +3,11 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 AGENT_DAEMON = 'wazuh-agentd'
-AGENTLESS_DAEMON = 'wazuh-agentlessd'
 ANALYSISD_DAEMON = 'wazuh-analysisd'
 API_DAEMON = 'wazuh-apid'
 AUTHD_DAEMON = 'wazuh-authd'
 CLUSTER_DAEMON = 'wazuh-clusterd'
-CSYSLOG_DAEMON = 'wazuh-csyslogd'
 EXEC_DAEMON = 'wazuh-execd'
-INTEGRATOR_DAEMON = 'wazuh-integratord'
-MAIL_DAEMON = 'wazuh-maild'
 MODULES_DAEMON = 'wazuh-modulesd'
 MONITOR_DAEMON = 'wazuh-monitord'
 LOGCOLLECTOR_DAEMON = 'wazuh-logcollector'
@@ -25,15 +21,11 @@ WAZUH_AGENT_DAEMONS = [AGENT_DAEMON,
                        LOGCOLLECTOR_DAEMON,
                        SYSCHECK_DAEMON]
 
-WAZUH_MANAGER_DAEMONS = [AGENTLESS_DAEMON,
-                         ANALYSISD_DAEMON,
+WAZUH_MANAGER_DAEMONS = [ANALYSISD_DAEMON,
                          API_DAEMON,
                          CLUSTER_DAEMON,
-                         CSYSLOG_DAEMON,
                          EXEC_DAEMON,
-                         INTEGRATOR_DAEMON,
                          LOGCOLLECTOR_DAEMON,
-                         MAIL_DAEMON,
                          MODULES_DAEMON,
                          MONITOR_DAEMON,
                          REMOTE_DAEMON,
