@@ -51,17 +51,6 @@
                                           "dbsync": {
                                             "type": "integer"
                                           },
-                                          "integrations_breakdown": {
-                                            "type": "object",
-                                            "properties": {
-                                              "virustotal": {
-                                                "type": "integer"
-                                              }
-                                            },
-                                            "required": [
-                                              "virustotal"
-                                            ]
-                                          },
                                           "modules_breakdown": {
                                             "type": "object",
                                             "properties": {
@@ -167,7 +156,6 @@
                                         "required": [
                                           "agent",
                                           "dbsync",
-                                          "integrations_breakdown",
                                           "modules_breakdown",
                                           "monitor",
                                           "remote"
