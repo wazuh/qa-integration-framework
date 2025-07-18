@@ -25,7 +25,10 @@ EVENT_UNABLE_DIFF = r".*Sending FIM event: .*\"content_changes\":\"(Unable to ca
 EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 FIM_EVENT_RESTRICT = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
-EVENT_TYPE_SCAN_END = r'.*Sending FIM event: .*"type":"scan_end".*'
+
+# Scans
+FIM_SCAN_START = r'.*File integrity monitoring scan started.*'
+FIM_SCAN_END = r'.*File integrity monitoring scan ended.*'
 
 INODE_ENTRIES_PATH_COUNT = r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 FILE_ENTRIES_PATH_COUNT = r".*Fim file entries count: '(\d+)'"
