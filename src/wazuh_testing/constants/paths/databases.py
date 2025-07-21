@@ -7,3 +7,5 @@ from . import WAZUH_PATH
 
 CVE_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'cve.db')
 CPE_HELPER_PATH = os.path.join(WAZUH_PATH, 'queue', 'vulnerabilities', 'dictionaries', 'cpe_helper.json')
+
+FIM_DB_PATH = os.path.join(WAZUH_PATH, 'queue', 'fim', 'db', 'fim.db')
