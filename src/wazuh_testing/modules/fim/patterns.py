@@ -9,7 +9,6 @@ IGNORING_DUE_TO_RESTRICTION = r".*Ignoring entry '(.*?)' due to restriction '.*?
 REALTIME_WHODATA_ENGINE_STARTED = r'.*File integrity monitoring real-time Whodata engine started.*'
 MONITORING_PATH = r'.*Monitoring path:.*'
 IGNORING_DUE_TO_INVALID_NAME = r".*Ignoring file '(.*)' due to unsupported name.*"
-SYNC_INTEGRITY_MESSAGE = r".*Sending integrity control message: {(.*)}.*"
 
 NUM_INOTIFY_WATCHES = r'.*Folders monitored with real-time engine: (\d+)'
 PATH_MONITORED_REALTIME = r".*Directory added for real time monitoring: (.*)"
@@ -17,7 +16,6 @@ PATH_MONITORED_WHODATA = r".*Added audit rule for monitoring directory: (.*)"
 PATH_MONITORED_WHODATA_WINDOWS = r".*Setting up SACL for (.*)"
 
 # Events
-SENDING_FIM_EVENT = r'.*Sending FIM event: .*"type":"event".*'
 EVENT_TYPE_ADDED = r'.*Sending FIM event: .*"type":"added".*'
 EVENT_TYPE_MODIFIED = r'.*Sending FIM event: .*"type":"modified".*'
 EVENT_TYPE_REPORT_CHANGES = r".*Sending FIM event: .*\"content_changes\":\"([^\"]*)\".*"
@@ -25,7 +23,10 @@ EVENT_UNABLE_DIFF = r".*Sending FIM event: .*\"content_changes\":\"(Unable to ca
 EVENT_TYPE_DELETED = r'.*Sending FIM event: .*"type":"deleted".*'
 FIM_EVENT_JSON = r'.*Sending FIM event: (.+)$'
 FIM_EVENT_RESTRICT = r".*Ignoring entry '(.*?)' due to restriction '.*?'"
-EVENT_TYPE_SCAN_END = r'.*Sending FIM event: .*"type":"scan_end".*'
+
+# Scans
+FIM_SCAN_START = r'.*File integrity monitoring scan started.*'
+FIM_SCAN_END = r'.*File integrity monitoring scan ended.*'
 
 INODE_ENTRIES_PATH_COUNT = r".*Fim inode entries: '(\d+)', path count: '(\d+)'"
 FILE_ENTRIES_PATH_COUNT = r".*Fim file entries count: '(\d+)'"

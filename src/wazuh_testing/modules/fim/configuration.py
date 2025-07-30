@@ -12,19 +12,17 @@ RT_DELAY = 'syscheck.rt_delay'
 LAST_ENTRY_FILE = 'last-entry.gz'
 
 # Attributes constants.
-ATTR_SHA1SUM = 'hash_sha1'
-ATTR_MD5SUM = 'hash_md5'
-ATTR_SHA256SUM = 'hash_sha256'
+ATTR_SHA1SUM = 'sha1'
+ATTR_MD5SUM = 'md5'
+ATTR_SHA256SUM = 'sha256'
 ATTR_SIZE = 'size'
-ATTR_CHECKSUM = 'checksum'
-ATTR_TYPE = 'type'
-ATTR_OWNER = ['uid', 'user_name']
-ATTR_GROUP = ['gid', 'group_name']
-ATTR_PERM = 'perm'
+ATTR_OWNER = ['uid', 'owner']
+ATTR_GROUP = ['gid', 'group']
+ATTR_PERM = 'permissions'
 ATTR_ATTRS = 'attributes'
 ATTR_MTIME = 'mtime'
 ATTR_INODE = 'inode'
-ATTR_ALL = [ATTR_SHA256SUM, ATTR_SHA1SUM, ATTR_MD5SUM, ATTR_SIZE, ATTR_OWNER,
-            ATTR_GROUP, ATTR_PERM, ATTR_ATTRS, ATTR_MTIME, ATTR_INODE]
+ATTR_DEVICE = 'device'
+ATTR_ALL = [ATTR_SHA1SUM, ATTR_SHA256SUM, ATTR_MD5SUM, ATTR_SIZE, ATTR_OWNER,
+            ATTR_GROUP, ATTR_PERM, ATTR_ATTRS, ATTR_MTIME, ATTR_INODE, ATTR_DEVICE]
 ATTR_SUM = [ATTR_SHA1SUM, ATTR_SHA256SUM, ATTR_MD5SUM]
-ATTR_BASE = [ATTR_TYPE, ATTR_CHECKSUM]
