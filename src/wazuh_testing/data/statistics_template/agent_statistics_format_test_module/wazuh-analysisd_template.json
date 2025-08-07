@@ -71,6 +71,9 @@
                                               "azure": {
                                                 "type": "integer"
                                               },
+                                              "ciscat": {
+                                                "type": "integer"
+                                              },
                                               "command": {
                                                 "type": "integer"
                                               },
@@ -137,6 +140,7 @@
                                             "required": [
                                               "aws",
                                               "azure",
+                                              "ciscat",
                                               "command",
                                               "docker",
                                               "gcp",
