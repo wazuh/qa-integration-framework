@@ -98,6 +98,9 @@
                                       "azure": {
                                         "type": "integer"
                                       },
+                                      "ciscat": {
+                                        "type": "integer"
+                                      },
                                       "command": {
                                         "type": "integer"
                                       },
@@ -139,6 +142,9 @@
                                       "oscap": {
                                         "type": "integer"
                                       },
+                                      "osquery": {
+                                        "type": "integer"
+                                      },
                                       "rootcheck": {
                                         "type": "integer"
                                       },
@@ -161,6 +167,7 @@
                                     "required": [
                                       "aws",
                                       "azure",
+                                      "ciscat",
                                       "command",
                                       "docker",
                                       "gcp",
@@ -168,6 +175,7 @@
                                       "logcollector_breakdown",
                                       "office365",
                                       "oscap",
+                                      "osquery",
                                       "rootcheck",
                                       "sca",
                                       "syscheck",
@@ -229,6 +237,9 @@
                                       "azure": {
                                         "type": "integer"
                                       },
+                                      "ciscat": {
+                                        "type": "integer"
+                                      },
                                       "command": {
                                         "type": "integer"
                                       },
@@ -270,6 +281,9 @@
                                       "oscap": {
                                         "type": "integer"
                                       },
+                                      "osquery": {
+                                        "type": "integer"
+                                      },
                                       "rootcheck": {
                                         "type": "integer"
                                       },
@@ -292,6 +306,7 @@
                                     "required": [
                                       "aws",
                                       "azure",
+                                      "ciscat",
                                       "command",
                                       "docker",
                                       "gcp",
@@ -299,6 +314,7 @@
                                       "logcollector_breakdown",
                                       "office365",
                                       "oscap",
+                                      "osquery",
                                       "rootcheck",
                                       "sca",
                                       "syscheck",

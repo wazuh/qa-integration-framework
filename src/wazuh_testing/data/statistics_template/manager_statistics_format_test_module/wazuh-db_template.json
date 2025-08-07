@@ -77,6 +77,17 @@
                                   "tables": {
                                     "type": "object",
                                     "properties": {
+                                      "ciscat": {
+                                        "type": "object",
+                                        "properties": {
+                                          "ciscat": {
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "ciscat"
+                                        ]
+                                      },
                                       "rootcheck": {
                                         "type": "object",
                                         "properties": {
@@ -218,6 +229,7 @@
                                       }
                                     },
                                     "required": [
+                                      "ciscat",
                                       "rootcheck",
                                       "sca",
                                       "sync",
@@ -596,6 +608,17 @@
                                   "tables": {
                                     "type": "object",
                                     "properties": {
+                                      "ciscat": {
+                                        "type": "object",
+                                        "properties": {
+                                          "ciscat": {
+                                            "type": "integer"
+                                          }
+                                        },
+                                        "required": [
+                                          "ciscat"
+                                        ]
+                                      },
                                       "rootcheck": {
                                         "type": "object",
                                         "properties": {
@@ -737,6 +760,7 @@
                                       }
                                     },
                                     "required": [
+                                      "ciscat",
                                       "rootcheck",
                                       "sca",
                                       "sync",
