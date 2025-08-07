@@ -139,6 +139,9 @@
                                       "oscap": {
                                         "type": "integer"
                                       },
+                                      "osquery": {
+                                        "type": "integer"
+                                      },
                                       "rootcheck": {
                                         "type": "integer"
                                       },
@@ -168,6 +171,7 @@
                                       "logcollector_breakdown",
                                       "office365",
                                       "oscap",
+                                      "osquery",
                                       "rootcheck",
                                       "sca",
                                       "syscheck",
@@ -270,6 +274,9 @@
                                       "oscap": {
                                         "type": "integer"
                                       },
+                                      "osquery": {
+                                        "type": "integer"
+                                      },
                                       "rootcheck": {
                                         "type": "integer"
                                       },
@@ -299,6 +306,7 @@
                                       "logcollector_breakdown",
                                       "office365",
                                       "oscap",
+                                      "osquery",
                                       "rootcheck",
                                       "sca",
                                       "syscheck",
