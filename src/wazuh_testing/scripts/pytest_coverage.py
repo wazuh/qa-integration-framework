@@ -8,7 +8,6 @@ PYTHON_MODULES = (
     'framework',  # Framework
     'api/api',  # API
     'wodles',  # External modules
-    'integrations'  # Integrations
 )
 
 COVERAGE_FILE = '.coverage'
