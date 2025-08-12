@@ -20,6 +20,7 @@ ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
 AUTHD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'auth')
 EXECD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'com')
 LOGCOLLECTOR_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'logcollector')
+LOGTEST_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'logtest')
 MODULESD_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules')
 MODULESD_DOWNLOAD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'download')
 MODULESD_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control')
@@ -35,6 +36,9 @@ ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_ALERTS_PATH, 'ar')
 WAZUH_SOCKETS = {
     'wazuh-agentd': [],
     'wazuh-apid': [],
+    'wazuh-agentlessd': [],
+    'wazuh-csyslogd': [],
+    'wazuh-integratord': [],
     'wazuh-analysisd': [
         ANALYSISD_ANALISIS_SOCKET_PATH,
         ANALYSISD_QUEUE_SOCKET_PATH
@@ -44,6 +48,7 @@ WAZUH_SOCKETS = {
     'wazuh-logcollector': [LOGCOLLECTOR_SOCKET_PATH],
     'wazuh-monitord': [MONITORD_SOCKET_PATH],
     'wazuh-remoted': [REMOTED_SOCKET_PATH],
+    'wazuh-maild': [],
     'wazuh-syscheckd': [SYSCHECKD_SOCKET_PATH],
     'wazuh-db': [WAZUH_DB_SOCKET_PATH],
     'wazuh-modulesd': [

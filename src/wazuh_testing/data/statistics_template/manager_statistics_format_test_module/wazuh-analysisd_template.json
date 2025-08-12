@@ -72,8 +72,22 @@
                                   "agent": {
                                     "type": "integer"
                                   },
+                                  "agentless": {
+                                    "type": "integer"
+                                  },
                                   "dbsync": {
                                     "type": "integer"
+                                  },
+                                  "integrations_breakdown": {
+                                    "type": "object",
+                                    "properties": {
+                                      "virustotal": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "virustotal"
+                                    ]
                                   },
                                   "modules_breakdown": {
                                     "type": "object",
@@ -182,7 +196,9 @@
                                 },
                                 "required": [
                                   "agent",
+                                  "agentless",
                                   "dbsync",
+                                  "integrations_breakdown",
                                   "modules_breakdown",
                                   "monitor",
                                   "remote",
@@ -195,8 +211,22 @@
                                   "agent": {
                                     "type": "integer"
                                   },
+                                  "agentless": {
+                                    "type": "integer"
+                                  },
                                   "dbsync": {
                                     "type": "integer"
+                                  },
+                                  "integrations_breakdown": {
+                                    "type": "object",
+                                    "properties": {
+                                      "virustotal": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "virustotal"
+                                    ]
                                   },
                                   "modules_breakdown": {
                                     "type": "object",
@@ -305,7 +335,9 @@
                                 },
                                 "required": [
                                   "agent",
+                                  "agentless",
                                   "dbsync",
+                                  "integrations_breakdown",
                                   "modules_breakdown",
                                   "monitor",
                                   "remote",

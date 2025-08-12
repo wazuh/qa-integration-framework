@@ -9,6 +9,7 @@ import requests
 from typing import List
 
 from wazuh_testing.constants.api import AGENTS_ROUTE
+from wazuh_testing.constants.paths.binaries import MANAGE_AGENTS_BINARY
 from wazuh_testing.modules.api.utils import login, get_base_url
 from wazuh_testing.utils.db_queries import global_db
 
@@ -24,14 +25,17 @@ def remove_agents(agents_id: List, remove_type: str = 'wazuhdb') -> None:
         ValueError: When the type of removal is not correct.
         RuntimeError: When the agent could not be removed via API.
     """
-    if remove_type not in ('wazuhdb', 'api'):
+    if remove_type not in ('wazuhdb', 'manage_agents', 'api'):
         raise ValueError(f"Invalid type of agent removal: {remove_type}")
 
     if agents_id:
-        if remove_type == 'wazuhdb':
-            for agent_id in agents_id:
+        for agent_id in agents_id:
+            if remove_type == 'manage_agents':
+                subprocess.call([MANAGE_AGENTS_BINARY, "-r", f"{agent_id}"], stdout=open(os.devnull, "w"),
+                                stderr=subprocess.STDOUT)
+            elif remove_type == 'wazuhdb':
                 global_db.delete_agent(agent_id)
-        elif remove_type == 'api':
+        if remove_type == 'api':
             authentication_headers, _ = login()
             url = get_base_url() + AGENTS_ROUTE
             payload = {
