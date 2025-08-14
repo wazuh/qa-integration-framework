@@ -37,6 +37,7 @@ def create_authd_request(input):
         key_hash = input['key_hash']
         command = command + f" K:'{key_hash}'"
 
+    command += '\n'
     return command
 
 
