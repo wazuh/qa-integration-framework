@@ -4,13 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [5.0.0]
 
+## [4.14.1]
+
 ## [4.14.0]
 
 ### Fixed
 
 - Fixed syscollector users and groups tests. ([#400](https://github.com/wazuh/qa-integration-framework/pull/400))
-
-## [4.13.1]
 
 ## [4.13.0]
 
