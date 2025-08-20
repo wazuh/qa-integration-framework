@@ -19,3 +19,14 @@ CB_SCA_SCAN_EVENT = r".*sca_send_alert.*Sending event: (.*)"
 ERR_MSG_REGEX_ENGINE = "Did not receive the expected 'SCA will use '.*' engine to check the rules' event"
 ERR_MSG_ID_RESULTS = 'Expected sca_has_integrity result events not found'
 ERR_MSG_SCA_SUMMARY = 'Expected SCA Scan Summary type event not found.'
+
+# New Callback Messages
+NCB_SCA_ENABLED = fr"{PREFIX}INFO: SCA module enabled."
+NCB_SCA_DISABLED = fr"{PREFIX}INFO: SCA module disabled. Exiting."
+NCB_SCA_STARTING = fr"{PREFIX}INFO: Starting SCA module..."
+NCB_SCA_RUNNING = fr"{PREFIX}INFO: SCA module running."
+NCB_SCA_SCAN_STARTED_REQ = fr"{PREFIX}DEBUG: Starting Policy requirements evaluation for policy *"
+NCB_SCA_SCAN_ENDED_REQ = fr"{PREFIX}DEBUG: Policy requirements evaluation completed for policy *"
+NCB_SCA_SCAN_STARTED_CHECK = fr"{PREFIX}DEBUG: Starting Policy checks evaluation for policy *"
+NCB_SCA_SCAN_RESULT = fr"{PREFIX}DEBUG: Policy check \"(\d+)\" evaluation completed for policy \"(.*)\", result: (.*)."
+NCB_SCA_SCAN_ENDED_CHECK = fr"{PREFIX}DEBUG: Policy checks evaluation completed for policy *"
