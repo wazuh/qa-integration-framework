@@ -100,7 +100,7 @@ def control_service(action, daemon=None, debug_mode=False):
                 else:
                     error = command.stderr.decode()
                     if 'The service is starting or stopping' in error:
-                        time.sleep(1)
+                        time.sleep(10)
                         continue
                     if action == 'stop' and 'The Wazuh service is not started.' in error:
                         result = 0
@@ -110,7 +110,7 @@ def control_service(action, daemon=None, debug_mode=False):
                         break
                     else:
                         print(f"Unexpected error when control_service failed with the following error: {error}")
-                        time.sleep(1)
+                        time.sleep(10)
                         continue
     else:  # Default Unix
         if daemon is None:
