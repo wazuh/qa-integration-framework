@@ -109,9 +109,6 @@
                                               "office365": {
                                                 "type": "integer"
                                               },
-                                              "oscap": {
-                                                "type": "integer"
-                                              },
                                               "rootcheck": {
                                                 "type": "integer"
                                               },
@@ -140,7 +137,6 @@
                                               "github",
                                               "logcollector_breakdown",
                                               "office365",
-                                              "oscap",
                                               "rootcheck",
                                               "sca",
                                               "syscheck",
