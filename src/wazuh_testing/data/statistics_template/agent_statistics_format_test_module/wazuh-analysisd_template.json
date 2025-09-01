@@ -71,9 +71,6 @@
                                               "azure": {
                                                 "type": "integer"
                                               },
-                                              "ciscat": {
-                                                "type": "integer"
-                                              },
                                               "command": {
                                                 "type": "integer"
                                               },
@@ -112,12 +109,6 @@
                                               "office365": {
                                                 "type": "integer"
                                               },
-                                              "oscap": {
-                                                "type": "integer"
-                                              },
-                                              "osquery": {
-                                                "type": "integer"
-                                              },
                                               "rootcheck": {
                                                 "type": "integer"
                                               },
@@ -140,15 +131,12 @@
                                             "required": [
                                               "aws",
                                               "azure",
-                                              "ciscat",
                                               "command",
                                               "docker",
                                               "gcp",
                                               "github",
                                               "logcollector_breakdown",
                                               "office365",
-                                              "oscap",
-                                              "osquery",
                                               "rootcheck",
                                               "sca",
                                               "syscheck",
