@@ -68,6 +68,8 @@ class RemotedSimulator(BaseSimulator):
         self.last_message_ctx = {}
         self.request_counter = 0
 
+        self._queue_response_req_message = Queue()
+
     # Properties
 
     @property
@@ -133,8 +135,11 @@ class RemotedSimulator(BaseSimulator):
         if not isinstance(message, bytes):
             message = message.encode()
 
-        self.custom_message = message
+        with self._queue_response_req_message.mutex:
+            self._queue_response_req_message.queue.clear()
         self.custom_message_sent = False
+
+        self.custom_message = message
 
     # Internal methods.
 
@@ -176,9 +181,13 @@ class RemotedSimulator(BaseSimulator):
         elif '#!-agent shutdown' in message:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
+        elif '#!-req' in message:
+            self._queue_response_req_message.put(message)
+            response = _RESPONSE_EMPTY
         elif self.custom_message and not self.custom_message_sent:
             response = self.custom_message
             self.custom_message_sent = True
+            self.custom_message = None
         elif '#!-' in message:
             response = _RESPONSE_ACK
         else:
