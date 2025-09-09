@@ -37,10 +37,10 @@ CB_FIELDS_MAX_EPS = fr"{WMODULES_PREFIX}WARNING:.* Invalid value for element 'ma
 CB_FIELDS_INTERVAL = fr"{WMODULES_PREFIX}ERROR: Invalid interval at module 'syscollector'"
 CB_FIELDS_ALL = fr"{WMODULES_PREFIX}ERROR: Invalid content for tag '{{0}}' at module 'syscollector'."
 CB_CHECK_CONFIG = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'\
-    '"interval":3600,"network":"yes","os":"yes","hardware":"yes","packages":"yes",'\
-    '"ports":"yes","ports_all":"no","processes":"yes","groups":"yes","users":"yes",'\
-    '"services":"yes","browser_extensions":"yes","sync_max_eps":10.*'
+    '"interval":3600,"max_eps":50,"notify_first_scan":"no","network":"yes","os":"yes"'\
+    ',"hardware":"yes","packages":"yes","ports":"yes","ports_all":"no","processes":"yes"'\
+    ',"groups":"yes","users":"yes","services":"yes","browser_extensions":"yes".*'
 CB_CHECK_CONFIG_WIN = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'\
-    '"interval":3600,"network":"yes","os":"yes","hardware":"yes","packages":"yes",'\
-    '"ports":"yes","ports_all":"no","processes":"yes","groups":"yes","users":"yes",'\
-    '"services":"yes","browser_extensions":"yes","hotfixes":"yes","sync_max_eps":10.*'
+    '"interval":3600,"max_eps":50,"notify_first_scan":"no","network":"yes","os":"yes"'\
+    ',"hardware":"yes","packages":"yes","ports":"yes","ports_all":"no","processes":"yes"'\
+    ',"groups":"yes","users":"yes","services":"yes","browser_extensions":"yes","hotfixes":"yes".*'
