@@ -14,7 +14,7 @@ from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AG
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
-from wazuh_testing.constants.platforms import MACOS, SOLARIS, WINDOWS
+from wazuh_testing.constants.platforms import MACOS, WINDOWS
 
 from . import sockets
 
@@ -35,7 +35,7 @@ def get_service() -> str:
     if platform.system() in ['Windows', WINDOWS]:
         return WAZUH_AGENT
 
-    else:  # Linux, sunos5, darwin, aix...
+    else:  # Linux, darwin...
         service = subprocess.check_output([
             WAZUH_CONTROL_PATH, "info", "-t"
         ], stderr=subprocess.PIPE).decode('utf-8').strip()
@@ -62,7 +62,7 @@ def get_version() -> str:
             version = data.get("version", "")
             return f"v{version}"
 
-    else:  # Linux, sunos5, darwin, aix...
+    else:  # Linux, darwin...
         return subprocess.check_output([
             WAZUH_CONTROL_PATH, "info", "-v"
         ], stderr=subprocess.PIPE).decode('utf-8').rstrip()
@@ -114,7 +114,7 @@ def control_service(action, daemon=None, debug_mode=False):
                         continue
     else:  # Default Unix
         if daemon is None:
-            if sys.platform == MACOS or sys.platform == SOLARIS:
+            if sys.platform == MACOS:
                 result = subprocess.run(
                     [WAZUH_CONTROL_PATH, action]).returncode
             else:
