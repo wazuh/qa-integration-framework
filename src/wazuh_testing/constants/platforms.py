@@ -4,7 +4,6 @@
 
 LINUX = 'linux'
 MACOS = 'darwin'
-SOLARIS = 'sunos5'
 WINDOWS = 'win32'
 CENTOS = 'centos'
 UBUNTU = 'ubuntu'

@@ -36,7 +36,7 @@ from wazuh_testing.utils.random import get_random_ip, get_random_string
 
 
 os_list = ["debian7", "debian8", "debian9", "debian10", "ubuntu12.04",
-           "ubuntu14.04", "ubuntu16.04", "ubuntu18.04", "mojave", "solaris11"]
+           "ubuntu14.04", "ubuntu16.04", "ubuntu18.04", "mojave"]
 agent_count = 1
 
 SYSCOLLECTOR_HEADER = '{"type":"<syscollector_type>",' \
