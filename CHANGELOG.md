@@ -6,11 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Added integration tests for syscollector browser extensions. ([#400](https://github.com/wazuh/qa-integration-framework/pull/450))
+- Added integration tests for syscollector browser extensions. ([#450](https://github.com/wazuh/qa-integration-framework/pull/450))
 
 ### Fixed
 
 - Fixed syscollector users and groups tests. ([#400](https://github.com/wazuh/qa-integration-framework/pull/400))
+
+## [4.13.1]
 
 ## [4.13.0]
 
