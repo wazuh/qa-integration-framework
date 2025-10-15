@@ -115,9 +115,6 @@
                               "request": {
                                 "type": "integer"
                               },
-                              "sca": {
-                                "type": "integer"
-                              },
                               "shared": {
                                 "type": "integer"
                               }
@@ -127,7 +124,6 @@
                               "ar",
                               "discarded",
                               "request",
-                              "sca",
                               "shared"
                             ]
                           }
