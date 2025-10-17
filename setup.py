@@ -22,9 +22,9 @@ package_data_list = [
     'data/events_template/rootcheck.txt',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
     'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
-    'data/statistics_template/manager_statistics_format_test_module/wazuh-analysisd_template.json',
-    'data/statistics_template/manager_statistics_format_test_module/wazuh-db_template.json',
-    'data/statistics_template/manager_statistics_format_test_module/wazuh-remoted_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-analysisd_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-db_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-remoted_template.json',
 ]
 
 # Entry point scripts.
