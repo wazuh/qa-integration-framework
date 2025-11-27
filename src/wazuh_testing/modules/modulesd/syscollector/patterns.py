@@ -44,3 +44,9 @@ CB_CHECK_CONFIG_WIN = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'
     '"interval":3600,"max_eps":50,"notify_first_scan":"no","network":"yes","os":"yes"'\
     ',"hardware":"yes","packages":"yes","ports":"yes","ports_all":"no","processes":"yes"'\
     ',"groups":"yes","users":"yes","services":"yes","browser_extensions":"yes","hotfixes":"yes".*'
+
+# DataClean on collector disable patterns
+CB_ALL_COLLECTORS_DISABLED_START_CHECK = fr'{PREFIX}INFO: Database file exists, proceeding with all collectors disable check'
+CB_DISABLED_COLLECTORS_DETECTED = fr'{PREFIX}INFO: Disabled collectors with data detected: .*'
+CB_DATACLEAN_NOTIFICATION_STARTED = fr'{PREFIX}INFO: Notifying DataClean for disabled collectors: .*'
+CB_ALL_COLLECTORS_DISABLED_EXIT = fr'{WMODULES_PREFIX}INFO: All collectors are disable. Exiting...'
