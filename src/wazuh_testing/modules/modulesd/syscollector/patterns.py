@@ -48,4 +48,4 @@ CB_CHECK_CONFIG_WIN = fr'{PREFIX}DEBUG:.*"disabled":"no","scan-on-start":"yes",'
 # DataClean on collector disable patterns
 CB_ALL_DISABLED_COLLECTORS_EXIT = fr'{PREFIX}INFO: All collectors are disabled. Exiting...'
 CB_DISABLED_COLLECTORS_DETECTED = fr'{PREFIX}INFO: Disabled collectors indices with data detected: .*'
-CB_DATACLEAN_NOTIFICATION_STARTED = fr'{PREFIX}INFO: Notifying DataClean for disabled collectors indices: .*'
+CB_DATACLEAN_NOTIFICATION_STARTED = fr'{PREFIX}DEBUG: Notifying DataClean for disabled collectors indices: .*'
