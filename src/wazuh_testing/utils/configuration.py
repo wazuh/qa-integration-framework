@@ -173,7 +173,7 @@ def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> 
 
         Args:
             wazuh_conf (ElementTree): An ElementTree object with all the data of the ossec.conf
-            section (str): Name of the tag or configuration section to search for. For example: vulnerability_detector
+            section (str): Name of the tag or configuration section to search for. For example: wodle
             attributes (list of dict): List with section attributes. Needed to check if the section exists with all the
             searched attributes and values. For example (wodle section) [{'name': 'syscollector'}]
         Returns:
@@ -352,8 +352,8 @@ def load_configuration_template(data_file_path, configuration_parameters=[], con
 def get_test_cases_data(data_file_path):
     """Load a test case template file and get its data.
 
-    Template example file: tests/integration/vulnerability_detector/test_providers/data/test_cases/test_enabled.yaml
-
+    Template example file: tests/integration/test_agentd/test_state/data/test_cases/wazuh_state_config_tests.yaml
+    
     Args:
         data_file_path (str): Test case template file path.
 
