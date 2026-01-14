@@ -136,6 +136,7 @@ SYSTEM_DATA = {
                'sync_status': 'synced', 'connection_status': 'active'}
 }
 
+
 SUSE_SYSTEM_PACKAGE = {
     'SLES15': [
         {
