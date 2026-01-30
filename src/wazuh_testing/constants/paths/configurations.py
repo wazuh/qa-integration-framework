@@ -7,6 +7,8 @@ import os
 import sys
 
 from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.daemons import WAZUH_MANAGER
+from wazuh_testing.utils.services import get_service
 
 from . import WAZUH_PATH
 from wazuh_testing.constants.paths.api import WAZUH_API_FOLDER_PATH, WAZUH_API_SECURITY_FOLDER_PATH
@@ -19,7 +21,12 @@ else:
 
 WAZUH_CLIENT_KEYS_PATH = os.path.join(BASE_CONF_PATH, 'client.keys')
 SHARED_CONFIGURATIONS_PATH = os.path.join(BASE_CONF_PATH, 'shared')
-WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'ossec.conf')
+try:
+    _is_manager = get_service() == WAZUH_MANAGER
+except Exception:
+    _is_manager = False
+
+WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'wazuh-manager.conf' if _is_manager else 'ossec.conf')
 WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(BASE_CONF_PATH, 'local_internal_options.conf')
 ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
