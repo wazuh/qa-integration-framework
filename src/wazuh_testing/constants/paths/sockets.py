@@ -34,25 +34,32 @@ ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_ALERTS_PATH, 'ar')
 
 WAZUH_SOCKETS = {
     'wazuh-agentd': [],
-    'wazuh-apid': [],
-    'wazuh-analysisd': [
+    'wazuh-manager-apid': [],
+    'wazuh-manager-analysisd': [
         ANALYSISD_ANALISIS_SOCKET_PATH,
         ANALYSISD_QUEUE_SOCKET_PATH
     ],
-    'wazuh-authd': [AUTHD_SOCKET_PATH],
+    'wazuh-manager-authd': [AUTHD_SOCKET_PATH],
     'wazuh-execd': [EXECD_SOCKET_PATH],
+    'wazuh-manager-execd': [EXECD_SOCKET_PATH],
     'wazuh-logcollector': [LOGCOLLECTOR_SOCKET_PATH],
-    'wazuh-monitord': [MONITORD_SOCKET_PATH],
-    'wazuh-remoted': [REMOTED_SOCKET_PATH],
+    'wazuh-manager-monitord': [MONITORD_SOCKET_PATH],
+    'wazuh-manager-remoted': [REMOTED_SOCKET_PATH],
     'wazuh-syscheckd': [SYSCHECKD_SOCKET_PATH],
-    'wazuh-db': [WAZUH_DB_SOCKET_PATH],
+    'wazuh-manager-db': [WAZUH_DB_SOCKET_PATH],
     'wazuh-modulesd': [
         MODULESD_WMODULES_SOCKET_PATH,
         MODULESD_DOWNLOAD_SOCKET_PATH,
         MODULESD_CONTROL_SOCKET_PATH,
         MODULESD_KREQUEST_SOCKET_PATH
     ],
-    'wazuh-clusterd': [MODULESD_C_INTERNAL_SOCKET_PATH]
+    'wazuh-manager-modulesd': [
+        MODULESD_WMODULES_SOCKET_PATH,
+        MODULESD_DOWNLOAD_SOCKET_PATH,
+        MODULESD_CONTROL_SOCKET_PATH,
+        MODULESD_KREQUEST_SOCKET_PATH
+    ],
+    'wazuh-manager-clusterd': [MODULESD_C_INTERNAL_SOCKET_PATH]
 }
 
 # These sockets do not exist with default Wazuh configuration
