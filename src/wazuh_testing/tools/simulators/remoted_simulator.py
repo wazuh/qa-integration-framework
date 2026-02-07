@@ -21,11 +21,6 @@ _RESPONSE_SHUTDOWN = b'#!-agent shutdown '
 _RESPONSE_EMPTY = b''
 _DEFAULT_LIMITS_JSON = {
     "limits": {
-        "fim": {
-            "file": 0,
-            "registry_key": 0,
-            "registry_value": 0
-        },
         "syscollector": {
             "hotfixes": 0,
             "packages": 0,
@@ -208,7 +203,8 @@ class RemotedSimulator(BaseSimulator):
 
         # Set the correct response message.
         if self.mode == 'WRONG_KEY':
-            self.encryption_key = secure_message.get_encryption_key('a', 'b', 'c')
+            self.encryption_key = secure_message.get_encryption_key(
+                'a', 'b', 'c')
             response = _RESPONSE_ACK
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
@@ -269,7 +265,8 @@ class RemotedSimulator(BaseSimulator):
             str: The decrypted and decoded message.
         """
         payload = secure_message.get_payload(message, self.algorithm)
-        decrypted = secure_message.decrypt(payload, self.encryption_key, self.algorithm)
+        decrypted = secure_message.decrypt(
+            payload, self.encryption_key, self.algorithm)
 
         return secure_message.decode(decrypted)
 
@@ -284,7 +281,8 @@ class RemotedSimulator(BaseSimulator):
             bytes: The encrypted and encoded message with an algorithm header.
         """
         encoded = secure_message.encode(message)
-        payload = secure_message.encrypt(encoded, self.encryption_key, self.algorithm)
+        payload = secure_message.encrypt(
+            encoded, self.encryption_key, self.algorithm)
 
         return secure_message.set_algorithm_header(payload, self.algorithm)
 
