@@ -19,31 +19,6 @@ from .base_simulator import BaseSimulator
 _RESPONSE_ACK = b'#!-agent ack '
 _RESPONSE_SHUTDOWN = b'#!-agent shutdown '
 _RESPONSE_EMPTY = b''
-_DEFAULT_LIMITS_JSON = {
-    "limits": {
-        "syscollector": {
-            "hotfixes": 0,
-            "packages": 0,
-            "processes": 0,
-            "ports": 0,
-            "network_iface": 0,
-            "network_protocol": 0,
-            "network_address": 0,
-            "hardware": 0,
-            "os_info": 0,
-            "users": 0,
-            "groups": 0,
-            "services": 0,
-            "browser_extensions": 0
-        },
-        "sca": {
-            "checks": 0
-        }
-    },
-    "cluster_name": "wazuh-cluster",
-    "cluster_node": "wazuh-node-01",
-    "agent_groups": ["default"]
-}
 
 
 class RemotedSimulator(BaseSimulator):
@@ -70,8 +45,7 @@ class RemotedSimulator(BaseSimulator):
                  port: int = 1514,
                  mode='ACCEPT',
                  protocol: Literal['udp', 'tcp'] = 'tcp',
-                 keys_path: str = WAZUH_CLIENT_KEYS_PATH,
-                 limits_config: Dict = None) -> None:
+                 keys_path: str = WAZUH_CLIENT_KEYS_PATH) -> None:
         """
         Initialize a RemotedSimulator object.
 
@@ -81,14 +55,12 @@ class RemotedSimulator(BaseSimulator):
             mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults: 'ACCEPT'.
             protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
             keys_path (str, optional): The path to the wazuh client keys file. Defaults: BASE_CONF_PATH/client.keys'.
-            limits_config (Dict, optional): Custom limits configuration for HC_STARTUP response. Defaults: None.
         """
         super().__init__(server_ip, port, False)
 
         self.mode = mode
         self.protocol = protocol
         self.keys_path = keys_path
-        self.limits_config = limits_config if limits_config is not None else _DEFAULT_LIMITS_JSON.copy()
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
@@ -211,10 +183,6 @@ class RemotedSimulator(BaseSimulator):
         elif '#!-agent shutdown' in message:
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
-        elif '#!-agent startup' in message:
-            # Response to HC_STARTUP with module limits JSON
-            json_payload = json.dumps(self.limits_config)
-            response = _RESPONSE_ACK + json_payload.encode()
         elif '#!-req' in message:
             self._queue_response_req_message.put(message)
             response = _RESPONSE_EMPTY
