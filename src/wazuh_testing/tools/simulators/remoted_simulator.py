@@ -86,14 +86,15 @@ class RemotedSimulator(BaseSimulator):
             mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults: 'ACCEPT'.
             protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
             keys_path (str, optional): The path to the wazuh client keys file. Defaults: BASE_CONF_PATH/client.keys'.
-            limits_config (Dict, optional): Custom limits configuration for HC_STARTUP response. Defaults: None.
+            limits_config (Dict, optional): Custom limits configuration for HC_STARTUP response.
+                If not set, the startup response remains a plain ACK without JSON payload.
         """
         super().__init__(server_ip, port, False)
 
         self.mode = mode
         self.protocol = protocol
         self.keys_path = keys_path
-        self.limits_config = limits_config if limits_config is not None else _DEFAULT_LIMITS_JSON.copy()
+        self.limits_config = limits_config.copy() if limits_config is not None else None
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
@@ -216,9 +217,12 @@ class RemotedSimulator(BaseSimulator):
             self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
         elif '#!-agent startup' in message:
-            # Response to HC_STARTUP with module limits JSON
-            json_payload = json.dumps(self.limits_config)
-            response = _RESPONSE_ACK + json_payload.encode()
+            if self.limits_config is None:
+                response = _RESPONSE_ACK
+            else:
+                # Response to HC_STARTUP with module limits JSON
+                json_payload = json.dumps(self.limits_config)
+                response = _RESPONSE_ACK + json_payload.encode()
         elif '#!-req' in message:
             self._queue_response_req_message.put(message)
             response = _RESPONSE_EMPTY
