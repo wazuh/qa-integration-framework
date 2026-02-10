@@ -12,7 +12,6 @@ ANALYSISD_DAEMON = 'wazuh-manager-analysisd'
 API_DAEMON = 'wazuh-manager-apid'
 AUTHD_DAEMON = 'wazuh-manager-authd'
 CLUSTER_DAEMON = 'wazuh-manager-clusterd'
-EXEC_DAEMON = 'wazuh-manager-execd'
 MODULES_DAEMON = 'wazuh-manager-modulesd'
 MONITOR_DAEMON = 'wazuh-manager-monitord'
 REMOTE_DAEMON = 'wazuh-manager-remoted'
@@ -27,7 +26,6 @@ WAZUH_AGENT_DAEMONS = [AGENT_DAEMON,
 WAZUH_MANAGER_DAEMONS = [ANALYSISD_DAEMON,
                          API_DAEMON,
                          CLUSTER_DAEMON,
-                         EXEC_DAEMON,
                          MODULES_DAEMON,
                          MONITOR_DAEMON,
                          REMOTE_DAEMON,
@@ -35,7 +33,6 @@ WAZUH_MANAGER_DAEMONS = [ANALYSISD_DAEMON,
 
 API_DAEMONS_REQUIREMENTS = [API_DAEMON,
                             WAZUH_DB_DAEMON,
-                            EXEC_DAEMON,
                             ANALYSISD_DAEMON,
                             REMOTE_DAEMON,
                             MODULES_DAEMON]

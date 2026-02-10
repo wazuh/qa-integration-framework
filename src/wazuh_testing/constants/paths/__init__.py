@@ -19,3 +19,10 @@ elif sys.platform == MACOS:
 else:
     WAZUH_PATH = os.path.join("/", "var", "ossec")
     ROOT_PREFIX = os.sep
+
+WAZUH_PATH_OVERRIDE = os.getenv("WAZUH_PATH") or os.getenv("INSTALLATION_DIR")
+if WAZUH_PATH_OVERRIDE:
+    WAZUH_PATH = WAZUH_PATH_OVERRIDE
+elif sys.platform not in (WINDOWS, MACOS):
+    if os.path.exists(os.path.join("/", "var", "wazuh-manager", "bin", "wazuh-control")):
+        WAZUH_PATH = os.path.join("/", "var", "wazuh-manager")

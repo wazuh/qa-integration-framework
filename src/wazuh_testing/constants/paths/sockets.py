@@ -41,7 +41,6 @@ WAZUH_SOCKETS = {
     ],
     'wazuh-manager-authd': [AUTHD_SOCKET_PATH],
     'wazuh-execd': [EXECD_SOCKET_PATH],
-    'wazuh-manager-execd': [EXECD_SOCKET_PATH],
     'wazuh-logcollector': [LOGCOLLECTOR_SOCKET_PATH],
     'wazuh-manager-monitord': [MONITORD_SOCKET_PATH],
     'wazuh-manager-remoted': [REMOTED_SOCKET_PATH],
