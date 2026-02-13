@@ -47,7 +47,7 @@ _DEFAULT_LIMITS_JSON = {
     },
     "cluster_name": "wazuh-cluster",
     "cluster_node": "wazuh-node-01",
-    "agent_groups": ["default"]
+    "agent_groups": []
 }
 
 
