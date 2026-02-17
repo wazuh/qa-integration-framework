@@ -103,7 +103,7 @@ class SocketController:
         Args:
             message (str or bytes): Message to be sent.
             size (bool, optional) : Flag that indicates if the header of the message includes the size of the message
-                (For example, Analysis doesn't need the size, wazuh-db does). Default `False`
+                (For example, Analysis doesn't need the size, wazuh-manager-db does). Default `False`
         Returns:
             (int) : Size of the sent message
         """
@@ -124,7 +124,7 @@ class SocketController:
 
         Args:
             size (bool): Flag that indicates if the header of the message includes the size of the message
-                (For example, Analysis doesn't need the size, wazuh-db does). Default `False`
+                (For example, Analysis doesn't need the size, wazuh-manager-db does). Default `False`
         Returns:
             bytes: Socket message.
         """

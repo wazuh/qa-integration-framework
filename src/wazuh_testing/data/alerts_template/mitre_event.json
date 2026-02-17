@@ -332,7 +332,7 @@
       "title": "The Location Schema",
       "default": "",
       "examples": [
-        "wazuh-monitord"
+        "wazuh-manager-monitord"
       ],
       "pattern": "^(.*)$"
     }

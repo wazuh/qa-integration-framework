@@ -5,6 +5,8 @@ import os
 import sys
 
 from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.daemons import WAZUH_MANAGER
+from wazuh_testing.utils.services import get_service
 
 from . import WAZUH_PATH
 
@@ -17,7 +19,12 @@ if sys.platform == WINDOWS:
 else:
     ACTIVE_RESPONSE_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'active-responses.log')
 
-WAZUH_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'ossec.log')
+try:
+    _is_manager = get_service() == WAZUH_MANAGER
+except Exception:
+    _is_manager = False
+
+WAZUH_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'wazuh-manager.log' if _is_manager else 'ossec.log')
 ALERTS_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'alerts', 'alerts.log')
 ALERTS_JSON_PATH = os.path.join(BASE_LOGS_PATH, 'alerts', 'alerts.json')
 ARCHIVES_LOG_PATH = os.path.join(BASE_LOGS_PATH, 'archives', 'archives.log')

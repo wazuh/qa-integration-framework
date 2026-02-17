@@ -20,11 +20,11 @@ package_data_list = [
     'data/configuration_template/agent.conf',
     'data/events_template/keepalives.txt',
     'data/events_template/rootcheck.txt',
-    'data/statistics_template/agent_statistics_format_test_module/wazuh-analysisd_template.json',
-    'data/statistics_template/agent_statistics_format_test_module/wazuh-remoted_template.json',
-    'data/statistics_template/cluster_statistics_format_test_module/wazuh-analysisd_template.json',
-    'data/statistics_template/cluster_statistics_format_test_module/wazuh-db_template.json',
-    'data/statistics_template/cluster_statistics_format_test_module/wazuh-remoted_template.json',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-manager-analysisd_template.json',
+    'data/statistics_template/agent_statistics_format_test_module/wazuh-manager-remoted_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-manager-analysisd_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-manager-db_template.json',
+    'data/statistics_template/cluster_statistics_format_test_module/wazuh-manager-remoted_template.json',
 ]
 
 # Entry point scripts.

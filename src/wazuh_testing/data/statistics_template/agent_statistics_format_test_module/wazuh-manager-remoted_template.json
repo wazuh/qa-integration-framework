@@ -16,7 +16,7 @@
                   },
                   "name": {
                     "type": "string",
-                    "pattern": "^wazuh-remoted$"
+                    "pattern": "^wazuh-manager-remoted$"
                   },
                   "agents": {
                     "type": "array",

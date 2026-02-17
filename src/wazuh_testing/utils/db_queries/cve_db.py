@@ -77,7 +77,7 @@ def clean_all_cve_tables() -> None:
     """Clean all tables from CVE database."""
     query = [f"DELETE FROM {table}" for table in get_tables()]
 
-    # Send all queries in the same batch (instead of calling clean_table method) to avoid so many restarts of wazuh-db
+    # Send all queries in the same batch (instead of calling clean_table method) to avoid so many restarts of wazuh-manager-db
     make_sqlite_query(CVE_DB_PATH, query)
 
 
@@ -85,7 +85,7 @@ def clean_nvd_tables() -> None:
     """Clean the NVD tables data"""
     query = [f"DELETE FROM {table}" for table in ['NVD_CVE']]
 
-    # Send all queries in the same batch (instead of calling clean_table method) to avoid so many restarts of wazuh-db
+    # Send all queries in the same batch (instead of calling clean_table method) to avoid so many restarts of wazuh-manager-db
     make_sqlite_query(CVE_DB_PATH, query)
 
 

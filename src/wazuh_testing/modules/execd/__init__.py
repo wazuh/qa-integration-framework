@@ -10,4 +10,4 @@ from wazuh_testing.constants.platforms import WINDOWS
 if sys.platform == WINDOWS:
     PREFIX = r'.*execd.*'
 else:
-    PREFIX = r'.*wazuh-execd.*'
+    PREFIX = r'.*wazuh-(?:manager-)?execd.*'

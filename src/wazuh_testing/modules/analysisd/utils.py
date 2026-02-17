@@ -184,7 +184,7 @@ def callback_check_alert(alert, expected_alert):
 
 
 def get_analysisd_state():
-    """Get the states values of wazuh-analysisd.state file
+    """Get the states values of wazuh-manager-analysisd.state file
 
     Returns:
         dict: Dictionary with all analysisd state

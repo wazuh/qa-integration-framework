@@ -17,40 +17,40 @@ from wazuh_testing.utils import services, secure_message
 
 
 def delete_dbs():
-    """Delete all wazuh-db databases."""
+    """Delete all wazuh-manager-db databases."""
     for root, dirs, files in os.walk(QUEUE_DB_PATH):
         for file in files:
             os.remove(os.path.join(root, file))
 
 
 def query_wdb(command, response_only=True, multiple_responses=False) -> List[str]:
-    """Make queries to wazuh-db using the wdb socket.
+    """Make queries to wazuh-manager-db using the wdb socket.
 
     Args:
-        command (str): wazuh-db command alias. For example `global get-agent-info 000`.
+        command (str): wazuh-manager-db command alias. For example `global get-agent-info 000`.
 
     Returns:
         list: Query response data.
     """
-    # If the wdb socket is not yet up, then wait or restart wazuh-db
+    # If the wdb socket is not yet up, then wait or restart wazuh-manager-db
     if not os.path.exists(WAZUH_DB_SOCKET_PATH):
         max_retries = 6
         for _ in range(2):
             retry = 0
-            # Wait if the wdb socket is not still alive (due to wazuh-db restarts). Max 3 seconds
+            # Wait if the wdb socket is not still alive (due to wazuh-manager-db restarts). Max 3 seconds
             while not os.path.exists(WAZUH_DB_SOCKET_PATH) and retry < max_retries:
                 time.sleep(0.5)
                 retry += 1
 
-            # Restart wazuh-db in case of wdb socket is not yet up.
+            # Restart wazuh-manager-db in case of wdb socket is not yet up.
             if not os.path.exists(WAZUH_DB_SOCKET_PATH):
                 services.control_service('restart', daemon=WAZUH_DB_DAEMON)
 
-        # Raise custom exception if the socket is not up in the expected time, even restarting wazuh-db
+        # Raise custom exception if the socket is not up in the expected time, even restarting wazuh-manager-db
         if not os.path.exists(WAZUH_DB_SOCKET_PATH):
-            raise Exception('The wdb socket is not up. wazuh-db was restarted but the socket was not found')
+            raise Exception('The wdb socket is not up. wazuh-manager-db was restarted but the socket was not found')
 
-    # Create and open the socket connection with wazuh-db socket
+    # Create and open the socket connection with wazuh-manager-db socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(WAZUH_DB_SOCKET_PATH)
     data = []

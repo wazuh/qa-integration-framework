@@ -51,7 +51,7 @@ def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
 
 
 def send_message_to_syslog_socket(message, port, protocol, manager_address="127.0.0.1"):
-    """Send a message to the syslog server of wazuh-remoted.
+    """Send a message to the syslog server of wazuh-manager-remoted.
 
     Args:
         message (str): string to send as a syslog event.
