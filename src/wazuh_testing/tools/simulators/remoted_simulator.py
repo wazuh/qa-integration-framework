@@ -3,8 +3,11 @@ Copyright (C) 2015-2023, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 """
+import hashlib
 import json
-from queue import Queue
+import threading
+import time
+from queue import Empty, Queue
 from typing import Any, Dict, Literal, Union
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
@@ -19,6 +22,18 @@ from .base_simulator import BaseSimulator
 _RESPONSE_ACK = b'#!-agent ack '
 _RESPONSE_SHUTDOWN = b'#!-agent shutdown '
 _RESPONSE_EMPTY = b''
+
+_DEFAULT_MERGED_MG_CONTENT = (
+    b'#default\n'
+    b'!76 agent.conf\n'
+    b'<agent_config>\n'
+    b'\n'
+    b'  <!-- Shared agent configuration here -->\n'
+    b'\n'
+    b'</agent_config>\n'
+)
+_DEFAULT_MERGED_SUM = hashlib.md5(_DEFAULT_MERGED_MG_CONTENT).hexdigest()
+
 _DEFAULT_LIMITS_JSON = {
     "limits": {
         "fim": {
@@ -47,7 +62,8 @@ _DEFAULT_LIMITS_JSON = {
     },
     "cluster_name": "wazuh-cluster",
     "cluster_node": "wazuh-node-01",
-    "agent_groups": []
+    "agent_groups": ["default"],
+    "merged_sum": _DEFAULT_MERGED_SUM
 }
 
 
@@ -69,6 +85,8 @@ class RemotedSimulator(BaseSimulator):
         request_counter (int): A counter that keeps track of the number of requests sent to the server.
     """
     MODES = ['ACCEPT', 'WRONG_KEY', 'INVALID_MSG']
+    DEFAULT_MERGED_MG_CONTENT = _DEFAULT_MERGED_MG_CONTENT
+    DEFAULT_MERGED_SUM = _DEFAULT_MERGED_SUM
 
     def __init__(self,
                  server_ip: str = '127.0.0.1',
@@ -76,7 +94,9 @@ class RemotedSimulator(BaseSimulator):
                  mode='ACCEPT',
                  protocol: Literal['udp', 'tcp'] = 'tcp',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
-                 limits_config: Dict = None) -> None:
+                 limits_config: Dict = None,
+                 merged_mg_content: bytes = None,
+                 merged_mg_send_delay: float = 0) -> None:
         """
         Initialize a RemotedSimulator object.
 
@@ -87,6 +107,8 @@ class RemotedSimulator(BaseSimulator):
             protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
             keys_path (str, optional): The path to the wazuh client keys file. Defaults: BASE_CONF_PATH/client.keys'.
             limits_config (Dict, optional): Custom limits configuration for HC_STARTUP response. Defaults: None.
+            merged_mg_content (bytes, optional): Content to push via #!-up file protocol. None = no push.
+            merged_mg_send_delay (float, optional): Seconds to wait after handshake before pushing. Defaults: 0.
         """
         super().__init__(server_ip, port, False)
 
@@ -94,6 +116,19 @@ class RemotedSimulator(BaseSimulator):
         self.protocol = protocol
         self.keys_path = keys_path
         self.limits_config = limits_config if limits_config is not None else _DEFAULT_LIMITS_JSON.copy()
+
+        # Merged.mg file push support.
+        self.merged_mg_content = merged_mg_content
+        self.merged_mg_send_delay = merged_mg_send_delay
+        self.merged_mg_hash = None
+        self._file_push_queue = Queue()
+        self._handshake_event = threading.Event()
+        self._push_thread = None
+
+        if merged_mg_content is not None:
+            self.merged_mg_hash = hashlib.md5(merged_mg_content).hexdigest()
+            self.limits_config['merged_sum'] = self.merged_mg_hash
+
         self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
                                      family='AF_INET', connection_protocol=self.protocol,
                                      func=self.__remoted_response_simulation)
@@ -127,6 +162,11 @@ class RemotedSimulator(BaseSimulator):
         self.__mitm.start()
         self.running = True
 
+        if self.merged_mg_content is not None:
+            self._push_thread = threading.Thread(
+                target=self._merged_mg_push_worker, daemon=True)
+            self._push_thread.start()
+
     def shutdown(self) -> None:
         """
         Shutdown the simulator and the MitM object.
@@ -152,6 +192,26 @@ class RemotedSimulator(BaseSimulator):
         """
         self.clear()
         self.shutdown()
+        if self._push_thread and self._push_thread.is_alive():
+            self._handshake_event.set()
+            self._push_thread.join(timeout=5)
+
+    def _merged_mg_push_worker(self):
+        """Wait for handshake, sleep for delay, then queue file push messages."""
+        self._handshake_event.wait()
+        time.sleep(self.merged_mg_send_delay)
+
+        # Protocol: #!-up file <md5> merged.mg\n -> 900-byte chunks -> #!-close file
+        self._file_push_queue.put(
+            f'#!-up file {self.merged_mg_hash} merged.mg\n'.encode())
+
+        for offset in range(0, len(self.merged_mg_content), 900):
+            chunk = self.merged_mg_content[offset:offset + 900]
+            if isinstance(chunk, str):
+                chunk = chunk.encode()
+            self._file_push_queue.put(chunk)
+
+        self._file_push_queue.put(b'#!-close file ')
 
     def send_custom_message(self, message: Union[str, bytes]) -> None:
         """
@@ -219,9 +279,15 @@ class RemotedSimulator(BaseSimulator):
             # Response to HC_STARTUP with module limits JSON
             json_payload = json.dumps(self.limits_config)
             response = _RESPONSE_ACK + json_payload.encode()
+            self._handshake_event.set()
         elif '#!-req' in message:
             self._queue_response_req_message.put(message)
             response = _RESPONSE_EMPTY
+        elif not self._file_push_queue.empty():
+            try:
+                response = self._file_push_queue.get_nowait()
+            except Empty:
+                response = _RESPONSE_EMPTY
         elif self.custom_message and not self.custom_message_sent:
             response = self.custom_message
             self.custom_message_sent = True
