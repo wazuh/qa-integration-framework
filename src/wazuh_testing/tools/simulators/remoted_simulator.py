@@ -255,7 +255,6 @@ class RemotedSimulator(BaseSimulator):
         self.request_counter += 1
 
         if not request:
-            self.__mitm.event.set()
             return _RESPONSE_EMPTY
 
         if b'#ping' in request:
@@ -273,7 +272,6 @@ class RemotedSimulator(BaseSimulator):
         elif self.mode == 'INVALID_MSG':
             response = b'INVALID'
         elif '#!-agent shutdown' in message:
-            self.__mitm.event.set()
             response = _RESPONSE_SHUTDOWN
         elif '#!-agent startup' in message:
             # Response to HC_STARTUP with module limits JSON

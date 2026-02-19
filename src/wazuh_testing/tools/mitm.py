@@ -203,11 +203,19 @@ class StreamHandler(socketserver.BaseRequestHandler):
         if self.server.mitm.handler_func is None:
             self.default_wazuh_handler()
         else:
-            while not self.server.mitm.event.is_set():
-                received = self.recvall()
-                response = self.server.mitm.handler_func(received)
-                self.server.mitm.put_queue((received, response))
-                self.request.sendall(response)
+            try:
+                while not self.server.mitm.event.is_set():
+                    received = self.recvall()
+                    if not received:
+                        break
+                    response = self.server.mitm.handler_func(received)
+                    self.server.mitm.put_queue((received, response))
+                    try:
+                        self.request.sendall(response)
+                    except (BrokenPipeError, ConnectionResetError):
+                        break
+            except (ConnectionResetError, OSError):
+                pass
 
 
 class DatagramHandler(socketserver.BaseRequestHandler):
