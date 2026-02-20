@@ -14,13 +14,9 @@ else:
     BIN_PATH = os.path.join(WAZUH_PATH, 'bin')
 
 WAZUH_MANAGER_CONTROL_PATH = os.path.join(BIN_PATH, 'wazuh-manager-control')
-WAZUH_LEGACY_CONTROL_PATH = os.path.join(BIN_PATH, 'wazuh-control')
-if os.path.basename(os.path.normpath(WAZUH_PATH)) == 'wazuh-manager':
-    WAZUH_CONTROL_PATH = WAZUH_MANAGER_CONTROL_PATH if os.path.exists(WAZUH_MANAGER_CONTROL_PATH) \
-        or not os.path.exists(WAZUH_LEGACY_CONTROL_PATH) else WAZUH_LEGACY_CONTROL_PATH
-else:
-    WAZUH_CONTROL_PATH = WAZUH_MANAGER_CONTROL_PATH if os.path.exists(WAZUH_MANAGER_CONTROL_PATH) \
-        and not os.path.exists(WAZUH_LEGACY_CONTROL_PATH) else WAZUH_LEGACY_CONTROL_PATH
+WAZUH_AGENT_CONTROL_PATH = os.path.join(BIN_PATH, 'wazuh-control')
+WAZUH_CONTROL_PATH = WAZUH_MANAGER_CONTROL_PATH if os.path.basename(os.path.normpath(WAZUH_PATH)) == 'wazuh-manager' \
+    else WAZUH_AGENT_CONTROL_PATH
 ACTIVE_RESPONSE_BIN_PATH = os.path.join(WAZUH_PATH, 'active-response', 'bin')
 ACTIVE_RESPONSE_FIREWALL_DROP = os.path.join(ACTIVE_RESPONSE_BIN_PATH, 'firewall-drop')
 AGENT_GROUPS_BINARY = os.path.join(BIN_PATH, 'agent_groups')
