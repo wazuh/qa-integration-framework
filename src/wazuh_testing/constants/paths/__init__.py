@@ -25,6 +25,10 @@ if WAZUH_PATH_OVERRIDE:
     WAZUH_PATH = WAZUH_PATH_OVERRIDE
 elif sys.platform not in (WINDOWS, MACOS):
     manager_bin_path = os.path.join("/", "var", "wazuh-manager", "bin")
-    if os.path.exists(os.path.join(manager_bin_path, "wazuh-manager-control")) or \
-            os.path.exists(os.path.join(manager_bin_path, "wazuh-control")):
+    agent_bin_path = os.path.join("/", "var", "ossec", "bin")
+    manager_exists = os.path.exists(os.path.join(manager_bin_path, "wazuh-manager-control"))
+    agent_exists = os.path.exists(os.path.join(agent_bin_path, "wazuh-control"))
+
+    # Prefer agent path when both installs are present unless explicitly overridden.
+    if manager_exists and not agent_exists:
         WAZUH_PATH = os.path.join("/", "var", "wazuh-manager")
