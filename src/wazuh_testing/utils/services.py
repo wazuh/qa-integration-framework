@@ -40,7 +40,7 @@ def get_service() -> str:
             WAZUH_CONTROL_PATH, "info", "-t"
         ], stderr=subprocess.PIPE).decode('utf-8').strip()
 
-    return WAZUH_MANAGER if service == 'server' else WAZUH_AGENT
+    return WAZUH_MANAGER if service in ('server', 'manager') else WAZUH_AGENT
 
 
 def get_version() -> str:
