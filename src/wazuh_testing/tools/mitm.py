@@ -203,9 +203,13 @@ class StreamHandler(socketserver.BaseRequestHandler):
         if self.server.mitm.handler_func is None:
             self.default_wazuh_handler()
         else:
+            self.request.settimeout(1)
             try:
                 while not self.server.mitm.event.is_set():
-                    received = self.recvall()
+                    try:
+                        received = self.recvall()
+                    except socket.timeout:
+                        continue
                     if not received:
                         break
                     response = self.server.mitm.handler_func(received)
@@ -334,9 +338,9 @@ class ManInTheMiddle:
 
     def shutdown(self):
         """Gracefully shutdown a MITM server."""
+        self.event.set()
         self.listener.shutdown()
         self.listener.socket.close()
-        self.event.set()
         # Remove created unix socket and restore original
         if (isinstance(self.listener_socket_address, str) and
             os.path.exists(self.listener_socket_address)):
