@@ -24,5 +24,7 @@ WAZUH_PATH_OVERRIDE = os.getenv("WAZUH_PATH") or os.getenv("INSTALLATION_DIR")
 if WAZUH_PATH_OVERRIDE:
     WAZUH_PATH = WAZUH_PATH_OVERRIDE
 elif sys.platform not in (WINDOWS, MACOS):
-    if os.path.exists(os.path.join("/", "var", "wazuh-manager", "bin", "wazuh-control")):
+    manager_bin_path = os.path.join("/", "var", "wazuh-manager", "bin")
+    if os.path.exists(os.path.join(manager_bin_path, "wazuh-manager-control")) or \
+            os.path.exists(os.path.join(manager_bin_path, "wazuh-control")):
         WAZUH_PATH = os.path.join("/", "var", "wazuh-manager")
