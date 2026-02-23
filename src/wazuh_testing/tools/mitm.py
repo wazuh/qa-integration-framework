@@ -22,6 +22,7 @@ from wazuh_testing.utils.cluster import CLUSTER_DATA_HEADER_SIZE, cluster_msg_bu
 
 
 class StreamServerPort(socketserver.ThreadingTCPServer):
+    daemon_threads = True
 
     def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
                         client_addres: tuple[str | bytes | bytearray, int]) -> None:
@@ -37,6 +38,7 @@ class StreamServerPortV6(StreamServerPort):
 
 
 class DatagramServerPort(socketserver.ThreadingUDPServer):
+    daemon_threads = True
 
     def process_request(self, request: Union[socket.socket, tuple[bytes, socket.socket]],
                         client_addres: tuple[str | bytes | bytearray, int]) -> None:
@@ -53,6 +55,7 @@ class DatagramServerPortV6(DatagramServerPort):
 
 
 class SSLStreamServerPort(socketserver.ThreadingTCPServer):
+    daemon_threads = True
     ciphers = "HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH"
     ssl_version = ssl.PROTOCOL_TLSv1_2
     certfile = None
@@ -129,11 +132,13 @@ class SSLStreamServerPortV6(SSLStreamServerPort):
 
 if hasattr(socketserver, 'ThreadingUnixStreamServer'):
     class StreamServerUnix(socketserver.ThreadingUnixStreamServer):
+        daemon_threads = True
 
         def shutdown_request(self, request):
             pass
 
     class DatagramServerUnix(socketserver.ThreadingUnixDatagramServer):
+        daemon_threads = True
 
         def shutdown_request(self, request):
             pass
@@ -203,11 +208,23 @@ class StreamHandler(socketserver.BaseRequestHandler):
         if self.server.mitm.handler_func is None:
             self.default_wazuh_handler()
         else:
-            while not self.server.mitm.event.is_set():
-                received = self.recvall()
-                response = self.server.mitm.handler_func(received)
-                self.server.mitm.put_queue((received, response))
-                self.request.sendall(response)
+            self.request.settimeout(1)
+            try:
+                while not self.server.mitm.event.is_set():
+                    try:
+                        received = self.recvall()
+                    except socket.timeout:
+                        continue
+                    if not received:
+                        break
+                    response = self.server.mitm.handler_func(received)
+                    self.server.mitm.put_queue((received, response))
+                    try:
+                        self.request.sendall(response)
+                    except (BrokenPipeError, ConnectionResetError):
+                        break
+            except (ConnectionResetError, OSError):
+                pass
 
 
 class DatagramHandler(socketserver.BaseRequestHandler):
@@ -326,9 +343,10 @@ class ManInTheMiddle:
 
     def shutdown(self):
         """Gracefully shutdown a MITM server."""
-        self.listener.shutdown()
-        self.listener.socket.close()
         self.event.set()
+        self.listener.shutdown()
+        self.thread.join()
+        self.listener.server_close()
         # Remove created unix socket and restore original
         if (isinstance(self.listener_socket_address, str) and
             os.path.exists(self.listener_socket_address)):
