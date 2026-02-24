@@ -200,7 +200,6 @@ def get_file_encoding(file_path: Union[str, os.PathLike]) -> str:
 
     Raises:
         ValueError: If could not find the file_path or is not a file.
-        TypeError: If could not detect the file encoding.
     """
     if not os.path.exists(file_path) or not os.path.isfile(file_path):
         raise ValueError(f"{file_path} was not found or is not a file.")
@@ -209,16 +208,15 @@ def get_file_encoding(file_path: Union[str, os.PathLike]) -> str:
     with open(file_path, 'rb') as _file:
         data = _file.read()
 
-    # Detect the content encoding
-    encoding = chardet.detect(data)['encoding']
-
     if len(data) == 0:
         return 'utf-8'
 
-    if encoding is None:
-        raise TypeError(f"Could not detect the {file_path} encoding")
+    # Detect the content encoding
+    encoding = chardet.detect(data)['encoding']
 
-    return encoding
+    # chardet may return None for files with ambiguous or very short content
+    # (more common with chardet >= 6.0). Fall back to utf-8 in that case.
+    return encoding or 'utf-8'
 
 
 def get_file_info(file_path, info_type="extension") -> str:
