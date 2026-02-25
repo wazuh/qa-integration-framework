@@ -13,14 +13,13 @@ from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_
 
 from . import file
 
-
 def get_minimal_configuration():
     """Get the wazuh minimal configuration data.
 
     Returns:
         List of str: Wazuh minimal configuration data.
     """
-    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', 'all_disabled_ossec.conf'))
+    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', 'all_disabled_wazuh.conf'))
 
 
 def get_wazuh_conf() -> List[str]:
@@ -91,17 +90,17 @@ def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> 
                 tag.tail = "\n    "
         tag.tail = "\n  "
 
-    def purge_multiple_root_elements(str_list: List[str], root_delimeter: str = "</ossec_config>") -> List[str]:
+    def purge_multiple_root_elements(str_list: List[str], root_delimeter: str = "</wazuh_config>") -> List[str]:
         """
         Remove from the list all the lines located after the root element ends.
 
         This operation is needed before attempting to convert the list to ElementTree because if the ossec.conf had more
-        than one `<ossec_config>` element as root the conversion would fail.
+        than one `<wazuh_config>` element as root the conversion would fail.
 
         Args:
             str_list (list or str): The content of the ossec.conf file in a list of str.
             root_delimeter (str, optional: The expected string to identify when the first root element ends,
-            by default "</ossec_config>"
+            by default "</wazuh_config>"
 
         Returns:
             list of str : The first N lines of the specified str_list until the root_delimeter is found. The rest of
