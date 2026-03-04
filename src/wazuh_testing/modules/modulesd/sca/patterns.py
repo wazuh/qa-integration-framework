@@ -13,3 +13,5 @@ SCA_SCAN_ENDED_REQ = fr"{PREFIX}DEBUG: Policy requirements evaluation completed 
 SCA_SCAN_STARTED_CHECK = fr"{PREFIX}DEBUG: Starting Policy checks evaluation for policy \"(.*?)\""
 SCA_SCAN_RESULT = fr"{PREFIX}DEBUG: Policy check \"(\d+)\" evaluation completed for policy \"(.*?)\", result: (Passed|Failed)"
 SCA_SCAN_ENDED_CHECK = fr"{PREFIX}DEBUG: Policy checks evaluation completed for policy \"(.*?)\""
+SCA_STATEFUL_EVENT_QUEUED = fr"{PREFIX}Stateful event queued: (.*)"
+SCA_SENDING_EVENT = fr"{PREFIX}Sending SCA event: (.*)"
