@@ -383,24 +383,12 @@
                                           "insert-agent-group",
                                           "select-groups"
                                         ]
-                                      },
-                                      "labels": {
-                                        "type": "object",
-                                        "properties": {
-                                          "get-labels": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "get-labels"
-                                        ]
                                       }
                                     },
                                     "required": [
                                       "agent",
                                       "belongs",
-                                      "group",
-                                      "labels"
+                                      "group"
                                     ]
                                   }
                                 },
@@ -584,24 +572,12 @@
                                           "insert-agent-group",
                                           "select-groups"
                                         ]
-                                      },
-                                      "labels": {
-                                        "type": "object",
-                                        "properties": {
-                                          "get-labels": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "get-labels"
-                                        ]
                                       }
                                     },
                                     "required": [
                                       "agent",
                                       "belongs",
-                                      "group",
-                                      "labels"
+                                      "group"
                                     ]
                                   }
                                 },

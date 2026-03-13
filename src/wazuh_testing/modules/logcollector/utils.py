@@ -28,7 +28,7 @@ def get_localfile_runtime_configuration():
 
     if not localfile_section:
         localfile_section = []
-    
+
     return localfile_section
 
 
