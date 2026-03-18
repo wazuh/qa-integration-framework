@@ -20,7 +20,6 @@ MANAGER_CONFIGURATION_ROUTE = '/manager/configuration'
 MANAGER_INFORMATION_ROUTE = '/manager/info'
 GROUPS_ROUTE = '/groups'
 CDB_LIST_ROUTE = '/lists/files'
-DAEMONS_STATS_ROUTE = '/manager/daemons/stats'
 # RBAC routes
 USERS_ROUTE = '/security/users'
 ROLES_ROUTE = '/security/roles'
