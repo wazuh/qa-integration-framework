@@ -7,7 +7,7 @@ from . import PREFIX
 LOGCOLLECTOR_ANALYZING_FILE = r'.*Analyzing file: \'{file}\''
 LOGCOLLECTOR_MONITORING_COMMAND = r'.*INFO: Monitoring output of command\(\d+\): {command}'
 LOGCOLLECTOR_MONITORING_FULL_COMMAND = r'.*INFO: Monitoring full output of command\(\d+\): {command}'
-LOGCOLLECTOR_READING_COMMAND_ALIAS = r'.*Reading command message: \'ossec: output: \'{alias}\'.*'
+LOGCOLLECTOR_READING_COMMAND_ALIAS = r'.*Reading command message: \'wazuh: output: \'{alias}\'.*'
 LOGCOLLECTOR_SOCKET_TARGET_VALID = r'.*DEBUG: Socket target for \'{location}\' -> {socket_name}'
 LOGCOLLECTOR_SOCKET_TARGET_NOT_DEFINED = r'.*CRITICAL: Socket \'{socket_name}\' for \'{location}\' is not defined.'
 LOGCOLLECTOR_LOG_TARGET_NOT_FOUND = r'.*WARNING: Log target \'{socket_name}\' not found for the output format of localfile \'{location}\'.'
