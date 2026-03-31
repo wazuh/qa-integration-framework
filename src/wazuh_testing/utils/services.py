@@ -91,8 +91,8 @@ def control_service(action, daemon=None, debug_mode=False):
             control_service('start')
             result = 0
         else:
-            error_windows_retry = 5
-            for _ in range(error_windows_retry):
+            error_windows_retry = 10
+            for attempt in range(error_windows_retry):
                 command = subprocess.run(["net", action, "WazuhSvc"], stderr=subprocess.PIPE)
                 result = command.returncode
                 if result == 0:
@@ -100,6 +100,9 @@ def control_service(action, daemon=None, debug_mode=False):
                 else:
                     error = command.stderr.decode()
                     if 'The service is starting or stopping' in error:
+                        print(f"[control_service] Attempt {attempt+1}/{error_windows_retry}: The service is in transition. Waiting...")
+                        diag = subprocess.run(["sc", "query", "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        print(diag.stdout.decode(errors='ignore'))
                         time.sleep(10)
                         continue
                     if action == 'stop' and 'The Wazuh service is not started.' in error:
@@ -112,6 +115,21 @@ def control_service(action, daemon=None, debug_mode=False):
                         print(f"Unexpected error when control_service failed with the following error: {error}")
                         time.sleep(10)
                         continue
+            # If it still fails, try to force kill the process
+            if result != 0:
+                print("[control_service] Forcing kill of WazuhSvc.exe after failed retries...")
+                for proc in psutil.process_iter(attrs=['pid', 'name']):
+                    if proc.info['name'] and 'WazuhSvc' in proc.info['name']:
+                        try:
+                            proc.kill()
+                            print(f"[control_service] Process {proc.info['name']} (PID {proc.info['pid']}) terminated.")
+                        except Exception as e:
+                            print(f"[control_service] Error terminating process: {e}")
+                # Try the command again
+                command = subprocess.run(["net", action, "WazuhSvc"], stderr=subprocess.PIPE)
+                result = command.returncode
+                if result != 0:
+                    print("[control_service] The service is still not responding after forced kill.")
     else:  # Default Unix
         if daemon is None:
             if sys.platform == MACOS:
