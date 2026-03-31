@@ -1,33 +1,73 @@
 #!/bin/bash
 
-# Check for the correct number of arguments
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <new_version> <stage>"
-    exit 1
-fi
+set -euo pipefail
 
-NEW_VERSION="$1"
-NEW_STAGE="$2"
+# Variables
+new_version=""
+new_stage=""
+skip_urls=""
 VERSION_FILE="VERSION.json"
 LOGFILE="tools/repository_bumper_$(date +'%Y-%m-%d_%H-%M-%S').log"
 
-# Check if version.json exists
-if [ ! -f "$VERSION_FILE" ]; then
-    echo "Version file not found!"
+usage() {
+    echo "Usage: $0 [--version <version>] [--stage <stage>] [--set-as-main]"
+    echo ""
+    echo "Options:"
+    echo "  --version <version>   Target version (e.g. 5.0.0)"
+    echo "  --stage <stage>       Version stage (e.g. alpha0)"
+    echo "  --set-as-main         Update version values only, preserving main branch references"
     exit 1
-fi
+}
 
-# Read the current version and stage from the JSON file
-CURRENT_VERSION=$(jq -r '.version' "$VERSION_FILE")
-CURRENT_STAGE=$(jq -r '.stage' "$VERSION_FILE")
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --version)
+                new_version="$2"
+                shift 2
+                ;;
+            --stage)
+                new_stage="$2"
+                shift 2
+                ;;
+            --set-as-main)
+                skip_urls=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                ;;
+            *)
+                echo "Unknown argument: $1"
+                usage
+                ;;
+        esac
+    done
+}
 
-echo "Current version: $CURRENT_VERSION"
-echo "Current stage: $CURRENT_STAGE"
+update_version_file() {
+    if [ ! -f "$VERSION_FILE" ]; then
+        echo "Version file not found: $VERSION_FILE"
+        exit 1
+    fi
 
-# Update the JSON file with the new version and stage
-jq --arg new_version "$NEW_VERSION" --arg new_stage "$NEW_STAGE" \
-   '.version = $new_version | .stage = $new_stage' "$VERSION_FILE" > tmp.$.json && mv tmp.$.json "$VERSION_FILE"
+    local current_version
+    local current_stage
+    current_version=$(jq -r '.version' "$VERSION_FILE")
+    current_stage=$(jq -r '.stage' "$VERSION_FILE")
 
-# Log the changes
+    local new_v="${new_version:-$current_version}"
+    local new_s="${new_stage:-$current_stage}"
+
+    jq --arg v "$new_v" --arg s "$new_s" \
+        '.version = $v | .stage = $s' "$VERSION_FILE" > tmp.$$.json && mv tmp.$$.json "$VERSION_FILE"
+
+    echo "$VERSION_FILE: version $current_version -> $new_v, stage $current_stage -> $new_s" | tee -a "$LOGFILE"
+}
+
+# ---- Main ----
+
+parse_args "$@"
+
 echo "Modified files:" | tee "$LOGFILE"
-echo "$VERSION_FILE: version $CURRENT_VERSION -> $NEW_VERSION, stage $CURRENT_STAGE -> $NEW_STAGE" | tee -a "$LOGFILE"
+update_version_file
