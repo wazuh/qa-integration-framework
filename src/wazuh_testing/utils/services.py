@@ -91,7 +91,8 @@ def control_service(action, daemon=None, debug_mode=False):
             control_service('start')
             result = 0
         else:
-            error_windows_retry = 10
+            error_windows_retry = 5
+            retry_sleep_seconds = 10
             for attempt in range(error_windows_retry):
                 command = subprocess.run(["net", action, "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 result = command.returncode
@@ -104,7 +105,7 @@ def control_service(action, daemon=None, debug_mode=False):
                         print(f"[control_service] Attempt {attempt+1}/{error_windows_retry}: The service is in transition. Waiting...")
                         diag = subprocess.run(["sc", "query", "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         print(diag.stdout.decode(errors='ignore'))
-                        time.sleep(10)
+                        time.sleep(retry_sleep_seconds)
                         continue
                     if action == 'stop' and 'service is not started' in normalized_output:
                         result = 0
@@ -114,7 +115,7 @@ def control_service(action, daemon=None, debug_mode=False):
                         break
                     else:
                         print(f"Unexpected error when control_service failed with the following output: {output}")
-                        time.sleep(10)
+                        time.sleep(retry_sleep_seconds)
                         continue
             # If it still fails, try to force kill the process
             if result != 0:
@@ -126,6 +127,8 @@ def control_service(action, daemon=None, debug_mode=False):
                             print(f"[control_service] Process {proc.info['name']} (PID {proc.info['pid']}) terminated.")
                         except Exception as e:
                             print(f"[control_service] Error terminating process: {e}")
+                # Let SCM settle the process state before retrying net action.
+                time.sleep(3)
                 # Try the command again
                 command = subprocess.run(["net", action, "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 result = command.returncode
