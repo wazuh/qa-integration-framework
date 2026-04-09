@@ -12,7 +12,6 @@ from typing import Union
 
 from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
-from wazuh_testing.constants.paths.logs import WAZUH_LOG_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
 from wazuh_testing.constants.platforms import MACOS, WINDOWS
@@ -186,6 +185,7 @@ def control_service(action, daemon=None, debug_mode=False):
     if result != 0:
         error_message = f"Error when executing {action} in daemon {daemon}. Exit status: {result}"
         if sys.platform != WINDOWS:
+            from wazuh_testing.constants.paths.logs import WAZUH_LOG_PATH  # avoid circular import
             error_message = (
                 f"{error_message}\n"
                 f"Last lines from {WAZUH_LOG_PATH}:\n"
