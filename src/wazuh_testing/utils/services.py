@@ -12,11 +12,31 @@ from typing import Union
 
 from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
+from wazuh_testing.constants.paths.logs import WAZUH_LOG_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
 from wazuh_testing.constants.platforms import MACOS, WINDOWS
 
 from . import sockets
+
+
+def _tail_log(path, lines=120):
+    """Return the last `lines` lines from a log file.
+
+    Args:
+        path (str): Log file path.
+        lines (int): Amount of lines to fetch from the end of the file.
+
+    Returns:
+        str: Last log lines or an explanatory message.
+    """
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as log_file:
+            return ''.join(log_file.readlines()[-lines:]).rstrip()
+    except FileNotFoundError:
+        return f"Log file not found: {path}"
+    except OSError as error:
+        return f"Could not read log file {path}: {error}"
 
 
 def get_service() -> str:
@@ -85,6 +105,8 @@ def control_service(action, daemon=None, debug_mode=False):
     if action not in valid_actions:
         raise ValueError(f'action {action} is not one of {valid_actions}')
 
+    result = 0
+
     if sys.platform == WINDOWS:
         if action == 'restart':
             control_service('stop')
@@ -120,7 +142,8 @@ def control_service(action, daemon=None, debug_mode=False):
             else:
                 result = subprocess.run(
                     ['service', get_service(), action]).returncode
-            action == 'stop' and sockets.delete_sockets()
+            if action == 'stop':
+                sockets.delete_sockets()
         else:
             if action == 'restart':
                 control_service('stop', daemon=daemon)
@@ -161,8 +184,15 @@ def control_service(action, daemon=None, debug_mode=False):
             result = 0
 
     if result != 0:
+        error_message = f"Error when executing {action} in daemon {daemon}. Exit status: {result}"
+        if sys.platform != WINDOWS:
+            error_message = (
+                f"{error_message}\n"
+                f"Last lines from {WAZUH_LOG_PATH}:\n"
+                f"{_tail_log(WAZUH_LOG_PATH)}"
+            )
         raise ValueError(
-            f"Error when executing {action} in daemon {daemon}. Exit status: {result}")
+            error_message)
 
 
 def check_all_daemon_status():
