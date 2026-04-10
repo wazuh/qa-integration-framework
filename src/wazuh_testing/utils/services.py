@@ -92,26 +92,48 @@ def control_service(action, daemon=None, debug_mode=False):
             result = 0
         else:
             error_windows_retry = 5
-            for _ in range(error_windows_retry):
-                command = subprocess.run(["net", action, "WazuhSvc"], stderr=subprocess.PIPE)
+            retry_sleep_seconds = 10
+            for attempt in range(error_windows_retry):
+                command = subprocess.run(["net", action, "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 result = command.returncode
                 if result == 0:
                     break
                 else:
-                    error = command.stderr.decode()
-                    if 'The service is starting or stopping' in error:
-                        time.sleep(10)
+                    output = f"{command.stdout.decode(errors='ignore')}\n{command.stderr.decode(errors='ignore')}"
+                    normalized_output = output.lower()
+                    if 'service is starting or stopping' in normalized_output:
+                        print(f"[control_service] Attempt {attempt+1}/{error_windows_retry}: The service is in transition. Waiting...")
+                        diag = subprocess.run(["sc", "query", "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        print(diag.stdout.decode(errors='ignore'))
+                        time.sleep(retry_sleep_seconds)
                         continue
-                    if action == 'stop' and 'The Wazuh service is not started.' in error:
+                    if action == 'stop' and 'service is not started' in normalized_output:
                         result = 0
                         break
-                    if action == 'start' and 'The requested service has already been started.' in error:
+                    if action == 'start' and 'service has already been started' in normalized_output:
                         result = 0
                         break
                     else:
-                        print(f"Unexpected error when control_service failed with the following error: {error}")
-                        time.sleep(10)
+                        print(f"Unexpected error when control_service failed with the following output: {output}")
+                        time.sleep(retry_sleep_seconds)
                         continue
+            # If it still fails, try to force kill the process
+            if result != 0:
+                print("[control_service] Forcing kill of WazuhSvc.exe after failed retries...")
+                for proc in psutil.process_iter(attrs=['pid', 'name']):
+                    if proc.info['name'] and 'WazuhSvc' in proc.info['name']:
+                        try:
+                            proc.kill()
+                            print(f"[control_service] Process {proc.info['name']} (PID {proc.info['pid']}) terminated.")
+                        except Exception as e:
+                            print(f"[control_service] Error terminating process: {e}")
+                # Let SCM settle the process state before retrying net action.
+                time.sleep(3)
+                # Try the command again
+                command = subprocess.run(["net", action, "WazuhSvc"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                result = command.returncode
+                if result != 0:
+                    print("[control_service] The service is still not responding after forced kill.")
     else:  # Default Unix
         if daemon is None:
             if sys.platform == MACOS:
