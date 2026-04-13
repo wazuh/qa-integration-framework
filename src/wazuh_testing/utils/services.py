@@ -105,6 +105,7 @@ def control_service(action, daemon=None, debug_mode=False):
         raise ValueError(f'action {action} is not one of {valid_actions}')
 
     result = 0
+    cmd_output = ''
 
     if sys.platform == WINDOWS:
         if action == 'restart':
@@ -136,11 +137,15 @@ def control_service(action, daemon=None, debug_mode=False):
     else:  # Default Unix
         if daemon is None:
             if sys.platform == MACOS:
-                result = subprocess.run(
-                    [WAZUH_CONTROL_PATH, action]).returncode
+                cmd_result = subprocess.run(
+                    [WAZUH_CONTROL_PATH, action],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             else:
-                result = subprocess.run(
-                    ['service', get_service(), action]).returncode
+                cmd_result = subprocess.run(
+                    ['service', get_service(), action],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = cmd_result.returncode
+            cmd_output = cmd_result.stdout.decode('utf-8', errors='replace').strip()
             if action == 'stop':
                 sockets.delete_sockets()
         else:
@@ -186,8 +191,14 @@ def control_service(action, daemon=None, debug_mode=False):
         error_message = f"Error when executing {action} in daemon {daemon}. Exit status: {result}"
         if sys.platform != WINDOWS:
             from wazuh_testing.constants.paths.logs import WAZUH_LOG_PATH  # avoid circular import
+            status_output = subprocess.run(
+                [WAZUH_CONTROL_PATH, 'status'],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            ).stdout.decode('utf-8', errors='replace').strip()
             error_message = (
                 f"{error_message}\n"
+                f"Command output:\n{cmd_output}\n"
+                f"Wazuh service status:\n{status_output}\n"
                 f"Last lines from {WAZUH_LOG_PATH}:\n"
                 f"{_tail_log(WAZUH_LOG_PATH)}"
             )
