@@ -195,12 +195,29 @@ def control_service(action, daemon=None, debug_mode=False):
                 [WAZUH_CONTROL_PATH, 'status'],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT
             ).stdout.decode('utf-8', errors='replace').strip()
+
+            base_logs_path = os.path.dirname(WAZUH_LOG_PATH)
+            failed_daemons = [
+                line.split()[0]
+                for line in status_output.splitlines()
+                if 'not running' in line
+            ]
+            daemon_log_sections = ''
+            for failed_daemon in failed_daemons:
+                daemon_log_path = os.path.join(base_logs_path, f"{failed_daemon}.log")
+                if os.path.exists(daemon_log_path):
+                    daemon_log_sections += (
+                        f"\nLast lines from {daemon_log_path}:\n"
+                        f"{_tail_log(daemon_log_path)}"
+                    )
+
             error_message = (
                 f"{error_message}\n"
                 f"Command output:\n{cmd_output}\n"
                 f"Wazuh service status:\n{status_output}\n"
                 f"Last lines from {WAZUH_LOG_PATH}:\n"
                 f"{_tail_log(WAZUH_LOG_PATH)}"
+                f"{daemon_log_sections}"
             )
         raise ValueError(
             error_message)
