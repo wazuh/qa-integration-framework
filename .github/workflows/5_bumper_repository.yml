@@ -14,7 +14,7 @@ on:
         default: ''
         required: false
         type: string
-      set-as-main:
+      set_as_main:
         description: 'Update version values only, preserving main branch references in URLs'
         default: false
         required: false
@@ -79,7 +79,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
           STAGE: ${{ inputs.stage }}
-          SET_AS_MAIN: ${{ inputs.set-as-main }}
+          SET_AS_MAIN: ${{ inputs.set_as_main }}
         run: |
           script_params=""
           version=${{ env.VERSION }}
