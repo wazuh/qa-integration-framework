@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [5.0.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 
 - Added patterns for disabled syscollector integration tests. ([#546](https://github.com/wazuh/qa-integration-framework/pull/546))
 - Added new SCA event patterns. ([#600](https://github.com/wazuh/qa-integration-framework/pull/600))
@@ -59,6 +60,7 @@ All notable changes to this project will be documented in this file.
 ## [4.14.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 
 - Added integration tests for syscollector browser extensions. ([#450](https://github.com/wazuh/qa-integration-framework/pull/450))
 
@@ -71,12 +73,14 @@ All notable changes to this project will be documented in this file.
 ## [4.13.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 
 - Added missing ruleset files in the ossec.conf. ([#380](https://github.com/wazuh/qa-integration-framework/pull/380))
 
 ## [4.12.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 
 - Added a script to parse pytest results. ([#283](https://github.com/wazuh/qa-integration-framework/pull/283))
 
@@ -95,6 +99,7 @@ All notable changes to this project will be documented in this file.
 ## [4.10.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 - Added a script and dependencies to get the Python unit tests coverage. ([#254](https://github.com/wazuh/qa-integration-framework/pull/254))
 
 ## [4.9.2]
@@ -104,6 +109,7 @@ All notable changes to this project will be documented in this file.
 ## [4.9.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 - Added `/manager/configuration` endpoint route constant. ([#63](https://github.com/wazuh/qa-integration-framework/pull/63))
 - Added support for the `enrollment` integration tests. ([#123](https://github.com/wazuh/qa-integration-framework/pull/123))
 - Added support for the `wazuh-logcollector` integration tests. ([#122](https://github.com/wazuh/qa-integration-framework/pull/122))
@@ -127,6 +133,7 @@ All notable changes to this project will be documented in this file.
 ## [4.8.0]
 
 ### Added
+- Test entry for automated merge test [5538]
 - Added the `/manager/configuration` endpoint route constant. ([#131](https://github.com/wazuh/qa-integration-framework/pull/131))
 
 ### Changed
