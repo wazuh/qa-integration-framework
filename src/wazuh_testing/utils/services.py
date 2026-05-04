@@ -5,12 +5,13 @@ import json
 import os
 import platform
 import psutil
+import re
 import subprocess
 import sys
 import time
-from typing import Union
+from typing import Tuple, Union
 
-from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
+from wazuh_testing.constants.daemons import AGENT_MODULES_DAEMON, CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
 from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
@@ -225,7 +226,14 @@ def wait_expected_daemon_status(target_daemon=None, running_condition=True, time
 
     while elapsed_time < timeout and not condition_met:
         if sys.platform == WINDOWS:
-            condition_met = check_if_process_is_running(WAZUH_AGENT_WIN) == running_condition
+            # Query the Windows Service Control Manager instead of relying on
+            # whether the process exists: a service in START_PENDING still has a
+            # live process but is not yet operational, and tests that race on
+            # "process exists" would proceed against a not-yet-ready service.
+            # sc query is the authoritative source for service state on Windows.
+            state, _ = _query_service_state()
+            is_running = (state == 'RUNNING')
+            condition_met = is_running == running_condition
         else:
             control_status_output = subprocess.run([WAZUH_CONTROL_PATH, 'status'],
                                                    stdout=subprocess.PIPE).stdout.decode()
@@ -295,3 +303,106 @@ def search_process_by_command(search_cmd: str) -> Union[psutil.Process, None]:
         command = next((command for command in process.cmdline() if search_cmd in command), None)
         if command:
             return process
+
+
+def _query_service_state() -> Tuple[str, str]:
+    """Query the current Wazuh service state from the platform authority.
+
+    Windows: parses ``sc query WazuhSvc`` and returns the STATE token (e.g.
+    RUNNING, START_PENDING, STOPPED). Non-Windows: parses ``wazuh-control
+    status`` and returns the line for ``wazuh-modulesd`` (the daemon that
+    hosts SCA) normalized to RUNNING/STOPPED.
+
+    Returns:
+        tuple[str, str]: (state, raw_output). ``state`` is one of RUNNING,
+        START_PENDING, STOP_PENDING, STOPPED, UNKNOWN. ``raw_output`` is the
+        full command output for diagnostic purposes.
+    """
+    if sys.platform == WINDOWS:
+        proc = subprocess.run(["sc", "query", "WazuhSvc"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        raw = proc.stdout.decode(errors='ignore') + proc.stderr.decode(errors='ignore')
+        match = re.search(r"STATE\s*:\s*\d+\s+(\w+)", raw)
+        state = match.group(1).upper() if match else 'UNKNOWN'
+        return state, raw
+
+    proc = subprocess.run([WAZUH_CONTROL_PATH, 'status'],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    raw = proc.stdout.decode(errors='ignore') + proc.stderr.decode(errors='ignore')
+    state = 'UNKNOWN'
+    for line in raw.splitlines():
+        tokens = line.split()
+        if not tokens or tokens[0] != AGENT_MODULES_DAEMON:
+            continue
+        rest = ' '.join(tokens[1:])
+        state = 'RUNNING' if rest == 'is running...' else 'STOPPED'
+        break
+    return state, raw
+
+
+def collect_service_diagnostics(log_path: str = None, tail_lines: int = 80,
+                                highlight_patterns: dict = None) -> dict:
+    """Collect a snapshot of service/process/log state for failure diagnostics.
+
+    Used when a fixture-level wait on a log pattern times out. The snapshot
+    answers: "was the service actually RUNNING?", "are the expected processes
+    alive?", and "what did the log last say?" — so CI failures point at a root
+    cause instead of just a timeout.
+
+    The ``highlight_patterns`` argument turns the log sweep into targeted
+    evidence collection: given a mapping ``{label: regex}``, the diagnostics
+    report, for each label, how many log lines matched and shows the first and
+    last matching line. That pulls the needle out of a log dominated by noise
+    (keep-alives, syslog reads) without any reviewer having to scroll.
+
+    Args:
+        log_path (str, optional): File whose tail should be included.
+        tail_lines (int): Number of trailing lines to read from log_path.
+        highlight_patterns (dict[str, str], optional): ``{label: regex}``. For
+            each label, ``highlights[label]`` is a dict with ``count``,
+            ``first`` and ``last`` (stripped matching lines, or None).
+
+    Returns:
+        dict with keys ``service_state``, ``service_raw``, ``processes`` and
+        (if log_path provided) ``log_tail`` and ``highlights``.
+    """
+    state, raw = _query_service_state()
+    processes = []
+    wazuh_names = {'wazuh-agentd', 'wazuh-execd', 'wazuh-modulesd',
+                   'wazuh-logcollector', 'wazuh-syscheckd',
+                   'WazuhSvc.exe', 'wazuh-agent.exe'}
+    for proc in psutil.process_iter(attrs=['pid', 'name']):
+        name = proc.info.get('name') or ''
+        if any(w in name for w in wazuh_names):
+            processes.append(f"{name}(pid={proc.info.get('pid')})")
+
+    diag = {
+        'service_state': state,
+        'service_raw': raw,
+        'processes': processes,
+    }
+
+    if log_path and os.path.isfile(log_path):
+        try:
+            with open(log_path, 'r', errors='ignore') as f:
+                lines = f.readlines()
+            diag['log_tail'] = ''.join(lines[-tail_lines:])
+
+            if highlight_patterns:
+                compiled = {label: re.compile(pat) for label, pat in highlight_patterns.items()}
+                highlights = {label: {'count': 0, 'first': None, 'last': None}
+                              for label in highlight_patterns}
+                for line in lines:
+                    for label, pattern in compiled.items():
+                        if pattern.search(line):
+                            entry = highlights[label]
+                            entry['count'] += 1
+                            stripped = line.rstrip()
+                            if entry['first'] is None:
+                                entry['first'] = stripped
+                            entry['last'] = stripped
+                diag['highlights'] = highlights
+        except OSError as exc:
+            diag['log_tail'] = f"<could not read {log_path}: {exc}>"
+
+    return diag
