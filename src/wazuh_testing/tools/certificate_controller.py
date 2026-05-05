@@ -1,11 +1,16 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import datetime
 import os
 import platform
 import random
 import stat
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 from OpenSSL import crypto
 
 if platform.system() == 'Windows':
@@ -75,38 +80,42 @@ class CertificateController:
         Returns:
             crypto.X509: The created CA certificate.
         """
-        cert = crypto.X509()
-        cert.set_serial_number(random.randint(500000, 1000000))
-        cert.set_version(version)
-        cert.get_subject().CN = subject or issuer
-        cert.gmtime_adj_notBefore(0)
-        cert.gmtime_adj_notAfter(expiration_time if expiration_time else 10 * 365 * 24 * 60 * 60)
-        ca_issuer = cert.get_issuer()
-        ca_issuer.commonName = issuer
-        cert.set_issuer(ca_issuer)
-        cert.set_pubkey(pub_key)
-        cert.add_extensions([
-            crypto.X509Extension(b'basicConstraints', True, b'CA:TRUE, pathlen:0'),
-            crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', subject=cert),
-        ])
-        cert.sign(self.root_ca_key, self.digest)
-        return cert
+        crypto_key = pub_key.to_cryptography_key()
+        if hasattr(crypto_key, 'public_key'):
+            public_key = crypto_key.public_key()
+        else:
+            public_key = crypto_key
+
+        expiry = expiration_time if expiration_time else 10 * 365 * 24 * 60 * 60
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject or issuer)]))
+            .issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, issuer)]))
+            .public_key(public_key)
+            .serial_number(random.randint(500000, 1000000))
+            .not_valid_before(now)
+            .not_valid_after(now + datetime.timedelta(seconds=expiry))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+        )
+        builder = builder.add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False
+        )
+
+        signing_key = self.root_ca_key.to_cryptography_key()
+        cryptography_cert = builder.sign(signing_key, hashes.SHA256())
+
+        return crypto.X509.from_cryptography(cryptography_cert)
 
     @staticmethod
     def store_private_key(key: crypto.PKey, path: str) -> None:
         """
-        Create a CA certificate using the provided public key.
+        Store a private key in the specified path.
 
         Args:
-            pub_key (crypto.PKey): The public key for the certificate.
-            issuer (str): The issuer of the certificate. Defaults to "Manager".
-            subject (str): The subject of the certificate. If not provided, the issuer is used.
-            version (int): The version number of the certificate. Defaults to 2.
-            expiration_time (int): The expiration time of the certificate in seconds.
-                If not provided, it defaults to 10 years.
-
-        Returns:
-            crypto.X509: The created CA certificate.
+            key (crypto.PKey): The private key to store.
+            path (str): The path to store the private key.
         """
         with open(path, 'wb') as f:
             f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
