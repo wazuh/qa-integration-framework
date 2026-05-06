@@ -153,6 +153,30 @@ def get_sqlite_fetch_one_query_result(db_path: str, query: str) -> tuple:
         services.control_service('start', daemon=WAZUH_DB_DAEMON)
 
 
+def get_sqlite_query_result_direct(db_path: str, query: str) -> List[tuple]:
+    """Execute a query in a given database and return the result without stopping any daemon.
+    Args:
+        db_path (str): Path where is located the DB.
+        query (str): SQL query. e.g(SELECT * ..).
+    Returns:
+        result (List[tuple]): Each element is a row tuple from the query result.
+    """
+    with DatabaseAdministrator(db_path) as db:
+        return db.execute_query(query)
+
+
+def get_sqlite_fetch_one_query_result_direct(db_path: str, query: str) -> tuple:
+    """Execute a query expecting only one result without stopping any daemon.
+    Args:
+        db_path (str): Path where is located the DB.
+        query (str): SQL query. e.g(SELECT * ..).
+    Returns:
+        result (tuple): Query result row.
+    """
+    with DatabaseAdministrator(db_path) as db:
+        return db.execute_fetch_one_query(query)
+
+
 def run_sql_script(database_path: Union[os.PathLike, str], script_path: Union[os.PathLike, str]) -> None:
     """Run SQL script in a database.
     Args:
