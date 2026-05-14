@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [4.10.4]
 
+### Fixed
+
+- Fixed certificate generation breaking on pyOpenSSL 26.x by migrating to the `cryptography` API. ([#688](https://github.com/wazuh/qa-integration-framework/pull/688))
+
 ## [4.10.3]
 
 ## [4.10.2]
