@@ -183,7 +183,7 @@ def check_all_daemon_status():
     return daemons_status
 
 
-def wait_expected_daemon_status(target_daemon=None, running_condition=True, timeout=10, extra_sockets=[]):
+def wait_expected_daemon_status(target_daemon=None, running_condition=True, timeout=30, extra_sockets=[]):
     """Wait until Wazuh daemon's status matches the expected one. If timeout is reached and the status didn't match,
        it raises a TimeoutError.
 
@@ -191,7 +191,7 @@ def wait_expected_daemon_status(target_daemon=None, running_condition=True, time
         target_daemon (str, optional):  Wazuh daemon to check. Default `None`. None means all.
         running_condition (bool, optional): True if the daemon is expected to be running False
             if it is expected to be stopped. Default `True`.
-        timeout (int, optional): Timeout value for the check. Default `10` seconds.
+        timeout (int, optional): Timeout value for the check. Default `30` seconds.
         extra_sockets (list, optional): Additional sockets to check. They may not be present in default configuration.
 
     Raises:
