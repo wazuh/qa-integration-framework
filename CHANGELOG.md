@@ -16,10 +16,12 @@ All notable changes to this project will be documented in this file.
 - Added workflow for automate the bump process in main. ([#391](https://github.com/wazuh/qa-integration-framework/pull/391))
 - Added version file for package installation in default branch. ([#305](https://github.com/wazuh/qa-integration-framework/pull/305))
 - Added `--set-as-main` flag support to repository bumper. ([#620](https://github.com/wazuh/qa-integration-framework/pull/620))
+- Added support for running AWS integration tests on agent. ([#684](https://github.com/wazuh/qa-integration-framework/pull/684))
 
 ### Changed
 
 - Adapted qa integration framework to new agent module startup. ([#595](https://github.com/wazuh/qa-integration-framework/pull/595))
+- Migrated certificate generation to the `cryptography` API to keep up with pyOpenSSL 26.2.0 deprecations. ([#683](https://github.com/wazuh/qa-integration-framework/pull/683))
 - Adapted Inventory patterns to use new sync protocol module. ([#468](https://github.com/wazuh/qa-integration-framework/pull/468))
 - Adapted FIM patterns to use new sync protocol module. ([#440](https://github.com/wazuh/qa-integration-framework/pull/440))
 - Renamed the usage of server to manager. ([#597](https://github.com/wazuh/qa-integration-framework/pull/597))
