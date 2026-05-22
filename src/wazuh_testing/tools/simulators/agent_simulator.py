@@ -450,6 +450,19 @@ class Agent:
 
         return headers_event
 
+    @staticmethod
+    def _recv_exact(sock, size):
+        """Receive exactly size bytes from a TCP socket."""
+        data = bytearray()
+
+        while len(data) < size:
+            chunk = sock.recv(size - len(data))
+            if not chunk:
+                return None
+            data.extend(chunk)
+
+        return bytes(data)
+
     def receive_message(self, sender):
         """Agent listener to receive messages and process the accepted commands.
         Args:
@@ -458,14 +471,14 @@ class Agent:
         while self.stop_receive == 0:
             if is_tcp(sender.protocol):
                 try:
-                    rcv = sender.socket.recv(4)
-                    if len(rcv) == 4:
-                        data_len = secure_message.unpack(rcv)
-                        buffer_array = sender.socket.recv(data_len)
-                        if data_len != len(buffer_array):
-                            continue
-                    else:
-                        continue
+                    rcv = self._recv_exact(sender.socket, 4)
+                    if rcv is None:
+                        return
+
+                    data_len = secure_message.unpack(rcv)
+                    buffer_array = self._recv_exact(sender.socket, data_len)
+                    if buffer_array is None:
+                        return
                 except MemoryError:
                     logging.critical(f"Memory error, trying to allocate {data_len}.")
                     return
@@ -1485,6 +1498,7 @@ class Sender:
         manager_address (str): IP of the manager.
         manager_port (str, optional): port used by remoted in the manager.
         protocol (str, optional): protocol used by remoted. TCP or UDP.
+        socket_timeout (int, optional): timeout in seconds for TCP socket operations.
         socket (socket): sock_stream used to connect with remoted.
     Examples:
         To create a Sender, you need to create an agent first, and then, create the sender. Finally, to send messages
@@ -1494,10 +1508,11 @@ class Sender:
         >>> agent = ag.Agent(manager_address, "aes", os="debian8", version="4.2.0")
         >>> sender = ag.Sender(manager_address, protocol=TCP)
     """
-    def __init__(self, manager_address, manager_port='1514', protocol=TCP):
+    def __init__(self, manager_address, manager_port='1514', protocol=TCP, socket_timeout=30):
         self.manager_address = manager_address
         self.manager_port = manager_port
         self.protocol = protocol.upper()
+        self.socket_timeout = socket_timeout
         self.socket = None
         self.connect()
 
@@ -1505,6 +1520,7 @@ class Sender:
         if is_tcp(self.protocol):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.manager_address, int(self.manager_port)))
+            self.socket.settimeout(self.socket_timeout)
         if is_udp(self.protocol):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -1519,16 +1535,16 @@ class Sender:
     def send_event(self, event):
         if is_tcp(self.protocol):
             length = pack('<I', len(event))
+            payload = length + event
             try:
                 if self.socket.fileno() != -1:
-                    self.socket.send(length + event)
+                    self.socket.sendall(payload)
             except BrokenPipeError:
                 logging.warning(f"Broken Pipe error while sending event. Creating new socket...")
                 sleep(5)
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.connect()
                 if self.socket.fileno() != -1 and is_valid_fd(self.socket.fileno()):
-                    self.socket.connect((self.manager_address, int(self.manager_port)))
-                    self.socket.send(length + event)
+                    self.socket.sendall(payload)
             except ConnectionResetError:
                 logging.warning(f"Connection reset by peer. Continuing...")
 
