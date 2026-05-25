@@ -4,10 +4,10 @@
 from . import PREFIX
 
 # Callback Messages
-SCA_ENABLED = fr"{PREFIX}DEBUG: SCA module enabled"
-SCA_DISABLED = fr"{PREFIX}DEBUG: SCA module disabled\. Exiting"
-SCA_STARTING = fr"{PREFIX}DEBUG: Starting SCA module"
-SCA_RUNNING = fr"{PREFIX}INFO: SCA module running"
+SCA_ENABLED = fr"{PREFIX}DEBUG: Module enabled"
+SCA_DISABLED = fr"{PREFIX}DEBUG: Module disabled\. Exiting"
+SCA_STARTING = fr"{PREFIX}DEBUG: Starting module"
+SCA_RUNNING = fr"{PREFIX}DEBUG: SCA module running"
 SCA_SCAN_STARTED_REQ = fr"{PREFIX}DEBUG: Starting Policy requirements evaluation for policy \"(.*?)\""
 SCA_SCAN_ENDED_REQ = fr"{PREFIX}DEBUG: Policy requirements evaluation completed for policy \"(.*?)\", result: (Passed|Failed)"
 SCA_SCAN_STARTED_CHECK = fr"{PREFIX}DEBUG: Starting Policy checks evaluation for policy \"(.*?)\""

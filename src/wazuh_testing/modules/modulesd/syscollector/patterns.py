@@ -6,11 +6,11 @@ from . import WMODULES_PREFIX
 
 
 # Callback messages
-CB_MODULE_STARTING = fr'{PREFIX}DEBUG: Starting Syscollector.'
-CB_MODULE_STARTED = fr'{PREFIX}INFO: Module started.'
+CB_MODULE_STARTING = fr'{PREFIX}DEBUG: Starting module.'
+CB_MODULE_STARTED = fr'{PREFIX}INFO: Started \(pid: \d+\).'
 CB_SCAN_STARTED = fr'{PREFIX}INFO: Starting evaluation.'
 CB_SCAN_FINISHED = fr'{PREFIX}INFO: Evaluation finished.'
-CB_SYSCOLLECTOR_DISABLED = fr'{PREFIX}INFO: Module disabled. Exiting...'
+CB_SYSCOLLECTOR_DISABLED = fr'{PREFIX}INFO: Module disabled. Exiting.'
 CB_HARDWARE_SCAN_STARTED = fr'{PREFIX}DEBUG: Starting hardware scan'
 CB_HARDWARE_SCAN_FINISHED = fr'{PREFIX}DEBUG: Ending hardware scan'
 CB_OS_SCAN_STARTED = fr'{PREFIX}DEBUG: Starting os scan'
