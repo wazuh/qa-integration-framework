@@ -17,6 +17,7 @@ DIFF_PATH_FILE = os.path.join(QUEUE_DIFF_PATH, 'file')
 
 ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'analysis')
 ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
+ANALYSISD_ENRICH_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue-http.sock')
 AUTHD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'auth')
 EXECD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'com')
 LOGCOLLECTOR_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'logcollector')
@@ -29,7 +30,7 @@ MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor')
 REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
 WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_DB_PATH, 'wdb')
-ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_ALERTS_PATH, 'ar')
+ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'ar')
 
 
 WAZUH_SOCKETS = {
@@ -37,7 +38,7 @@ WAZUH_SOCKETS = {
     'wazuh-manager-apid': [],
     'wazuh-manager-analysisd': [
         ANALYSISD_ANALISIS_SOCKET_PATH,
-        ANALYSISD_QUEUE_SOCKET_PATH
+        ANALYSISD_ENRICH_SOCKET_PATH,
     ],
     'wazuh-manager-authd': [AUTHD_SOCKET_PATH],
     'wazuh-execd': [EXECD_SOCKET_PATH],

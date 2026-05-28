@@ -6,6 +6,7 @@
 from . import PREFIX
 
 INVALID_VALUE_FOR_ELEMENT = fr"{PREFIX}.*Invalid value for element.*"
+INVALID_ELEMENT_IN_CONFIGURATION = fr"{PREFIX}.*Invalid element in the configuration.*"
 CONFIGURATION_ERROR = r".*{severity}:.*Configuration error at '{path}'.*"
 
 INVALID_VALUE_FOR_PORT_NUMBER = fr"{PREFIX}.*Invalid port number.*"
