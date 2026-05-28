@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.14.6]
+
+### Changed
+
+- Migrated certificate generation to the `cryptography` API for `pyOpenSSL` 26.x compatibility. ([#685](https://github.com/wazuh/qa-integration-framework/pull/685))
+
+### Fixed
+
+- Fixed TCP framing in `agent_simulator` by reading complete frames and using `sendall` to prevent partial sends. ([#691](https://github.com/wazuh/qa-integration-framework/pull/691))
+- Extended `wazuh-db` startup timeout in `wait_expected_daemon_status` to reduce flakiness in analysisd integration tests. ([#686](https://github.com/wazuh/qa-integration-framework/pull/686))
+
 ## [4.14.1]
 
 ## [4.14.0]
