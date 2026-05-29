@@ -65,14 +65,22 @@
                                           "startup"
                                         ]
                                       },
-                                      "event": {
+                                      "events": {
+                                        "type": "integer"
+                                      },
+                                      "states": {
+                                        "type": "integer"
+                                      },
+                                      "upgrade_ack": {
                                         "type": "integer"
                                       }
                                     },
                                     "required": [
                                       "control",
                                       "control_breakdown",
-                                      "event"
+                                      "events",
+                                      "states",
+                                      "upgrade_ack"
                                     ]
                                   },
                                   "sent_breakdown": {

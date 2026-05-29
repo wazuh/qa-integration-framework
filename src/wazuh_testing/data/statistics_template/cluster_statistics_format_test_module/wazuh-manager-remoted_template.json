@@ -80,13 +80,22 @@
                               "discarded": {
                                 "type": "integer"
                               },
-                              "event": {
+                              "events_failed": {
+                                "type": "integer"
+                              },
+                              "events": {
                                 "type": "integer"
                               },
                               "ping": {
                                 "type": "integer"
                               },
+                              "states": {
+                                "type": "integer"
+                              },
                               "unknown": {
+                                "type": "integer"
+                              },
+                              "upgrade_ack": {
                                 "type": "integer"
                               }
                             },
@@ -95,9 +104,12 @@
                               "control_breakdown",
                               "dequeued_after",
                               "discarded",
-                              "event",
+                              "events_failed",
+                              "events",
                               "ping",
-                              "unknown"
+                              "states",
+                              "unknown",
+                              "upgrade_ack"
                             ]
                           },
                           "sent_breakdown": {
