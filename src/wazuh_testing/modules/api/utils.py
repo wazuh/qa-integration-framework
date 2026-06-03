@@ -325,7 +325,10 @@ def compare_config_api_response(configuration, section):
 
 
 def get_manager_configuration(section=None, field=None):
-    """Get Wazuh manager configuration response from API using GET /cluster/{node_id}/configuration
+    """Get Wazuh manager configuration response from API using GET /manager/configuration
+
+    References: https://documentation.wazuh.com/current/user-manual/api/reference.html#operation/
+                api.controllers.manager_controller.get_configuration
 
     Args:
         section (str): wazuh configuration section, E.g: "active-response", "ruleset"...
@@ -337,17 +340,8 @@ def get_manager_configuration(section=None, field=None):
          as keys.
     """
     api_details = get_api_details_dict()
+    api_query = f"{api_details['base_url']}/manager/configuration?"
 
-    node_info_response = requests.get(
-        f"{api_details['base_url']}/cluster/local/info",
-        headers=api_details['auth_headers'],
-        verify=False
-    )
-    assert node_info_response.json()['error'] == 0, \
-        f"Could not get local node info: {node_info_response.json()}"
-    node_name = node_info_response.json()['data']['affected_items'][0]['node']
-
-    api_query = f"{api_details['base_url']}/cluster/{node_name}/configuration?"
     if section is not None:
         api_query += f"section={section}"
         if field is not None:

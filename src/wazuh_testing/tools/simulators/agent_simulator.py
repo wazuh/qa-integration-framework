@@ -1763,7 +1763,7 @@ class InjectorThread(threading.Thread):
 
 
 def create_agents(agents_number, manager_address, cypher='aes', fim_eps=100, authd_password=None, agents_os=None,
-                  agents_version=None, disable_all_modules=False):
+                  agents_version=None, disable_all_modules=False, retry_enrollment=False):
     """Create a list of generic agents
     This will create a list with `agents_number` amount of agents. All of them will be registered in the same manager.
     Args:
@@ -1775,6 +1775,7 @@ def create_agents(agents_number, manager_address, cypher='aes', fim_eps=100, aut
         agents_os (list, optional): list containing different operative systems for the agents.
         agents_version (list, optional): list containing different version of the agent.
         disable_all_modules (boolean): Disable all simulated modules for this agent.
+        retry_enrollment (bool, optional): Retry enrollment if authd is not yet ready. Default False.
     Returns:
         list: list of the new virtual agents.
     """
@@ -1786,7 +1787,8 @@ def create_agents(agents_number, manager_address, cypher='aes', fim_eps=100, aut
         agent_version = agents_version[agent] if agents_version is not None else None
 
         agents.append(Agent(manager_address, cypher, fim_eps=fim_eps, authd_password=authd_password,
-                            os=agent_os, version=agent_version, disable_all_modules=disable_all_modules))
+                            os=agent_os, version=agent_version, disable_all_modules=disable_all_modules,
+                            retry_enrollment=retry_enrollment))
 
         agent_count = agent_count + 1
 
