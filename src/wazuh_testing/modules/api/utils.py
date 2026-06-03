@@ -325,10 +325,11 @@ def compare_config_api_response(configuration, section):
 
 
 def get_manager_configuration(section=None, field=None):
-    """Get Wazuh manager configuration response from API using GET /manager/configuration
+    """Get Wazuh manager configuration response from API using GET /cluster/{node_id}/configuration.
 
-    References: https://documentation.wazuh.com/current/user-manual/api/reference.html#operation/
-                api.controllers.manager_controller.get_configuration
+    In 5.x the legacy /manager/configuration endpoint was removed; the equivalent is
+    /cluster/{node_id}/configuration. Standalone managers are treated as a single-node cluster,
+    so the local node name is resolved first via /cluster/local/info.
 
     Args:
         section (str): wazuh configuration section, E.g: "active-response", "ruleset"...
@@ -340,17 +341,25 @@ def get_manager_configuration(section=None, field=None):
          as keys.
     """
     api_details = get_api_details_dict()
-    api_query = f"{api_details['base_url']}/manager/configuration?"
 
+    node_info_response = requests.get(f"{api_details['base_url']}/cluster/local/info",
+                                      headers=api_details['auth_headers'], verify=False)
+    node_info_response.raise_for_status()
+    node_info_items = node_info_response.json().get('data', {}).get('affected_items', [])
+    assert node_info_items, f"Could not resolve local node from /cluster/local/info: {node_info_response.json()}"
+    node_name = node_info_items[0]['node']
+
+    api_query = f"{api_details['base_url']}/cluster/{node_name}/configuration?"
     if section is not None:
         api_query += f"section={section}"
         if field is not None:
             api_query += f"&field={field}"
 
     response = requests.get(api_query, headers=api_details['auth_headers'], verify=False)
-
-    assert response.json()['error'] == 0, f"Wazuh API response status different from 0: {response.json()}"
-    answer = response.json()['data']['affected_items'][0]
+    response.raise_for_status()
+    affected_items = response.json().get('data', {}).get('affected_items', [])
+    assert affected_items, f"Empty configuration response from {api_query}: {response.json()}"
+    answer = affected_items[0]
 
     def get_requested_values(answer, section, field):
         """Return requested value from API response
