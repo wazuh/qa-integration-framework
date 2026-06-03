@@ -54,9 +54,7 @@ WAZUH_SOCKETS = {
     ],
     'wazuh-manager-modulesd': [
         MODULESD_WMODULES_SOCKET_PATH,
-        MODULESD_DOWNLOAD_SOCKET_PATH,
         MODULESD_CONTROL_SOCKET_PATH,
-        MODULESD_KREQUEST_SOCKET_PATH
     ],
     'wazuh-manager-clusterd': [MODULESD_C_INTERNAL_SOCKET_PATH]
 }

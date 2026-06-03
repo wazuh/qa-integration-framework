@@ -62,22 +62,37 @@ class SocketController:
         self.sock = socket.socket(family=self.family, type=self.protocol)
 
         if 'ssl' in self.connection_protocol.lower():
-            versions_maps = {
-                "ssl_v2_3": ssl.PROTOCOL_SSLv23,
-                "ssl_tls": ssl.PROTOCOL_TLS,
-                "ssl_tlsv1_1": ssl.PROTOCOL_TLSv1,
-                "ssl_tlsv1_2": ssl.PROTOCOL_TLSv1_2,
-            }
-            ssl_version = versions_maps.get(self.connection_protocol.lower(), None)
-            if ssl_version is None:
+            proto_key = self.connection_protocol.lower()
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+            if proto_key == 'ssl_tlsv1_1':
+                context.minimum_version = ssl.TLSVersion.TLSv1_1
+                context.maximum_version = ssl.TLSVersion.TLSv1_1
+            elif proto_key == 'ssl_tlsv1_2':
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
+                context.maximum_version = ssl.TLSVersion.TLSv1_2
+            elif proto_key in ('ssl_tls', 'ssl_v2_3'):
+                # Auto-negotiate: keep PROTOCOL_TLS_CLIENT defaults.
+                pass
+            else:
                 raise TypeError(
-                    f'Invalid or unsupported SSL version specified, valid versions are: {list(versions_maps.keys())}')
-            # Wrap socket into ssl
-            context = ssl.SSLContext(ssl_version)
+                    "Invalid or unsupported SSL version specified, valid versions are: "
+                    "['ssl_v2_3', 'ssl_tls', 'ssl_tlsv1_1', 'ssl_tlsv1_2']")
+
+            # OpenSSL 3 (Ubuntu 24+) defaults to SECLEVEL=2 which blocks TLS 1.1
+            # handshakes even when minimum_version permits them. Lower SECLEVEL only
+            # for the legacy version so other tests are unaffected.
+            if proto_key == 'ssl_tlsv1_1':
+                base = self.ciphers or 'DEFAULT'
+                context.set_ciphers(f'{base}:@SECLEVEL=0')
+            elif self.ciphers:
+                context.set_ciphers(self.ciphers)
+
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
             if self.certificate and self.keyfile:
                 context.load_cert_chain(self.certificate, self.keyfile)
-            if self.ciphers:
-                context.set_ciphers(self.ciphers)
+
             self.sock = context.wrap_socket(self.sock)
             self.ssl = True
 
