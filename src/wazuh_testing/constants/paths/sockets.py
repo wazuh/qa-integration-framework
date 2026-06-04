@@ -29,7 +29,7 @@ MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor')
 REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
 WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_DB_PATH, 'wdb')
-ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_ALERTS_PATH, 'ar')
+ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'ar')
 
 
 WAZUH_SOCKETS = {
@@ -37,7 +37,6 @@ WAZUH_SOCKETS = {
     'wazuh-manager-apid': [],
     'wazuh-manager-analysisd': [
         ANALYSISD_ANALISIS_SOCKET_PATH,
-        ANALYSISD_QUEUE_SOCKET_PATH
     ],
     'wazuh-manager-authd': [AUTHD_SOCKET_PATH],
     'wazuh-execd': [EXECD_SOCKET_PATH],
