@@ -7,7 +7,6 @@ from os.path import basename, exists, join, dirname
 PYTHON_MODULES = (
     'framework',  # Framework
     'api/api',  # API
-    'wodles',  # External modules
 )
 
 COVERAGE_FILE = '.coverage'
