@@ -318,7 +318,7 @@ class ManInTheMiddle:
             os.chown(self.listener_socket_address, uid, gid)
             os.chmod(self.listener_socket_address, 0o660)
 
-        self.thread = threading.Thread(target=self.listener.serve_forever)
+        self.thread = threading.Thread(target=self.listener.serve_forever, daemon=True)
         self.thread.start()
 
     def start(self):
