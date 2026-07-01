@@ -28,6 +28,7 @@ from time import mktime, localtime, sleep, time
 from typing import Tuple
 
 from wazuh_testing import DATA_PATH
+from wazuh_testing.constants.paths.configurations import DEFAULT_AUTHD_PASS_PATH
 from wazuh_testing.utils import secure_message
 from wazuh_testing.utils.db_queries import global_db
 from wazuh_testing.utils.decorators import retry
@@ -380,10 +381,20 @@ class Agent:
             ssl_socket = context.wrap_socket(sock, server_hostname=self.registration_address)
             ssl_socket.connect((self.registration_address, 1515))
 
-            if self.authd_password is None:
+            password = self.authd_password
+            if password is None:
+                # use_password=yes is the default since wazuh/wazuh#37151; auto-read the
+                # manager-generated password file so tests don't need to pass it explicitly.
+                try:
+                    with open(DEFAULT_AUTHD_PASS_PATH) as _f:
+                        password = _f.read().strip() or None
+                except OSError:
+                    pass
+
+            if password is None:
                 event = f"OSSEC A:'{self.name}'\n".encode()
             else:
-                event = f"OSSEC PASS: {self.authd_password} OSSEC A:'{self.name}'\n".encode()
+                event = f"OSSEC PASS: {password} OSSEC A:'{self.name}'\n".encode()
 
             ssl_socket.send(event)
             recv = ssl_socket.recv(4096)
