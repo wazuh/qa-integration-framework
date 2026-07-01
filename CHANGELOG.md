@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [5.0.0]
+## [v5.0.0]
 
 ### Added
 
@@ -56,102 +56,14 @@ All notable changes to this project will be documented in this file.
 - Fixed server clean up minor issues. ([#615](https://github.com/wazuh/qa-integration-framework/pull/615))
 - Increased net stop retries and force kill process as last resort. ([#621](https://github.com/wazuh/qa-integration-framework/pull/621))
 
-## [4.14.6]
+## Prior versions
 
-### Changed
+- [v4.14.5](https://github.com/wazuh/qa-integration-framework/blob/v4.14.5/CHANGELOG.md)
+- [v4.14.4](https://github.com/wazuh/qa-integration-framework/blob/v4.14.4/CHANGELOG.md)
+- [v4.14.3](https://github.com/wazuh/qa-integration-framework/blob/v4.14.3/CHANGELOG.md)
+- [v4.14.2](https://github.com/wazuh/qa-integration-framework/blob/v4.14.2/CHANGELOG.md)
+- [v4.14.1](https://github.com/wazuh/qa-integration-framework/blob/v4.14.1/CHANGELOG.md)
+- [v4.14.0](https://github.com/wazuh/qa-integration-framework/blob/v4.14.0/CHANGELOG.md)
+- [v4.13.1](https://github.com/wazuh/qa-integration-framework/blob/v4.13.1/CHANGELOG.md)
+- [v4.13.0](https://github.com/wazuh/qa-integration-framework/blob/v4.13.0/CHANGELOG.md)
 
-- Migrated certificate generation to the `cryptography` API for `pyOpenSSL` 26.x compatibility. ([#685](https://github.com/wazuh/qa-integration-framework/pull/685))
-
-### Fixed
-
-- Fixed TCP framing in `agent_simulator` by reading complete frames and using `sendall` to prevent partial sends. ([#691](https://github.com/wazuh/qa-integration-framework/pull/691))
-- Extended `wazuh-db` startup timeout in `wait_expected_daemon_status` to reduce flakiness in analysisd integration tests. ([#686](https://github.com/wazuh/qa-integration-framework/pull/686))
-
-## [4.14.1]
-
-## [4.14.0]
-
-### Added
-
-- Added integration tests for syscollector browser extensions. ([#450](https://github.com/wazuh/qa-integration-framework/pull/450))
-
-### Fixed
-
-- Fixed syscollector users and groups tests. ([#400](https://github.com/wazuh/qa-integration-framework/pull/400))
-
-## [4.13.1]
-
-## [4.13.0]
-
-### Added
-
-- Added missing ruleset files in the ossec.conf. ([#380](https://github.com/wazuh/qa-integration-framework/pull/380))
-
-## [4.12.0]
-
-### Added
-
-- Added a script to parse pytest results. ([#283](https://github.com/wazuh/qa-integration-framework/pull/283))
-
-## [4.11.2]
-
-## [4.11.1]
-
-### Changed
-
-- Updated the `ERROR_BIND_PORT` message due to agent connectivity improvements. ([#311](https://github.com/wazuh/qa-integration-framework/pull/311))
-
-## [4.11.0]
-
-## [4.10.1]
-
-## [4.10.0]
-
-### Added
-- Added a script and dependencies to get the Python unit tests coverage. ([#254](https://github.com/wazuh/qa-integration-framework/pull/254))
-
-## [4.9.2]
-
-## [4.9.1]
-
-## [4.9.0]
-
-### Added
-- Added `/manager/configuration` endpoint route constant. ([#63](https://github.com/wazuh/qa-integration-framework/pull/63))
-- Added support for the `enrollment` integration tests. ([#123](https://github.com/wazuh/qa-integration-framework/pull/123))
-- Added support for the `wazuh-logcollector` integration tests. ([#122](https://github.com/wazuh/qa-integration-framework/pull/122))
-- Added patterns for inotify and max eps cases in the FIM integration tests. ([#119](https://github.com/wazuh/qa-integration-framework/pull/119))
-- Added support for the `integratord` integration tests. ([#118](https://github.com/wazuh/qa-integration-framework/pull/118))
-- Added support for `logtest` and `remoted` integration tests. ([#102](https://github.com/wazuh/qa-integration-framework/pull/102))
-- Added AWS module related functions and data generation methods. ([#25](https://github.com/wazuh/qa-integration-framework/pull/25))
-
-### Changed
-- Updated the API script file name. ([#154](https://github.com/wazuh/qa-integration-framework/pull/154))
-
-### Fixed
-- Fixed bug in the service control function for Windows agents. ([#121](https://github.com/wazuh/qa-integration-framework/pull/121))
-- Fixed bug in the RemotedSimulator udp connections mocker. ([#86](https://github.com/wazuh/qa-integration-framework/pull/86))
-- Fixed agent_simulator response for active-response configuration commands. ([#139](https://github.com/wazuh/qa-integration-framework/pull/139))
-
-## [4.8.2]
-
-## [4.8.1]
-
-## [4.8.0]
-
-### Added
-- Added the `/manager/configuration` endpoint route constant. ([#131](https://github.com/wazuh/qa-integration-framework/pull/131))
-
-### Changed
-- Updated name of the `vulnerability-detection` configuration block in the `all_disabled_ossec.conf` file. ([#51](https://github.com/wazuh/qa-integration-framework/pull/51))
-- Updated the `wazuh-db_template.json` to remove vulnerability detector fields. ([#89](https://github.com/wazuh/qa-integration-framework/pull/89))
-
-## [4.7.5]
-
-## [4.7.4]
-
-## [4.7.3]
-
-## [4.7.2]
-
-## [4.7.1]
