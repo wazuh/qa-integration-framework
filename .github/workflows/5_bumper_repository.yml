@@ -124,10 +124,17 @@ jobs:
           bash ${{ env.BUMP_SCRIPT_PATH }} ${{ steps.vars.outputs.script_params }}
 
       - name: Commit changes (Bump)
+        id: bump_step
         if: inputs.revert != true
         run: |
           git add .
-          git commit -m "feat: bump ${{ github.ref_name }}"
+          if git diff --staged --quiet; then
+            echo "No changes to commit. Skipping."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "feat: bump ${{ github.ref_name }}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Revert references (Revert)
         id: revert_step
@@ -171,13 +178,13 @@ jobs:
           fi
 
       - name: Push changes
-        if: inputs.revert != true || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
+        if: (inputs.revert != true && steps.bump_step.outputs.has_changes == 'true') || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
         run: |
           git push origin ${{ steps.vars.outputs.branch_name }}
 
       - name: Create pull request
         id: create_pr
-        if: inputs.revert != true || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
+        if: (inputs.revert != true && steps.bump_step.outputs.has_changes == 'true') || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
         run: |
           gh auth setup-git
           PR_URL=$(gh pr create \
@@ -190,7 +197,7 @@ jobs:
           echo "pull_request_url=${PR_URL}" >> $GITHUB_OUTPUT
 
       - name: Merge pull request
-        if: inputs.revert != true || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
+        if: (inputs.revert != true && steps.bump_step.outputs.has_changes == 'true') || (inputs.revert == true && steps.revert_step.outputs.has_changes == 'true')
         run: |
           # Any checks for the PR are bypassed since the branch is expected to be functional
           gh pr merge "${{ steps.create_pr.outputs.pull_request_url }}" --merge --admin
