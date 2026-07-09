@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.14.7]
+
+### Changed
+
+- Replaced deprecated `pyOpenSSL` functions in `CertificateController` and `AuthdSimulator` with the `cryptography` API. ([#748](https://github.com/wazuh/qa-integration-framework/pull/748))
+
+### Fixed
+
+- Fixed `authd` flaky tests by running the `ManInTheMiddle` listener thread as a daemon thread. ([#707](https://github.com/wazuh/qa-integration-framework/pull/707))
+
 ## [4.14.6]
 
 ### Changed
