@@ -12,7 +12,9 @@ under ``tools/simulators`` compose with their own protocol logic. Nothing here k
 anything about the Wazuh wire protocol.
 """
 import json
+import socket
 import ssl
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Tuple
@@ -75,8 +77,16 @@ class TLSHTTPServer(ThreadingHTTPServer):
         self.socket = ssl_context.wrap_socket(self.socket, server_side=True)
 
     def handle_error(self, request, client_address) -> None:
-        """Swallow TLS handshake noise (e.g. a plain-HTTP probe on the TLS port)."""
-        pass
+        """Swallow expected transport noise; surface genuine handler bugs.
+
+        A plain-HTTP probe on the TLS port or a client disconnect is expected and
+        silenced. Anything else is a real error and is delegated to the stdlib
+        handler (which prints a traceback) so it is not hidden.
+        """
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ssl.SSLError, ConnectionResetError, BrokenPipeError, socket.timeout)):
+            return
+        super().handle_error(request, client_address)
 
 
 class BaseTLSRequestHandler(BaseHTTPRequestHandler):
