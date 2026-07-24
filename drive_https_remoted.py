@@ -81,9 +81,20 @@ def main() -> int:
             print(f'    POST {route:<11} -> {resp.status_code}')
             assert resp.status_code == 200, f'{route} expected 200, got {resp.status_code}'
 
-        # 4) Unknown endpoint -> 404 with the ErrorResponse envelope.
+        # 4) /config and /stats store what the agent pushed and ack empty.
+        print('[4] /config + /stats:')
+        cfg = requests.post(f'{BASE}/config', headers=headers,
+                            data=json.dumps({'client': {'notify_time': '10'}}), verify=False, timeout=5)
+        sts = requests.post(f'{BASE}/stats', headers=headers,
+                            data=json.dumps({'events_received': 42}), verify=False, timeout=5)
+        print(f'    config -> {cfg.status_code} {json.dumps(cfg.json())}, stored={json.dumps(sim.last_config)}')
+        print(f'    stats  -> {sts.status_code} {json.dumps(sts.json())}, stored={json.dumps(sim.last_stats)}')
+        assert cfg.json() == {} and sim.last_config['client']['notify_time'] == '10'
+        assert sts.json() == {} and sim.last_stats['events_received'] == 42
+
+        # 5) Unknown endpoint -> 404 with the ErrorResponse envelope.
         resp = requests.post(f'{BASE}/nope', data=b'x', verify=False, timeout=5)
-        print(f'[4] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
+        print(f'[5] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
         assert resp.status_code == 404 and resp.json()['code'] == 404
 
         print('[+] TLS handshake, /control lifecycle, routing and errors all OK.')
