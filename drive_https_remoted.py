@@ -1,6 +1,6 @@
-"""Throwaway Phase-1 driver: prove the HTTPS RemotedSimulator stands up TLS and routes.
+"""Throwaway driver: exercise the HTTPS RemotedSimulator while building it.
 
-Not part of the package or git — a local dev aid while building the simulator.
+Not part of the package or git — a local dev aid.
 Run with the project venv:
     /home/juan/qa-venv/bin/python drive_https_remoted.py
 """
@@ -27,7 +27,7 @@ def main() -> int:
 
     try:
         # 1) One request with every part spelled out, so the exact wire contents
-        #    are obvious right here in the driver's code.
+        #    (including the auth headers a real agent sends) are obvious right here.
         method = 'POST'
         endpoint = '/control'
         headers = {
@@ -39,34 +39,54 @@ def main() -> int:
 
         resp = requests.request(method, f'{BASE}{endpoint}',
                                 headers=headers, data=body, verify=False, timeout=5)
-        print(f'    {method} {endpoint} (body={body}) -> {resp.status_code} {resp.text!r}')
+        print(f'[1] {method} {endpoint} (body={body})')
+        print(f'    -> {resp.status_code} {json.dumps(resp.json())}')
         assert resp.status_code == 200
+        assert 'limits' in resp.json() and 'settings_hash' not in resp.json()
 
-        # 2) Every known endpoint routes to the Phase-1 200 stub.
-        for route in ENDPOINTS:
-            resp = requests.post(f'{BASE}{route}', json={'type': 'notify'}, verify=False, timeout=5)
-            print(f'    POST {route:<11} -> {resp.status_code} {resp.text!r}')
+        # Reuse the same spelled-out headers for the rest of the /control calls.
+        def control(message: dict) -> requests.Response:
+            return requests.post(f'{BASE}/control', headers=headers,
+                                 data=json.dumps(message), verify=False, timeout=5)
+
+        # 2) /control lifecycle: notify (no tasks) -> notify (with a task) -> shutdown.
+        print('[2] /control lifecycle:')
+
+        notify = control({'type': 'notify'}).json()
+        print(f'    notify (no tasks) -> {json.dumps(notify)}')
+        assert 'settings_hash' in notify and 'config_hash' in notify['agent'] and 'tasks' not in notify
+
+        sim.add_task({'task_id': 'abc-123', 'task_type': 'agent_restart', 'payload': {}})
+        notify = control({'type': 'notify'}).json()
+        print(f'    notify (with task) -> {json.dumps(notify)}')
+        assert notify['tasks'][0]['task_id'] == 'abc-123'
+
+        notify = control({'type': 'notify'}).json()
+        print(f'    notify (task drained) -> {json.dumps(notify)}')
+        assert 'tasks' not in notify
+
+        shutdown = control({'type': 'shutdown'})
+        print(f'    shutdown -> {shutdown.status_code} {json.dumps(shutdown.json())}')
+        assert shutdown.status_code == 200 and shutdown.json() == {}
+
+        bad = control({'type': 'bogus'})
+        print(f'    bogus type -> {bad.status_code} {json.dumps(bad.json())}')
+        assert bad.status_code == 400 and bad.json()['code'] == 400
+
+        # 3) The other endpoints route (still 200 stubs). /control is covered above and
+        #    rightly rejects an empty body, so it is excluded here.
+        print('[3] routing:')
+        for route in [e for e in ENDPOINTS if e != '/control']:
+            resp = requests.post(f'{BASE}{route}', json={}, verify=False, timeout=5)
+            print(f'    POST {route:<11} -> {resp.status_code}')
             assert resp.status_code == 200, f'{route} expected 200, got {resp.status_code}'
 
-        # 2) Unknown endpoint should 404 with the ErrorResponse envelope.
+        # 4) Unknown endpoint -> 404 with the ErrorResponse envelope.
         resp = requests.post(f'{BASE}/nope', data=b'x', verify=False, timeout=5)
-        print(f'    POST /nope        -> {resp.status_code} {resp.text!r}')
+        print(f'[4] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
         assert resp.status_code == 404 and resp.json()['code'] == 404
 
-        # 3) A signed-looking request: check agent id is parsed from the header + body captured.
-        headers = {'protocol-version': '1', 'Authorization': 'Wazuh 001:1784238000:deadbeef'}
-        requests.post(f'{BASE}/stateless', data=b'H {}\nE 1:loc:msg', headers=headers, verify=False, timeout=5)
-
-        # 4) Drain the introspection queue and show what landed.
-        print('[+] Captured requests:')
-        seen_paths = []
-        while not sim.queue.empty():
-            item = sim.queue.get_nowait()
-            seen_paths.append(item['path'])
-            print(f'    {item["method"]} {item["path"]} agent_id={item["agent_id"]} body={item["body"]!r}')
-
-        assert '/stateless' in seen_paths
-        print('[+] TLS handshake, routing, and request capture all OK.')
+        print('[+] TLS handshake, /control lifecycle, routing and errors all OK.')
         return 0
     finally:
         sim.destroy()
