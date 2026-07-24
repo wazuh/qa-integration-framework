@@ -86,6 +86,10 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
         if path == CONTROL_ENDPOINT:
             self._handle_control(body)
+        elif path == CONFIG_ENDPOINT:
+            self._handle_report(body, 'last_config')
+        elif path == STATS_ENDPOINT:
+            self._handle_report(body, 'last_stats')
         elif path in ENDPOINTS:
             # Not yet implemented in this phase; acknowledge with an empty 200.
             self.send_json(200, {})
@@ -113,6 +117,23 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             self.send_json(200, self.simulator.shutdown_response())
         else:
             self.send_error_response(400, 'Bad request')
+
+    def _handle_report(self, body: bytes, attribute: str) -> None:
+        """Handle a ``/config`` or ``/stats`` push: store the JSON document, ack empty.
+
+        Args:
+            body (bytes): The request body.
+            attribute (str): Simulator attribute to hold the parsed document
+                (``last_config`` or ``last_stats``).
+        """
+        try:
+            document = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        setattr(self.simulator, attribute, document)
+        self.send_json(200, {})
 
 
 class RemotedSimulator(BaseSimulator):
@@ -172,6 +193,10 @@ class RemotedSimulator(BaseSimulator):
 
         self._tasks: List[Dict] = []
         self._tasks_lock = threading.Lock()
+
+        # Last documents pushed by the agent (populated by /config and /stats).
+        self.last_config: Optional[Dict] = None
+        self.last_stats: Optional[Dict] = None
 
         self._queue: Queue = Queue()
         self._httpd: Optional[TLSHTTPServer] = None
