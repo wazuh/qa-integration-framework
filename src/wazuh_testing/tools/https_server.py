@@ -139,6 +139,33 @@ class BaseTLSRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_empty(self, status: int = 200) -> None:
+        """Send a response with the given status code and an empty body."""
+        self.send_response(status)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def send_chunked(self, data: bytes, status: int = 200,
+                     content_type: str = 'application/octet-stream',
+                     chunk_size: int = 65536) -> None:
+        """Send a body using HTTP/1.1 ``Transfer-Encoding: chunked``.
+
+        Args:
+            data (bytes): The full payload to stream.
+            status (int): HTTP status code. Defaults: 200.
+            content_type (str): Response Content-Type. Defaults: application/octet-stream.
+            chunk_size (int): Bytes per chunk. Defaults: 65536 (64 KB).
+        """
+        self.send_response(status)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Transfer-Encoding', 'chunked')
+        self.end_headers()
+
+        for offset in range(0, len(data), chunk_size):
+            chunk = data[offset:offset + chunk_size]
+            self.wfile.write(f'{len(chunk):x}\r\n'.encode() + chunk + b'\r\n')
+        self.wfile.write(b'0\r\n\r\n')
+
     def send_error_response(self, status: int, message: str) -> None:
         """Send a generic ``{"error", "code"}`` JSON error envelope."""
         self.send_json(status, {'error': message, 'code': status})
