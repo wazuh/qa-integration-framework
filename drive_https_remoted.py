@@ -73,16 +73,48 @@ def main() -> int:
         print(f'    bogus type -> {bad.status_code} {json.dumps(bad.json())}')
         assert bad.status_code == 400 and bad.json()['code'] == 400
 
-        # 3) The other endpoints route (still 200 stubs). /control is covered above and
-        #    rightly rejects an empty body, so it is excluded here.
-        print('[3] routing:')
-        for route in [e for e in ENDPOINTS if e != '/control']:
+        # 3) /stateless: a valid H/E batch -> empty 200; a malformed one -> 400.
+        print('[3] /stateless:')
+        batch = b'H {"wazuh":{"agent":{"id":"001"}}}\nE 1:/var/log/syslog:hello\nE 2:/var/log/auth:world'
+        ok = requests.post(f'{BASE}/stateless', headers=headers, data=batch, verify=False, timeout=5)
+        print(f'    valid batch    -> {ok.status_code} {ok.text!r}')
+        assert ok.status_code == 200 and ok.text == ''
+        bad = requests.post(f'{BASE}/stateless', headers=headers, data=b'not a batch', verify=False, timeout=5)
+        print(f'    malformed      -> {bad.status_code} {json.dumps(bad.json())}')
+        assert bad.status_code == 400 and bad.json()['code'] == 400
+
+        # 4) The remaining endpoints route (still 200 stubs). /control and /stateless are
+        #    covered above and rightly reject an empty/invalid body, so they are excluded.
+        print('[4] routing:')
+        for route in [e for e in ENDPOINTS if e not in ('/control', '/stateless', '/download')]:
             resp = requests.post(f'{BASE}{route}', json={}, verify=False, timeout=5)
             print(f'    POST {route:<11} -> {resp.status_code}')
             assert resp.status_code == 200, f'{route} expected 200, got {resp.status_code}'
 
-        # 4) /config and /stats store what the agent pushed and ack empty.
-        print('[4] /config + /stats:')
+        # 4b) /download streams the requested resource with chunked encoding.
+        print('[4b] /download:')
+        cfg = requests.post(f'{BASE}/download', headers=headers,
+                            data=json.dumps({'resource_type': 'config', 'resource_id': 'default'}),
+                            verify=False, timeout=5)
+        print(f'    config -> {cfg.status_code}, chunked={cfg.headers.get("Transfer-Encoding")}, '
+              f'bytes={len(cfg.content)}, matches_merged_mg={cfg.content == sim.merged_mg}')
+        assert cfg.status_code == 200 and cfg.content == sim.merged_mg
+
+        miss = requests.post(f'{BASE}/download', headers=headers,
+                             data=json.dumps({'resource_type': 'wpk', 'resource_id': 'x.wpk'}),
+                             verify=False, timeout=5)
+        print(f'    wpk (unset) -> {miss.status_code} {json.dumps(miss.json())}')
+        assert miss.status_code == 404
+
+        sim.wpk = b'FAKE-WPK-BYTES' * 10000  # ~130 KB, spans multiple 64 KB chunks
+        wpk = requests.post(f'{BASE}/download', headers=headers,
+                            data=json.dumps({'resource_type': 'wpk', 'resource_id': 'x.wpk'}),
+                            verify=False, timeout=5)
+        print(f'    wpk (set)   -> {wpk.status_code}, bytes={len(wpk.content)}, matches={wpk.content == sim.wpk}')
+        assert wpk.status_code == 200 and wpk.content == sim.wpk
+
+        # 5) /config and /stats store what the agent pushed and ack empty.
+        print('[5] /config + /stats:')
         cfg = requests.post(f'{BASE}/config', headers=headers,
                             data=json.dumps({'client': {'notify_time': '10'}}), verify=False, timeout=5)
         sts = requests.post(f'{BASE}/stats', headers=headers,
@@ -92,9 +124,9 @@ def main() -> int:
         assert cfg.json() == {} and sim.last_config['client']['notify_time'] == '10'
         assert sts.json() == {} and sim.last_stats['events_received'] == 42
 
-        # 5) Unknown endpoint -> 404 with the ErrorResponse envelope.
+        # 6) Unknown endpoint -> 404 with the ErrorResponse envelope.
         resp = requests.post(f'{BASE}/nope', data=b'x', verify=False, timeout=5)
-        print(f'[5] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
+        print(f'[6] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
         assert resp.status_code == 404 and resp.json()['code'] == 404
 
         print('[+] TLS handshake, /control lifecycle, routing and errors all OK.')

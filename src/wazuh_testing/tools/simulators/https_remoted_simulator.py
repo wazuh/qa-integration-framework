@@ -65,6 +65,41 @@ def compute_settings_hash(limits: Dict, cluster: Dict, groups: List[str]) -> str
     return hashlib.sha256(payload).hexdigest()
 
 
+def parse_he_batch(body: bytes):
+    """Parse a ``/stateless`` H/E event batch into its header metadata and events.
+
+    The batch is a single ``H <json-metadata>`` line followed by one or more
+    ``E <queue>:<location>:<message>`` events. Events are separated by the byte
+    sequence ``\\nE`` followed by a space; continuation lines inside an event carry an
+    extra leading space, so they are not mistaken for a new event.
+
+    Args:
+        body (bytes): The raw request body.
+
+    Returns:
+        Tuple[dict, List[bytes]]: The parsed H metadata and the list of event payloads.
+
+    Raises:
+        ValueError: If the H header is missing, there are no events, or the H metadata
+            is not valid JSON.
+    """
+    if not body.startswith(b'H '):
+        raise ValueError('missing H header')
+
+    segments = body.split(b'\nE ')
+    header, events = segments[0][len(b'H '):], segments[1:]
+
+    if not events:
+        raise ValueError('no events')
+
+    try:
+        metadata = json.loads(header)
+    except json.JSONDecodeError as error:
+        raise ValueError('invalid H metadata') from error
+
+    return metadata, events
+
+
 class _RemotedRequestHandler(BaseTLSRequestHandler):
     """Route agent requests to the owning :class:`RemotedSimulator`.
 
@@ -86,10 +121,14 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
         if path == CONTROL_ENDPOINT:
             self._handle_control(body)
+        elif path == STATELESS_ENDPOINT:
+            self._handle_stateless(body)
         elif path == CONFIG_ENDPOINT:
             self._handle_report(body, 'last_config')
         elif path == STATS_ENDPOINT:
             self._handle_report(body, 'last_stats')
+        elif path == DOWNLOAD_ENDPOINT:
+            self._handle_download(body)
         elif path in ENDPOINTS:
             # Not yet implemented in this phase; acknowledge with an empty 200.
             self.send_json(200, {})
@@ -118,6 +157,21 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         else:
             self.send_error_response(400, 'Bad request')
 
+    def _handle_stateless(self, body: bytes) -> None:
+        """Handle a ``/stateless`` H/E event batch: structural validation only.
+
+        Success is a ``200`` with an empty body. A malformed batch gets a ``400``. The
+        agent-id identity binding (H metadata vs authenticated id) and the ``413`` size
+        limit are layered on with the auth middleware and fault modes.
+        """
+        try:
+            parse_he_batch(body)
+        except ValueError:
+            self.send_error_response(400, 'Invalid event batch')
+            return
+
+        self.send_empty(200)
+
     def _handle_report(self, body: bytes, attribute: str) -> None:
         """Handle a ``/config`` or ``/stats`` push: store the JSON document, ack empty.
 
@@ -134,6 +188,24 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
         setattr(self.simulator, attribute, document)
         self.send_json(200, {})
+
+    def _handle_download(self, body: bytes) -> None:
+        """Handle a ``/download`` request: stream the requested resource bytes chunked.
+
+        An unknown ``resource_type`` or an unset resource (e.g. no WPK injected) gets a ``404``.
+        """
+        try:
+            request = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        data = self.simulator.download_resource(request.get('resource_type'))
+        if data is None:
+            self.send_error_response(404, 'Not found')
+            return
+
+        self.send_chunked(data)
 
 
 class RemotedSimulator(BaseSimulator):
@@ -160,6 +232,8 @@ class RemotedSimulator(BaseSimulator):
         limits (dict): Module limits returned by the startup response.
         cluster (dict): Cluster ``{name, node}`` returned by the startup response.
         groups (list): Agent groups returned by startup/notify responses.
+        merged_mg (bytes): Group config bytes served by /download and hashed into config_hash.
+        wpk (bytes): WPK package bytes served by /download for upgrade tasks (None until set).
         config_hash (str): SHA256 the notify response advertises for the group config.
         settings_hash (str): SHA256 the notify response advertises for the startup data.
     """
@@ -188,7 +262,9 @@ class RemotedSimulator(BaseSimulator):
         self.limits = json.loads(json.dumps(DEFAULT_LIMITS))
         self.cluster = dict(DEFAULT_CLUSTER)
         self.groups = list(DEFAULT_GROUPS)
-        self.config_hash = hashlib.sha256(DEFAULT_MERGED_MG).hexdigest()
+        self.merged_mg = DEFAULT_MERGED_MG
+        self.wpk: Optional[bytes] = None
+        self.config_hash = hashlib.sha256(self.merged_mg).hexdigest()
         self.settings_hash = compute_settings_hash(self.limits, self.cluster, self.groups)
 
         self._tasks: List[Dict] = []
@@ -301,6 +377,23 @@ class RemotedSimulator(BaseSimulator):
     def shutdown_response(self) -> Dict:
         """Build the ``shutdown`` response body (empty acknowledgement)."""
         return {}
+
+    def download_resource(self, resource_type: str) -> Optional[bytes]:
+        """Return the bytes ``/download`` serves for a resource type, or None if unavailable.
+
+        ``config`` serves the merged.mg; ``wpk`` serves the injected WPK bytes (None until set).
+
+        Args:
+            resource_type (str): The requested resource type (``config`` or ``wpk``).
+
+        Returns:
+            Optional[bytes]: The resource bytes, or None if the type is unknown or unset.
+        """
+        if resource_type == 'config':
+            return self.merged_mg
+        if resource_type == 'wpk':
+            return self.wpk
+        return None
 
     # Internal methods.
 
