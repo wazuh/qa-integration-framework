@@ -5,6 +5,10 @@ from . import PREFIX
 
 # Callback patterns to find events in log file.
 AGENTD_CONNECTED_TO_SERVER = fr'{PREFIX} Connected to the server'
+# HTTPS transport (wazuh/wazuh#37831): the legacy TCP client's "Connected to the server" line has
+# no equivalent on the /control path -- this is the closest milestone, logged once Startup is
+# accepted and the client leaves the Starting state (bridge_on_startup_result(), https_client_bridge.c).
+AGENTD_HTTPS_STARTUP_ACCEPTED = fr'{PREFIX}.*https_client startup accepted'
 AGENTD_UPDATING_STATE_FILE = r'.*Updating state file'
 AGENTD_SENDING_KEEP_ALIVE = r'.*Sending keep alive'
 AGENTD_SENDING_AGENT_NOTIFICATION = r'.*Sending agent notification'
