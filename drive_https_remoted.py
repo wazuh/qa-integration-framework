@@ -83,10 +83,29 @@ def main() -> int:
         print(f'    malformed      -> {bad.status_code} {json.dumps(bad.json())}')
         assert bad.status_code == 400 and bad.json()['code'] == 400
 
-        # 4) The remaining endpoints route (still 200 stubs). /control and /stateless are
-        #    covered above and rightly reject an empty/invalid body, so they are excluded.
+        # 3b) /stateful: dedup by X-Session-Id; a retry with the same id is idempotent.
+        print('[3b] /stateful:')
+        sim.stateful_items_processed = 7
+        s1 = requests.post(f'{BASE}/stateful', headers={**headers, 'X-Session-Id': 'sess-1'},
+                           data=b'<flatbuffer-session-blob>', verify=False, timeout=5)
+        print(f'    session sess-1  -> {s1.status_code} {json.dumps(s1.json())}')
+        assert s1.json() == {'status': 'ok', 'sessionId': 'sess-1', 'itemsProcessed': 7}
+
+        sim.stateful_items_processed = 999  # changed; the retry must still return the cached 7
+        retry = requests.post(f'{BASE}/stateful', headers={**headers, 'X-Session-Id': 'sess-1'},
+                              data=b'<flatbuffer-session-blob>', verify=False, timeout=5)
+        print(f'    sess-1 retry    -> {retry.status_code} {json.dumps(retry.json())} (idempotent)')
+        assert retry.json()['itemsProcessed'] == 7
+
+        missing = requests.post(f'{BASE}/stateful', headers=headers, data=b'x', verify=False, timeout=5)
+        print(f'    no X-Session-Id -> {missing.status_code} {json.dumps(missing.json())}')
+        assert missing.status_code == 400 and 'sess-1' in sim.stateful_sessions
+
+        # 4) The remaining endpoints route. The validating endpoints (/control, /stateless,
+        #    /stateful, /download) are covered above and reject an empty/invalid body.
         print('[4] routing:')
-        for route in [e for e in ENDPOINTS if e not in ('/control', '/stateless', '/download')]:
+        for route in [e for e in ENDPOINTS
+                      if e not in ('/control', '/stateless', '/stateful', '/download')]:
             resp = requests.post(f'{BASE}{route}', json={}, verify=False, timeout=5)
             print(f'    POST {route:<11} -> {resp.status_code}')
             assert resp.status_code == 200, f'{route} expected 200, got {resp.status_code}'
