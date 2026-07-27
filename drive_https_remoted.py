@@ -6,7 +6,10 @@ Run with the project venv:
 """
 import json
 import os
+import shutil
 import sys
+import tempfile
+import time
 
 import requests
 import urllib3
@@ -15,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from wazuh_testing.tools.simulators.https_remoted_simulator import ENDPOINTS, RemotedSimulator
+from wazuh_testing.utils import request_auth
 
 PORT = 27514
 BASE = f'https://127.0.0.1:{PORT}'
@@ -148,11 +152,92 @@ def main() -> int:
         print(f'[6] POST /nope -> {resp.status_code} {json.dumps(resp.json())}')
         assert resp.status_code == 404 and resp.json()['code'] == 404
 
+        # 7) Fault modes short-circuit every request (mode is read live per request).
+        print('[7] fault modes:')
+        expected = {'REJECT_AUTH': 401, 'BAD_REQUEST': 400,
+                    'SERVICE_UNAVAILABLE': 503, 'PAYLOAD_TOO_LARGE': 413}
+        for mode, code in expected.items():
+            sim.mode = mode
+            resp = control({'type': 'notify'})
+            retry_after = resp.headers.get('Retry-After')
+            print(f'    {mode:<20} -> {resp.status_code} {json.dumps(resp.json())}'
+                  f'{" Retry-After=" + retry_after if retry_after else ""}')
+            assert resp.status_code == code and resp.json()['code'] == code
+            if mode == 'SERVICE_UNAVAILABLE':
+                assert retry_after == '5'
+        sim.mode = 'ACCEPT'
+
+        # 8) Introspection helpers over the captured requests (non-destructive).
+        print('[8] introspection helpers:')
+        control_requests = sim.get_requests('/control')
+        last_stateless = sim.last_request('/stateless')
+        print(f'    /control requests captured : {len(control_requests)}')
+        print(f'    last /stateless            : agent_id={last_stateless["agent_id"]} '
+              f'body={last_stateless["body"]!r}')
+        print(f'    total requests captured    : {len(sim.requests)}')
+        assert len(control_requests) >= 1 and last_stateless is not None
+        assert sim.last_request('/never-requested') is None
         print('[+] TLS handshake, /control lifecycle, routing and errors all OK.')
-        return 0
     finally:
         sim.destroy()
         print(f'[+] Simulator destroyed (running={sim.running})')
+
+    auth_demo()
+    return 0
+
+
+def auth_demo() -> None:
+    """Exercise verify_auth on a second simulator with a provisioned 32-hex key."""
+    print('[9] verify_auth (signed requests):')
+    keydir = tempfile.mkdtemp()
+    keys_path = os.path.join(keydir, 'client.keys')
+    agent_key_hex = '000102030405060708090a0b0c0d0e0f'
+    with open(keys_path, 'w') as handle:
+        handle.write(f'001 agent-001 any {agent_key_hex}\n')
+    key = request_auth.derive_cmac_key(agent_key_hex)
+
+    port = PORT + 1
+    base = f'https://127.0.0.1:{port}'
+    sim = RemotedSimulator(port=port, keys_path=keys_path, verify_auth=True)
+    sim.start()
+    try:
+        body = json.dumps({'type': 'notify'}).encode()
+        now = int(time.time())
+
+        def signed(target, ts, sign_body, send_body):
+            auth = request_auth.sign_authorization('POST', target, '001', ts, sign_body, key)
+            return {'protocol-version': '1', 'Authorization': auth}, send_body
+
+        headers, data = signed('/control', now, body, body)
+        r = requests.post(f'{base}/control', headers=headers, data=data, verify=False, timeout=5)
+        print(f'    valid signature         -> {r.status_code}')
+        assert r.status_code == 200
+
+        bad = dict(headers)
+        bad['Authorization'] = headers['Authorization'][:-1] + ('0' if headers['Authorization'][-1] != '0' else '1')
+        r = requests.post(f'{base}/control', headers=bad, data=data, verify=False, timeout=5)
+        print(f'    tampered mac            -> {r.status_code} {json.dumps(r.json())}')
+        assert r.status_code == 401
+
+        r = requests.post(f'{base}/control', headers=headers, data=b'{"type":"shutdown"}', verify=False, timeout=5)
+        print(f'    tampered body           -> {r.status_code}')
+        assert r.status_code == 401
+
+        headers, data = signed('/control', now - 1000, body, body)  # outside the 300s window
+        r = requests.post(f'{base}/control', headers=headers, data=data, verify=False, timeout=5)
+        print(f'    expired timestamp       -> {r.status_code}')
+        assert r.status_code == 401
+
+        # Identity binding: valid signature for 001, but the H metadata claims 002 -> 400.
+        sbody = b'H {"wazuh":{"agent":{"id":"002"}}}\nE 1:loc:msg'
+        headers, data = signed('/stateless', now, sbody, sbody)
+        r = requests.post(f'{base}/stateless', headers=headers, data=data, verify=False, timeout=5)
+        print(f'    id mismatch (stateless) -> {r.status_code} {json.dumps(r.json())}')
+        assert r.status_code == 400
+        print('[+] verify_auth: valid accepted, tamper/expiry/mismatch rejected.')
+    finally:
+        sim.destroy()
+        shutil.rmtree(keydir, ignore_errors=True)
 
 
 if __name__ == '__main__':

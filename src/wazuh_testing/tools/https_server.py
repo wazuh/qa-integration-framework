@@ -130,12 +130,14 @@ class BaseTLSRequestHandler(BaseHTTPRequestHandler):
             self.rfile.readline()  # Consume the CRLF after each chunk.
         return bytes(body)
 
-    def send_json(self, status: int, payload: Dict) -> None:
-        """Send a JSON response with the given status code."""
+    def send_json(self, status: int, payload: Dict, extra_headers: Dict = None) -> None:
+        """Send a JSON response with the given status code and optional extra headers."""
         data = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(data)))
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, str(value))
         self.end_headers()
         self.wfile.write(data)
 
@@ -166,6 +168,6 @@ class BaseTLSRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(f'{len(chunk):x}\r\n'.encode() + chunk + b'\r\n')
         self.wfile.write(b'0\r\n\r\n')
 
-    def send_error_response(self, status: int, message: str) -> None:
+    def send_error_response(self, status: int, message: str, extra_headers: Dict = None) -> None:
         """Send a generic ``{"error", "code"}`` JSON error envelope."""
-        self.send_json(status, {'error': message, 'code': status})
+        self.send_json(status, {'error': message, 'code': status}, extra_headers=extra_headers)

@@ -9,8 +9,6 @@ All notable changes to this project will be documented in this file.
 - Added patterns for disabled syscollector integration tests. ([#546](https://github.com/wazuh/qa-integration-framework/pull/546))
 - Added new SCA event patterns. ([#600](https://github.com/wazuh/qa-integration-framework/pull/600))
 - Added new patterns for new SCA workflow. ([#464](https://github.com/wazuh/qa-integration-framework/pull/464))
-- Added queue for req messages received in remoted simulator. ([#481](https://github.com/wazuh/qa-integration-framework/pull/481))
-- Added support for agent internal limits in the ack startup. ([#579](https://github.com/wazuh/qa-integration-framework/pull/579))
 - Added indexer block to make indexer-connector mandatory. ([#537](https://github.com/wazuh/qa-integration-framework/pull/537))
 - Added bumper workflow for 5.X. ([#413](https://github.com/wazuh/qa-integration-framework/pull/413))
 - Added workflow for automate the bump process in main. ([#391](https://github.com/wazuh/qa-integration-framework/pull/391))
@@ -20,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Refactored `RemotedSimulator` to speak the HTTPS agent protocol (TLS + AES-CMAC auth; `/control`, `/stateless`, `/stateful`, `/download`, `/config`, `/stats`), replacing the legacy socket transport. ([#XXX](https://github.com/wazuh/qa-integration-framework/pull/XXX))
 - Adapted qa integration framework to new agent module startup. ([#595](https://github.com/wazuh/qa-integration-framework/pull/595))
 - Migrated certificate generation to the `cryptography` API to keep up with pyOpenSSL 26.2.0 deprecations. ([#683](https://github.com/wazuh/qa-integration-framework/pull/683))
 - Adapted Inventory patterns to use new sync protocol module. ([#468](https://github.com/wazuh/qa-integration-framework/pull/468))
@@ -44,7 +43,6 @@ All notable changes to this project will be documented in this file.
 - Removed resources related to deprecated VD tests. ([#473](https://github.com/wazuh/qa-integration-framework/pull/473))
 - Removed integrations from test coverage. ([#463](https://github.com/wazuh/qa-integration-framework/pull/463))
 - Removed sca from remoted sent statistics. ([#523](https://github.com/wazuh/qa-integration-framework/pull/523))
-- Removed default group from remoted_simulator STARTUP response. ([#589](https://github.com/wazuh/qa-integration-framework/pull/589))
 - Removed syslog/labels from manager ITs. ([#602](https://github.com/wazuh/qa-integration-framework/pull/602))
 - Removed references to 4.12.2 and updated changelog main. ([#379](https://github.com/wazuh/qa-integration-framework/pull/379))
 
