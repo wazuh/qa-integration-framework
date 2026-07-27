@@ -17,7 +17,7 @@ import urllib3
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from wazuh_testing.tools.simulators.https_remoted_simulator import ENDPOINTS, RemotedSimulator
+from wazuh_testing.tools.simulators.remoted_simulator import ENDPOINTS, RemotedSimulator
 from wazuh_testing.utils import request_auth
 
 PORT = 27514
