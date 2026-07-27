@@ -123,6 +123,8 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             self._handle_control(body)
         elif path == STATELESS_ENDPOINT:
             self._handle_stateless(body)
+        elif path == STATEFUL_ENDPOINT:
+            self._handle_stateful(body)
         elif path == CONFIG_ENDPOINT:
             self._handle_report(body, 'last_config')
         elif path == STATS_ENDPOINT:
@@ -171,6 +173,19 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             return
 
         self.send_empty(200)
+
+    def _handle_stateful(self, body: bytes) -> None:
+        """Handle a ``/stateful`` streamed session: dedup by ``X-Session-Id``, return the result.
+
+        The session blob is accepted (and captured in the request queue) but not parsed;
+        it is keyed by the ``X-Session-Id`` header. A missing header is a ``400``.
+        """
+        session_id = self.headers.get('X-Session-Id')
+        if not session_id:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        self.send_json(200, self.simulator.process_session(session_id))
 
     def _handle_report(self, body: bytes, attribute: str) -> None:
         """Handle a ``/config`` or ``/stats`` push: store the JSON document, ack empty.
@@ -234,6 +249,8 @@ class RemotedSimulator(BaseSimulator):
         groups (list): Agent groups returned by startup/notify responses.
         merged_mg (bytes): Group config bytes served by /download and hashed into config_hash.
         wpk (bytes): WPK package bytes served by /download for upgrade tasks (None until set).
+        stateful_items_processed (int): itemsProcessed reported by the /stateful response.
+        stateful_sessions (dict): X-Session-Id -> result cache backing idempotent retries.
         config_hash (str): SHA256 the notify response advertises for the group config.
         settings_hash (str): SHA256 the notify response advertises for the startup data.
     """
@@ -269,6 +286,14 @@ class RemotedSimulator(BaseSimulator):
 
         self._tasks: List[Dict] = []
         self._tasks_lock = threading.Lock()
+
+        # The /stateful response reports itemsProcessed (test-controlled, since the
+        # FlatBuffer body is not parsed). stateful_sessions caches each X-Session-Id's
+        # result so a whole-session retry with the same id is idempotent (the manager's
+        # session-result LRU); TTL eviction is omitted as unnecessary for tests.
+        self.stateful_items_processed = 0
+        self.stateful_sessions: Dict[str, Dict] = {}
+        self._sessions_lock = threading.Lock()
 
         # Last documents pushed by the agent (populated by /config and /stats).
         self.last_config: Optional[Dict] = None
@@ -377,6 +402,27 @@ class RemotedSimulator(BaseSimulator):
     def shutdown_response(self) -> Dict:
         """Build the ``shutdown`` response body (empty acknowledgement)."""
         return {}
+
+    def process_session(self, session_id: str) -> Dict:
+        """Return the ``/stateful`` result for a session id; retries are idempotent.
+
+        The first request for a given id records and returns a result; a retry with the
+        same id returns the cached result unchanged (whole-session retry dedup).
+
+        Args:
+            session_id (str): The ``X-Session-Id`` identifying the session.
+
+        Returns:
+            Dict: The session result ``{status, sessionId, itemsProcessed}``.
+        """
+        with self._sessions_lock:
+            if session_id not in self.stateful_sessions:
+                self.stateful_sessions[session_id] = {
+                    'status': 'ok',
+                    'sessionId': session_id,
+                    'itemsProcessed': self.stateful_items_processed,
+                }
+            return self.stateful_sessions[session_id]
 
     def download_resource(self, resource_type: str) -> Optional[bytes]:
         """Return the bytes ``/download`` serves for a resource type, or None if unavailable.
