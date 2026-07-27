@@ -37,7 +37,7 @@ def generate_self_signed_certificate(dest_dir: str) -> Tuple[str, str]:
     key_path = str(Path(dest_dir) / 'server.key')
 
     controller = CertificateController()
-    controller.root_ca_cert.sign(controller.root_ca_key, controller.digest)
+    # root_ca_cert is already self-signed by the controller (cryptography API); just persist it.
     controller.store_private_key(controller.root_ca_key, key_path)
     controller.store_ca_certificate(controller.root_ca_cert, cert_path)
 
