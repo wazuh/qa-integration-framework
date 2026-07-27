@@ -2,19 +2,47 @@
 Copyright (C) 2015-2026, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+RemotedSimulator: a TLS HTTP/1.1 stand-in for the manager side of the Wazuh HTTPS agent
+protocol (/control, /stateless, /stateful, /download, /config, /stats).
+
+Quickstart in a test:
+
+    sim = RemotedSimulator(port=1514)
+    sim.add_task({'task_id': 't1', 'task_type': 'agent_restart', 'payload': {}})  # rides next notify
+    sim.start()
+    try:
+        run_agent()                                       # agent drives /control startup + notifies
+        assert sim.last_request('/control')['agent_id'] == '001'   # assert what the agent sent
+    finally:
+        sim.destroy()
+
+The manager responses are deterministic and inspectable without an agent -- e.g. the reply the
+simulator returns for a /control startup:
+
+    sim.startup_response()   # {'limits': {...}, 'cluster': {...}, 'agent': {'groups': [...]}}
+
+(notify_response() also returns settings_hash/config_hash and delivers any queued tasks once.)
+
+- Faults: RemotedSimulator(mode='REJECT_AUTH') or sim.mode = 'SERVICE_UNAVAILABLE'.
+- Traffic: sim.requests / sim.get_requests(path) / sim.last_request(path).
+- State: set limits/cluster/groups/config_hash/settings_hash/merged_mg/wpk before start().
 """
 import hashlib
+import hmac
 import json
 import shutil
 import tempfile
 import threading
-from queue import Queue
+import time
 from typing import Dict, List, Optional
 from urllib.parse import urlsplit
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
                                               generate_self_signed_certificate)
+from wazuh_testing.utils import request_auth
+from wazuh_testing.utils.client_keys import get_client_keys
 
 from .base_simulator import BaseSimulator
 
@@ -56,6 +84,9 @@ DEFAULT_MERGED_MG = (
     b'<agent_config>\n'
     b'</agent_config>\n'
 )
+
+# Seconds advertised in the Retry-After header of the SERVICE_UNAVAILABLE (503) fault mode.
+RETRY_AFTER_SECONDS = 5
 
 
 def compute_settings_hash(limits: Dict, cluster: Dict, groups: List[str]) -> str:
@@ -116,8 +147,15 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         """Handle every agent request (all endpoints are POST)."""
         body = self.read_body()
         path = urlsplit(self.path).path
+        self._authenticated_agent_id = None
 
         self.simulator.record_request('POST', self.path, self.headers, body)
+
+        if self._inject_fault():
+            return
+
+        if not self._verify_auth(body):
+            return
 
         if path == CONTROL_ENDPOINT:
             self._handle_control(body)
@@ -136,6 +174,76 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             self.send_json(200, {})
         else:
             self.send_error_response(404, 'Not found')
+
+    def _inject_fault(self) -> bool:
+        """Apply the simulator's fault-injection mode before normal routing.
+
+        Returns True (having sent the fault response) for every mode except ``ACCEPT``,
+        so the caller skips endpoint handling. The generic ``401`` never distinguishes
+        its cause, per the auth contract.
+        """
+        mode = self.simulator.mode
+        if mode == 'ACCEPT':
+            return False
+
+        if mode == 'REJECT_AUTH':
+            self.send_error_response(401, 'Invalid client authentication')
+        elif mode == 'BAD_REQUEST':
+            self.send_error_response(400, 'Bad request')
+        elif mode == 'SERVICE_UNAVAILABLE':
+            self.send_error_response(503, 'Service temporarily unavailable',
+                                     extra_headers={'Retry-After': RETRY_AFTER_SECONDS})
+        elif mode == 'PAYLOAD_TOO_LARGE':
+            self.send_error_response(413, 'Request payload is too large')
+        return True
+
+    def _verify_auth(self, body: bytes) -> bool:
+        """Verify the AES-CMAC Authorization header when verification is enabled.
+
+        Returns True if the request is authenticated (or verification is off). On any
+        failure it sends a single generic ``401`` (never distinguishing the cause) and
+        returns False so the caller skips endpoint handling. On success it records the
+        authenticated agent id for later identity binding.
+        """
+        if not self.simulator.verify_auth:
+            return True
+
+        if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
+            return self._reject_auth()
+
+        credentials = request_auth.parse_authorization(self.headers.get('Authorization', ''))
+        if credentials is None:
+            return self._reject_auth()
+        agent_id, timestamp, mac = credentials
+
+        if not self._timestamp_in_window(timestamp):
+            return self._reject_auth()
+
+        key = self.simulator.cmac_key_for(agent_id)
+        if key is None:
+            return self._reject_auth()
+
+        canonical = request_auth.build_canonical_request('POST', self.path, agent_id, timestamp, body)
+        if not hmac.compare_digest(request_auth.compute_cmac(key, canonical), mac):
+            return self._reject_auth()
+
+        self._authenticated_agent_id = agent_id
+        return True
+
+    def _reject_auth(self) -> bool:
+        """Send the single generic authentication error and return False."""
+        self.send_error_response(401, 'Invalid client authentication')
+        return False
+
+    @staticmethod
+    def _timestamp_in_window(timestamp: str) -> bool:
+        """Return True if the timestamp is within the accepted age/skew window."""
+        try:
+            value = int(timestamp)
+        except ValueError:
+            return False
+        now = int(time.time())
+        return now - request_auth.TIMESTAMP_MAX_AGE <= value <= now + request_auth.TIMESTAMP_MAX_SKEW
 
     def _handle_control(self, body: bytes) -> None:
         """Dispatch a ``/control`` request on its ``type`` discriminator.
@@ -167,10 +275,17 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         limit are layered on with the auth middleware and fault modes.
         """
         try:
-            parse_he_batch(body)
+            metadata, _events = parse_he_batch(body)
         except ValueError:
             self.send_error_response(400, 'Invalid event batch')
             return
+
+        # Identity binding: the batch's agent id must match the authenticated one.
+        if self._authenticated_agent_id is not None:
+            body_agent_id = metadata.get('wazuh', {}).get('agent', {}).get('id')
+            if body_agent_id != self._authenticated_agent_id:
+                self.send_error_response(400, 'Invalid event batch')
+                return
 
         self.send_empty(200)
 
@@ -261,7 +376,8 @@ class RemotedSimulator(BaseSimulator):
                  server_ip: str = '127.0.0.1',
                  port: int = 1514,
                  mode: str = 'ACCEPT',
-                 keys_path: str = WAZUH_CLIENT_KEYS_PATH) -> None:
+                 keys_path: str = WAZUH_CLIENT_KEYS_PATH,
+                 verify_auth: bool = False) -> None:
         """Initialize a RemotedSimulator.
 
         Args:
@@ -269,11 +385,14 @@ class RemotedSimulator(BaseSimulator):
             port (int, optional): Port to bind the TLS server to. Defaults: 1514.
             mode (str, optional): Fault-injection mode. Must be one of MODES. Defaults: 'ACCEPT'.
             keys_path (str, optional): Path to the client.keys file. Defaults: WAZUH_CLIENT_KEYS_PATH.
+            verify_auth (bool, optional): Enforce AES-CMAC Authorization on every request
+                (agent keys resolved from keys_path). Defaults: False.
         """
         super().__init__(server_ip, port, False)
 
         self.mode = mode
         self.keys_path = keys_path
+        self.verify_auth = verify_auth
 
         # Injectable server state (assign directly before start() to customize).
         self.limits = json.loads(json.dumps(DEFAULT_LIMITS))
@@ -299,7 +418,8 @@ class RemotedSimulator(BaseSimulator):
         self.last_config: Optional[Dict] = None
         self.last_stats: Optional[Dict] = None
 
-        self._queue: Queue = Queue()
+        self._requests: List[Dict] = []
+        self._requests_lock = threading.Lock()
         self._httpd: Optional[TLSHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
         self._cert_dir: Optional[str] = None
@@ -307,9 +427,9 @@ class RemotedSimulator(BaseSimulator):
     # Properties.
 
     @property
-    def queue(self) -> Queue:
-        """Queue of received requests, each a dict with method/path/headers/body/agent_id."""
-        return self._queue
+    def requests(self) -> List[Dict]:
+        """Snapshot of all received requests (each a dict: method/path/headers/agent_id/body)."""
+        return self.get_requests()
 
     # Methods.
 
@@ -343,9 +463,9 @@ class RemotedSimulator(BaseSimulator):
             self._cert_dir = None
 
     def clear(self) -> None:
-        """Remove all recorded requests from the queue."""
-        while not self._queue.empty():
-            self._queue.get_nowait()
+        """Remove all recorded requests."""
+        with self._requests_lock:
+            self._requests.clear()
 
     def destroy(self) -> None:
         """Clear the queue and shut the simulator down."""
@@ -370,13 +490,35 @@ class RemotedSimulator(BaseSimulator):
             headers: The request headers (email.message.Message).
             body (bytes): Exact request body bytes.
         """
-        self._queue.put({
-            'method': method,
-            'path': path,
-            'headers': dict(headers.items()),
-            'agent_id': self._agent_id_from_headers(headers),
-            'body': body,
-        })
+        with self._requests_lock:
+            self._requests.append({
+                'method': method,
+                'path': path,
+                'headers': dict(headers.items()),
+                'agent_id': self._agent_id_from_headers(headers),
+                'body': body,
+            })
+
+    def get_requests(self, path: str = None) -> List[Dict]:
+        """Return a snapshot of captured requests, optionally filtered by endpoint path.
+
+        Args:
+            path (str, optional): If given, only requests whose target path (ignoring any
+                query string) equals this value are returned.
+
+        Returns:
+            List[Dict]: Copied request records, in arrival order.
+        """
+        with self._requests_lock:
+            snapshot = list(self._requests)
+        if path is None:
+            return snapshot
+        return [request for request in snapshot if urlsplit(request['path']).path == path]
+
+    def last_request(self, path: str = None) -> Optional[Dict]:
+        """Return the most recent captured request (optionally for a path), or None."""
+        matches = self.get_requests(path)
+        return matches[-1] if matches else None
 
     # Response builders. Pure functions of the injectable state.
 
@@ -402,6 +544,24 @@ class RemotedSimulator(BaseSimulator):
     def shutdown_response(self) -> Dict:
         """Build the ``shutdown`` response body (empty acknowledgement)."""
         return {}
+
+    def cmac_key_for(self, agent_id: str) -> Optional[bytes]:
+        """Resolve an agent's 16-byte AES-CMAC key from client.keys.
+
+        Args:
+            agent_id (str): The agent identifier to look up.
+
+        Returns:
+            Optional[bytes]: The 16-byte key, or None if the agent is unknown or its key
+                is not valid CMAC key material.
+        """
+        for entry in get_client_keys(self.keys_path):
+            if entry['id'] == agent_id:
+                try:
+                    return request_auth.derive_cmac_key(entry['key'])
+                except ValueError:
+                    return None
+        return None
 
     def process_session(self, session_id: str) -> Dict:
         """Return the ``/stateful`` result for a session id; retries are idempotent.
