@@ -5,7 +5,7 @@ This program is free software; you can redistribute it and/or modify it under th
 
 AES-CMAC request-authentication primitives for the HTTPS agent protocol.
 
-The agent signs every request with AES-128 CMAC over a canonical byte sequence and sends the
+The agent signs every request with AES CMAC over a canonical byte sequence and sends the
 result in two headers:
 
     protocol-version: 1
@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives.ciphers import algorithms
 # Authentication protocol version (part of the canonical request, so it is authenticated).
 PROTOCOL_VERSION = '1'
 _AUTH_SCHEME = 'Wazuh '
-CMAC_KEY_BYTES = 16  # AES-128.
+CMAC_KEY_SIZES = (16, 24, 32)  # AES-128 / AES-192 / AES-256, selected by key length.
 
 # Timestamp validation window (seconds): reject requests older than MAX_AGE or more than
 # MAX_SKEW seconds in the future.
@@ -33,22 +33,23 @@ TIMESTAMP_MAX_SKEW = 30
 
 
 def derive_cmac_key(agent_key: str) -> bytes:
-    """Derive the AES-128 CMAC key from an agent key string (32 lowercase hex chars).
+    """Derive the AES CMAC key from an agent key string (hexadecimal).
 
-    Mirrors the agent's ConfigKeyProvider: the key string is hex-decoded to exactly 16 bytes.
+    Mirrors the manager's client.keys resolver: the key is hex-decoded, and the AES
+    variant follows the key length -- 16/24/32 bytes select AES-128/192/256.
 
     Args:
-        agent_key (str): The agent key as hex (32 characters).
+        agent_key (str): The agent key as hexadecimal (32, 48 or 64 characters).
 
     Returns:
-        bytes: The 16-byte AES-128 key.
+        bytes: The 16-, 24- or 32-byte AES key.
 
     Raises:
-        ValueError: If the string is not exactly 16 bytes of hexadecimal.
+        ValueError: If the string is not 16, 24 or 32 bytes of hexadecimal.
     """
     key = bytes.fromhex(agent_key)
-    if len(key) != CMAC_KEY_BYTES:
-        raise ValueError(f'CMAC key must be {CMAC_KEY_BYTES} bytes ({CMAC_KEY_BYTES * 2} hex chars)')
+    if len(key) not in CMAC_KEY_SIZES:
+        raise ValueError(f'CMAC key must be one of {CMAC_KEY_SIZES} bytes (AES-128/192/256)')
     return key
 
 
@@ -76,10 +77,12 @@ def build_canonical_request(method: str, target: str, agent_id: str,
 
 
 def compute_cmac(key: bytes, message: bytes) -> str:
-    """Return AES-128 CMAC(key, message) encoded as 32 lowercase hexadecimal characters.
+    """Return the AES CMAC(key, message) encoded as 32 lowercase hexadecimal characters.
+
+    The AES variant (128/192/256) follows the key length (16/24/32 bytes).
 
     Args:
-        key (bytes): The 16-byte AES-128 key.
+        key (bytes): The 16-, 24- or 32-byte AES key.
         message (bytes): The message to authenticate (the canonical request).
 
     Returns:
@@ -120,7 +123,7 @@ def sign_authorization(method: str, target: str, agent_id: str, timestamp, body:
         agent_id (str): The agent identifier.
         timestamp: UNIX timestamp in seconds.
         body (bytes): Exact request body bytes.
-        key (bytes): The 16-byte AES-128 CMAC key.
+        key (bytes): The AES CMAC key (16/24/32 bytes).
 
     Returns:
         str: The Authorization header value.
