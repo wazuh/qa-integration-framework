@@ -188,15 +188,10 @@ class AuthdSimulator(BaseSimulator):
         return agent_info
 
     def __generate_certificates(self):
-        """Generates and stores certificates for the root CA.
+        """Stores the root CA certificate and private key at the provided paths.
 
-        It signs the root CA certificate with the root CA private key using
-        the specified digest algorithm.
-        The generated root CA certificate and private key are then stored
-        at the provided paths.
+        The root CA certificate is already signed by CertificateController at construction time.
         """
-        self.cert_controller.root_ca_cert.sign(
-            self.cert_controller.root_ca_key, self.cert_controller.digest)
         self.cert_controller.store_private_key(
             self.cert_controller.root_ca_key, self.key_path)
         self.cert_controller.store_ca_certificate(
