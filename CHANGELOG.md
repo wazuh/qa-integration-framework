@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 - Updated states persistence patterns and fixes. ([#465](https://github.com/wazuh/qa-integration-framework/pull/465))
 - Demoted SCA and logcollector tests. ([#612](https://github.com/wazuh/qa-integration-framework/pull/612))
 - Support manager naming changes. ([#592](https://github.com/wazuh/qa-integration-framework/pull/592))
+- Updated the analysisd statistics template to the engine metrics dump format. ([#783](https://github.com/wazuh/qa-integration-framework/pull/783))
 
 ### Removed
 
