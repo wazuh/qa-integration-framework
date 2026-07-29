@@ -11,194 +11,55 @@
               {
                 "type": "object",
                 "properties": {
-                  "timestamp": {
-                    "type": "string"
-                  },
                   "name": {
                     "type": "string",
                     "pattern": "^wazuh-manager-analysisd$"
                   },
-                  "agents": {
+                  "uptime": {
+                    "type": "string"
+                  },
+                  "timestamp": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "global": {
                     "type": "array",
-                    "items": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "uptime": {
-                            "type": "string"
-                          },
-                          "id": {
-                            "type": "integer"
-                          },
-                          "metrics": {
-                            "type": "object",
-                            "properties": {
-                              "events": {
-                                "type": "object",
-                                "properties": {
-                                  "processed": {
-                                    "type": "integer"
-                                  },
-                                  "received_breakdown": {
-                                    "type": "object",
-                                    "properties": {
-                                      "decoded_breakdown": {
-                                        "type": "object",
-                                        "properties": {
-                                          "agent": {
-                                            "type": "integer"
-                                          },
-                                          "dbsync": {
-                                            "type": "integer"
-                                          },
-                                          "modules_breakdown": {
-                                            "type": "object",
-                                            "properties": {
-                                              "aws": {
-                                                "type": "integer"
-                                              },
-                                              "azure": {
-                                                "type": "integer"
-                                              },
-                                              "command": {
-                                                "type": "integer"
-                                              },
-                                              "docker": {
-                                                "type": "integer"
-                                              },
-                                              "gcp": {
-                                                "type": "integer"
-                                              },
-                                              "github": {
-                                                "type": "integer"
-                                              },
-                                              "logcollector_breakdown": {
-                                                "type": "object",
-                                                "properties": {
-                                                  "eventchannel": {
-                                                    "type": "integer"
-                                                  },
-                                                  "eventlog": {
-                                                    "type": "integer"
-                                                  },
-                                                  "macos": {
-                                                    "type": "integer"
-                                                  },
-                                                  "others": {
-                                                    "type": "integer"
-                                                  }
-                                                },
-                                                "required": [
-                                                  "eventchannel",
-                                                  "eventlog",
-                                                  "macos",
-                                                  "others"
-                                                ]
-                                              },
-                                              "office365": {
-                                                "type": "integer"
-                                              },
-                                              "rootcheck": {
-                                                "type": "integer"
-                                              },
-                                              "sca": {
-                                                "type": "integer"
-                                              },
-                                              "syscheck": {
-                                                "type": "integer"
-                                              },
-                                              "syscollector": {
-                                                "type": "integer"
-                                              },
-                                              "upgrade": {
-                                                "type": "integer"
-                                              },
-                                              "vulnerability": {
-                                                "type": "integer"
-                                              }
-                                            },
-                                            "required": [
-                                              "aws",
-                                              "azure",
-                                              "command",
-                                              "docker",
-                                              "gcp",
-                                              "github",
-                                              "logcollector_breakdown",
-                                              "office365",
-                                              "rootcheck",
-                                              "sca",
-                                              "syscheck",
-                                              "syscollector",
-                                              "upgrade",
-                                              "vulnerability"
-                                            ]
-                                          },
-                                          "monitor": {
-                                            "type": "integer"
-                                          },
-                                          "remote": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "agent",
-                                          "dbsync",
-                                          "modules_breakdown",
-                                          "monitor",
-                                          "remote"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "decoded_breakdown"
-                                    ]
-                                  },
-                                  "written_breakdown": {
-                                    "type": "object",
-                                    "properties": {
-                                      "alerts": {
-                                        "type": "integer"
-                                      },
-                                      "archives": {
-                                        "type": "integer"
-                                      },
-                                      "firewall": {
-                                        "type": "integer"
-                                      }
-                                    },
-                                    "required": [
-                                      "alerts",
-                                      "archives",
-                                      "firewall"
-                                    ]
-                                  }
-                                },
-                                "required": [
-                                  "processed",
-                                  "received_breakdown",
-                                  "written_breakdown"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "events"
-                            ]
-                          }
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
                         },
-                        "required": [
-                          "uptime",
-                          "id",
-                          "metrics"
-                        ]
-                      }
-                    ]
+                        "type": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "value": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "type",
+                        "enabled",
+                        "value"
+                      ]
+                    }
+                  },
+                  "spaces": {
+                    "type": "array"
                   }
                 },
                 "required": [
-                  "timestamp",
                   "name",
-                  "agents"
+                  "uptime",
+                  "timestamp",
+                  "global",
+                  "spaces"
                 ]
               }
             ]
