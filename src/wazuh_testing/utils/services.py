@@ -276,6 +276,9 @@ def check_if_process_is_running(process_name):
     return is_running
 
 
+_WRAPPER_PROCESS_NAMES = {'sudo', 'su', 'doas'}
+
+
 def search_process_by_command(search_cmd: str) -> Union[psutil.Process, None]:
     """Search a process by its command
 
@@ -292,6 +295,13 @@ def search_process_by_command(search_cmd: str) -> Union[psutil.Process, None]:
         TypeError('`search_cmd` must not be an empty string.')
 
     for process in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
+        # Skip wrapper processes (e.g. sudo): their cmdline includes the wrapped
+        # command's name too, so they can match before the real target process.
+        if process.info['name'] in _WRAPPER_PROCESS_NAMES:
+            continue
+
         command = next((command for command in process.cmdline() if search_cmd in command), None)
         if command:
             return process
+
+    return None
