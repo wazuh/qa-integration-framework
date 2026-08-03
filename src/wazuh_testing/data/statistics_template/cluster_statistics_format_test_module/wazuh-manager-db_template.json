@@ -314,13 +314,19 @@
                                         "update-agent-data": {
                                           "type": "integer"
                                         },
-                                        "update-agent-name": {
-                                          "type": "integer"
-                                        },
                                         "update-connection-status": {
                                           "type": "integer"
                                         },
                                         "update-keepalive": {
+                                          "type": "integer"
+                                        },
+                                        "get-distinct-groups": {
+                                          "type": "integer"
+                                        },
+                                        "recalculate-agent-group-hashes": {
+                                          "type": "integer"
+                                        },
+                                        "update-status-code": {
                                           "type": "integer"
                                         }
                                       },
@@ -341,9 +347,11 @@
                                         "sync-agent-info-get",
                                         "sync-agent-info-set",
                                         "update-agent-data",
-                                        "update-agent-name",
                                         "update-connection-status",
-                                        "update-keepalive"
+                                        "update-keepalive",
+                                        "get-distinct-groups",
+                                        "recalculate-agent-group-hashes",
+                                        "update-status-code"
                                       ]
                                     },
                                     "belongs": {
@@ -503,13 +511,19 @@
                                         "update-agent-data": {
                                           "type": "integer"
                                         },
-                                        "update-agent-name": {
-                                          "type": "integer"
-                                        },
                                         "update-connection-status": {
                                           "type": "integer"
                                         },
                                         "update-keepalive": {
+                                          "type": "integer"
+                                        },
+                                        "get-distinct-groups": {
+                                          "type": "integer"
+                                        },
+                                        "recalculate-agent-group-hashes": {
+                                          "type": "integer"
+                                        },
+                                        "update-status-code": {
                                           "type": "integer"
                                         }
                                       },
@@ -530,9 +544,11 @@
                                         "sync-agent-info-get",
                                         "sync-agent-info-set",
                                         "update-agent-data",
-                                        "update-agent-name",
                                         "update-connection-status",
-                                        "update-keepalive"
+                                        "update-keepalive",
+                                        "get-distinct-groups",
+                                        "recalculate-agent-group-hashes",
+                                        "update-status-code"
                                       ]
                                     },
                                     "belongs": {
