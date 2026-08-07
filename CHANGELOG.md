@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 
 | Issue | Comment |
 |-------|---------|
+| [#795](https://github.com/wazuh/qa-integration-framework/pull/795) | Refactored `RemotedSimulator` to speak the HTTPS agent protocol (TLS + AES-CMAC auth; `/control`, `/stateless`, `/stateful`, `/download`, `/config`, `/stats`), replacing the legacy socket transport. |
 | [#595](https://github.com/wazuh/qa-integration-framework/pull/595) | Adapted qa integration framework to new agent module startup. |
 | [#683](https://github.com/wazuh/qa-integration-framework/pull/683) | Migrated certificate generation to the `cryptography` API to keep up with pyOpenSSL 26.2.0 deprecations. |
 | [#468](https://github.com/wazuh/qa-integration-framework/pull/468) | Adapted Inventory patterns to use new sync protocol module. |

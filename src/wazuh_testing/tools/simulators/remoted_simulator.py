@@ -1,377 +1,623 @@
 """
-Copyright (C) 2015-2023, Wazuh Inc.
+Copyright (C) 2015-2026, Wazuh Inc.
 Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+
+RemotedSimulator: a TLS HTTP/1.1 stand-in for the manager side of the Wazuh HTTPS agent
+protocol (/control, /stateless, /stateful, /download, /config, /stats).
+
+Quickstart in a test:
+
+    sim = RemotedSimulator(port=1514)
+    sim.add_task({'task_id': 't1', 'task_type': 'agent_restart', 'payload': {}})  # rides next notify
+    sim.start()
+    try:
+        run_agent()                                       # agent drives /control startup + notifies
+        assert sim.last_request('/control')['agent_id'] == '001'   # assert what the agent sent
+    finally:
+        sim.destroy()
+
+The manager responses are deterministic and inspectable without an agent -- e.g. the reply the
+simulator returns for a /control startup:
+
+    sim.startup_response()   # {'limits': {...}, 'cluster': {...}, 'agent': {'groups': [...]}}
+
+(notify_response() also returns settings_hash/config_hash and delivers any queued tasks once.)
+
+- Faults: RemotedSimulator(mode='REJECT_AUTH') or sim.mode = 'SERVICE_UNAVAILABLE'.
+- Traffic: sim.requests / sim.get_requests(path) / sim.last_request(path).
+- State: set limits/cluster/groups/config_hash/merged_mg/wpk before start()
+  (settings_hash is derived from the startup response).
 """
 import hashlib
+import hmac
 import json
+import shutil
+import tempfile
 import threading
 import time
-from queue import Empty, Queue
-from typing import Any, Dict, Literal, Union
+from typing import Dict, List, Optional
+from urllib.parse import urlsplit
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
-from wazuh_testing.tools.mitm import ManInTheMiddle
-from wazuh_testing.utils import secure_message
+from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
+                                              generate_self_signed_certificate)
+from wazuh_testing.utils import request_auth
 from wazuh_testing.utils.client_keys import get_client_keys
 
 from .base_simulator import BaseSimulator
 
 
-# Internal constants
-_RESPONSE_ACK = b'#!-agent ack '
-_RESPONSE_SHUTDOWN = b'#!-agent shutdown '
-_RESPONSE_EMPTY = b''
+# The manager-side endpoints the HTTPS agent talks to.
+CONTROL_ENDPOINT = '/control'
+STATELESS_ENDPOINT = '/stateless'
+STATEFUL_ENDPOINT = '/stateful'
+DOWNLOAD_ENDPOINT = '/download'
+CONFIG_ENDPOINT = '/config'
+STATS_ENDPOINT = '/stats'
 
-_DEFAULT_MERGED_MG_CONTENT = (
+ENDPOINTS = (
+    CONTROL_ENDPOINT,
+    STATELESS_ENDPOINT,
+    STATEFUL_ENDPOINT,
+    DOWNLOAD_ENDPOINT,
+    CONFIG_ENDPOINT,
+    STATS_ENDPOINT,
+)
+
+# Default injectable state. Tests that need to customize it (e.g. the startup-hash
+# suite) overwrite these attributes on the instance before start(); they are not
+# constructor parameters because almost no integration test configures them.
+# NOTE: these limit values are illustrative, not confirmed manager defaults; pin them
+# against the manager implementation once it lands.
+DEFAULT_LIMITS = {
+    'fim': {'file': 100000, 'registry_key': 100000, 'registry_value': 100000},
+    'syscollector': {'packages': 50000, 'processes': 50000, 'ports': 50000},
+    'sca': {'checks': 10000},
+}
+DEFAULT_CLUSTER = {'name': 'wazuh-cluster', 'node': 'node01'}
+DEFAULT_GROUPS = ['default']
+# merged.mg content whose SHA256 seeds the default config_hash. The /download endpoint
+# will serve these same bytes for config resources, so the default hash matches.
+DEFAULT_MERGED_MG = (
     b'#default\n'
-    b'!76 agent.conf\n'
+    b'!0 agent.conf\n'
     b'<agent_config>\n'
-    b'\n'
-    b'  <!-- Shared agent configuration here -->\n'
-    b'\n'
     b'</agent_config>\n'
 )
-_DEFAULT_MERGED_SUM = hashlib.md5(_DEFAULT_MERGED_MG_CONTENT).hexdigest()
 
-_DEFAULT_LIMITS_JSON = {
-    "limits": {
-        "fim": {
-            "file": 0,
-            "registry_key": 0,
-            "registry_value": 0
-        },
-        "syscollector": {
-            "hotfixes": 0,
-            "packages": 0,
-            "processes": 0,
-            "ports": 0,
-            "network_iface": 0,
-            "network_protocol": 0,
-            "network_address": 0,
-            "hardware": 0,
-            "os_info": 0,
-            "users": 0,
-            "groups": 0,
-            "services": 0,
-            "browser_extensions": 0
-        },
-        "sca": {
-            "checks": 0
-        }
-    },
-    "cluster_name": "wazuh-cluster",
-    "cluster_node": "wazuh-node-01",
-    "agent_groups": ["default"],
-    "merged_sum": _DEFAULT_MERGED_SUM
-}
+# Seconds advertised in the Retry-After header of the SERVICE_UNAVAILABLE (503) fault mode.
+RETRY_AFTER_SECONDS = 5
+
+
+def parse_he_batch(body: bytes):
+    """Parse a ``/stateless`` H/E event batch into its header metadata and events.
+
+    The batch is a single ``H <json-metadata>`` line followed by one or more
+    ``E <queue>:<location>:<message>`` events. Events are separated by the byte
+    sequence ``\\nE`` followed by a space; continuation lines inside an event carry an
+    extra leading space, so they are not mistaken for a new event.
+
+    Args:
+        body (bytes): The raw request body.
+
+    Returns:
+        Tuple[dict, List[bytes]]: The parsed H metadata and the list of event payloads.
+
+    Raises:
+        ValueError: If the H header is missing, there are no events, or the H metadata
+            is not valid JSON.
+    """
+    if not body.startswith(b'H '):
+        raise ValueError('missing H header')
+
+    segments = body.split(b'\nE ')
+    header, events = segments[0][len(b'H '):], segments[1:]
+
+    if not events:
+        raise ValueError('no events')
+
+    try:
+        metadata = json.loads(header)
+    except json.JSONDecodeError as error:
+        raise ValueError('invalid H metadata') from error
+
+    return metadata, events
+
+
+class _RemotedRequestHandler(BaseTLSRequestHandler):
+    """Route agent requests to the owning :class:`RemotedSimulator`.
+
+    The generic HTTP/TLS mechanics live in :class:`BaseTLSRequestHandler`; this class
+    only adds the Wazuh routing and per-endpoint request parsing. Response shaping
+    lives on the simulator so it can be unit-tested without HTTP.
+    """
+
+    @property
+    def simulator(self) -> 'RemotedSimulator':
+        return self.server.context
+
+    def do_POST(self) -> None:
+        """Handle every agent request (all endpoints are POST)."""
+        body = self.read_body()
+        path = urlsplit(self.path).path
+        self._authenticated_agent_id = None
+
+        self.simulator.record_request('POST', self.path, self.headers, body)
+
+        if self._inject_fault():
+            return
+
+        if not self._verify_auth(body):
+            return
+
+        if path == CONTROL_ENDPOINT:
+            self._handle_control(body)
+        elif path == STATELESS_ENDPOINT:
+            self._handle_stateless(body)
+        elif path == STATEFUL_ENDPOINT:
+            self._handle_stateful(body)
+        elif path == CONFIG_ENDPOINT:
+            self._handle_report(body, 'last_config')
+        elif path == STATS_ENDPOINT:
+            self._handle_report(body, 'last_stats')
+        elif path == DOWNLOAD_ENDPOINT:
+            self._handle_download(body)
+        elif path in ENDPOINTS:
+            # Not yet implemented in this phase; acknowledge with an empty 200.
+            self.send_json(200, {})
+        else:
+            self.send_error_response(404, 'Not found')
+
+    def _inject_fault(self) -> bool:
+        """Apply the simulator's fault-injection mode before normal routing.
+
+        Returns True (having sent the fault response) for every mode except ``ACCEPT``,
+        so the caller skips endpoint handling. The generic ``401`` never distinguishes
+        its cause, per the auth contract.
+        """
+        mode = self.simulator.mode
+        if mode == 'ACCEPT':
+            return False
+
+        if mode == 'REJECT_AUTH':
+            self.send_error_response(401, 'Invalid client authentication')
+        elif mode == 'BAD_REQUEST':
+            self.send_error_response(400, 'Bad request')
+        elif mode == 'SERVICE_UNAVAILABLE':
+            self.send_error_response(503, 'Service temporarily unavailable',
+                                     extra_headers={'Retry-After': RETRY_AFTER_SECONDS})
+        elif mode == 'PAYLOAD_TOO_LARGE':
+            self.send_error_response(413, 'Request payload is too large')
+        return True
+
+    def _verify_auth(self, body: bytes) -> bool:
+        """Verify the AES-CMAC Authorization header when verification is enabled.
+
+        Returns True if the request is authenticated (or verification is off). On any
+        failure it sends a single generic ``401`` (never distinguishing the cause) and
+        returns False so the caller skips endpoint handling. On success it records the
+        authenticated agent id for later identity binding.
+        """
+        if not self.simulator.verify_auth:
+            return True
+
+        if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
+            return self._reject_auth()
+
+        credentials = request_auth.parse_authorization(self.headers.get('Authorization', ''))
+        if credentials is None:
+            return self._reject_auth()
+        agent_id, timestamp, mac = credentials
+
+        if not self._timestamp_in_window(timestamp):
+            return self._reject_auth()
+
+        key = self.simulator.cmac_key_for(agent_id)
+        if key is None:
+            return self._reject_auth()
+
+        canonical = request_auth.build_canonical_request('POST', self.path, agent_id, timestamp, body)
+        if not hmac.compare_digest(request_auth.compute_cmac(key, canonical), mac):
+            return self._reject_auth()
+
+        self._authenticated_agent_id = agent_id
+        return True
+
+    def _reject_auth(self) -> bool:
+        """Send the single generic authentication error and return False."""
+        self.send_error_response(401, 'Invalid client authentication')
+        return False
+
+    @staticmethod
+    def _timestamp_in_window(timestamp: str) -> bool:
+        """Return True if the timestamp is within the accepted age/skew window."""
+        try:
+            value = int(timestamp)
+        except ValueError:
+            return False
+        now = int(time.time())
+        return now - request_auth.TIMESTAMP_MAX_AGE <= value <= now + request_auth.TIMESTAMP_MAX_SKEW
+
+    def _handle_control(self, body: bytes) -> None:
+        """Dispatch a ``/control`` request on its ``type`` discriminator.
+
+        Malformed or unrecognized control messages get a generic ``400`` (the contract
+        reserves indistinguishable responses for ``401`` auth failures only).
+        """
+        try:
+            message = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        control_type = message.get('type')
+        if control_type == 'startup':
+            self.send_json(200, self.simulator.startup_response())
+        elif control_type == 'notify':
+            self.send_json(200, self.simulator.notify_response())
+        elif control_type == 'shutdown':
+            self.send_json(200, self.simulator.shutdown_response())
+        else:
+            self.send_error_response(400, 'Bad request')
+
+    def _handle_stateless(self, body: bytes) -> None:
+        """Handle a ``/stateless`` H/E event batch: structural validation only.
+
+        Success is a ``200`` with an empty body. A malformed batch gets a ``400``. The
+        agent-id identity binding (H metadata vs authenticated id) and the ``413`` size
+        limit are layered on with the auth middleware and fault modes.
+        """
+        try:
+            metadata, _events = parse_he_batch(body)
+        except ValueError:
+            self.send_error_response(400, 'Invalid event batch')
+            return
+
+        # Identity binding: the batch's agent id must match the authenticated one.
+        if self._authenticated_agent_id is not None:
+            body_agent_id = metadata.get('wazuh', {}).get('agent', {}).get('id')
+            if body_agent_id != self._authenticated_agent_id:
+                self.send_error_response(400, 'Invalid event batch')
+                return
+
+        self.send_empty(200)
+
+    def _handle_stateful(self, body: bytes) -> None:
+        """Handle a ``/stateful`` streamed session: dedup by ``X-Session-Id``, return the result.
+
+        The session blob is accepted (and captured in the request queue) but not parsed;
+        it is keyed by the ``X-Session-Id`` header. A missing header is a ``400``.
+        """
+        session_id = self.headers.get('X-Session-Id')
+        if not session_id:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        self.send_json(200, self.simulator.process_session(session_id))
+
+    def _handle_report(self, body: bytes, attribute: str) -> None:
+        """Handle a ``/config`` or ``/stats`` push: store the JSON document, ack empty.
+
+        Args:
+            body (bytes): The request body.
+            attribute (str): Simulator attribute to hold the parsed document
+                (``last_config`` or ``last_stats``).
+        """
+        try:
+            document = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        setattr(self.simulator, attribute, document)
+        self.send_json(200, {})
+
+    def _handle_download(self, body: bytes) -> None:
+        """Handle a ``/download`` request: stream the requested resource bytes chunked.
+
+        An unknown ``resource_type`` or an unset resource (e.g. no WPK injected) gets a ``404``.
+        """
+        try:
+            request = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            self.send_error_response(400, 'Bad request')
+            return
+
+        data = self.simulator.download_resource(request.get('resource_type'))
+        if data is None:
+            self.send_error_response(404, 'Not found')
+            return
+
+        self.send_chunked(data)
 
 
 class RemotedSimulator(BaseSimulator):
-    """
-    A class that simulates a Remoted service.
+    """Simulate the manager side of the Wazuh HTTPS agent protocol.
 
-    This class inherits from BaseSimulator and implements methods to send and receive messages
-    from a Wazuh server using a ManInTheMiddle object. It also allows to specify different modes of
-    operation to simulate different scenarios.
+    The agent connects as an HTTPS client and authenticates every request with an
+    AES-CMAC ``Authorization`` header. This simulator stands in for ``wazuh-remoted``:
+    it terminates TLS with a self-signed certificate generated at :meth:`start` and
+    routes the protocol endpoints (``/control``, ``/stateless``, ``/stateful``,
+    ``/download``, ``/config``, ``/stats``).
+
+    The reusable HTTP/TLS transport lives in :mod:`wazuh_testing.tools.https_server`;
+    this class holds only the Wazuh protocol behavior and the injectable server state.
+
+    Injectable state (``limits``, ``cluster``, ``groups``, ``config_hash``) is exposed as
+    plain attributes with sensible defaults rather than constructor parameters; tests that
+    need to customize it assign to these attributes before :meth:`start`. ``settings_hash``
+    is derived from the startup response body (read-only), mirroring how the agent computes
+    it, so a settings change is forced by mutating limits/cluster/groups. Response shapes
+    follow the current contract: startup carries no hash; config_hash appears in notify and
+    drives a /download; config is not pushed inline.
 
     Attributes:
-        MODES (list): A list of valid modes for the simulator.
-        mode (str): The current mode of the simulator.
-        protocol (str): The connection protocol used by the simulator ('udp' or 'tcp').
-        keys_path (str): The path to the file containing the client keys.
-        custom_message (bytes): A custom response message to send to the server instead of the default one.
-        last_message_ctx (dict): A dictionary that stores the context of the last received message.
-        request_counter (int): A counter that keeps track of the number of requests sent to the server.
+        MODES (list): Valid fault-injection modes for the simulator.
+        limits (dict): Module limits returned by the startup response.
+        cluster (dict): Cluster ``{name, node}`` returned by the startup response.
+        groups (list): Agent groups returned by startup/notify responses.
+        merged_mg (bytes): Group config bytes served by /download and hashed into config_hash.
+        wpk (bytes): WPK package bytes served by /download for upgrade tasks (None until set).
+        stateful_items_processed (int): itemsProcessed reported by the /stateful response.
+        stateful_sessions (dict): X-Session-Id -> result cache backing idempotent retries.
+        config_hash (str): SHA256 the notify response advertises for the group config.
+        settings_hash (str): Derived, read-only SHA256 of the startup response body.
     """
-    MODES = ['ACCEPT', 'WRONG_KEY', 'INVALID_MSG']
-    DEFAULT_MERGED_MG_CONTENT = _DEFAULT_MERGED_MG_CONTENT
-    DEFAULT_MERGED_SUM = _DEFAULT_MERGED_SUM
+
+    MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
 
     def __init__(self,
                  server_ip: str = '127.0.0.1',
                  port: int = 1514,
-                 mode='ACCEPT',
-                 protocol: Literal['udp', 'tcp'] = 'tcp',
+                 mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
-                 limits_config: Dict = None,
-                 merged_mg_content: bytes = None,
-                 merged_mg_send_delay: float = 0) -> None:
-        """
-        Initialize a RemotedSimulator object.
+                 verify_auth: bool = False) -> None:
+        """Initialize a RemotedSimulator.
 
         Args:
-            server_ip (str, optional): The IP address of the Wazuh server. Defaults: '127.0.0.1'.
-            port (int, optional): The port number of the Wazuh server. Defaults: 1514.
-            mode (str, optional): The mode of the simulator. Must be one of MODES. Defaults: 'ACCEPT'.
-            protocol (str, optional): The connection protocol used by the simulator ('udp' or 'tcp'). Defaults: 'tcp'.
-            keys_path (str, optional): The path to the wazuh client keys file. Defaults: BASE_CONF_PATH/client.keys'.
-            limits_config (Dict, optional): Custom limits configuration for HC_STARTUP response. Defaults: None.
-            merged_mg_content (bytes, optional): Content to push via #!-up file protocol. None = no push.
-            merged_mg_send_delay (float, optional): Seconds to wait after handshake before pushing. Defaults: 0.
+            server_ip (str, optional): Address to bind the TLS server to. Defaults: '127.0.0.1'.
+            port (int, optional): Port to bind the TLS server to. Defaults: 1514.
+            mode (str, optional): Fault-injection mode. Must be one of MODES. Defaults: 'ACCEPT'.
+            keys_path (str, optional): Path to the client.keys file. Defaults: WAZUH_CLIENT_KEYS_PATH.
+            verify_auth (bool, optional): Enforce AES-CMAC Authorization on every request
+                (agent keys resolved from keys_path). Defaults: False.
         """
         super().__init__(server_ip, port, False)
 
         self.mode = mode
-        self.protocol = protocol
         self.keys_path = keys_path
-        self.limits_config = limits_config if limits_config is not None else _DEFAULT_LIMITS_JSON.copy()
+        self.verify_auth = verify_auth
 
-        # Merged.mg file push support.
-        self.merged_mg_content = merged_mg_content
-        self.merged_mg_send_delay = merged_mg_send_delay
-        self.merged_mg_hash = None
-        self._file_push_queue = Queue()
-        self._handshake_event = threading.Event()
-        self._push_thread = None
+        # Injectable server state (assign directly before start() to customize).
+        self.limits = json.loads(json.dumps(DEFAULT_LIMITS))
+        self.cluster = dict(DEFAULT_CLUSTER)
+        self.groups = list(DEFAULT_GROUPS)
+        self.merged_mg = DEFAULT_MERGED_MG
+        self.wpk: Optional[bytes] = None
+        self.config_hash = hashlib.sha256(self.merged_mg).hexdigest()
 
-        if merged_mg_content is not None:
-            self.merged_mg_hash = hashlib.md5(merged_mg_content).hexdigest()
-            self.limits_config['merged_sum'] = self.merged_mg_hash
+        self._tasks: List[Dict] = []
+        self._tasks_lock = threading.Lock()
 
-        self.__mitm = ManInTheMiddle(address=(self.server_ip, self.port),
-                                     family='AF_INET', connection_protocol=self.protocol,
-                                     func=self.__remoted_response_simulation)
+        # The /stateful response reports itemsProcessed (test-controlled, since the
+        # FlatBuffer body is not parsed). stateful_sessions caches each X-Session-Id's
+        # result so a whole-session retry with the same id is idempotent (the manager's
+        # session-result LRU); TTL eviction is omitted as unnecessary for tests.
+        self.stateful_items_processed = 0
+        self.stateful_sessions: Dict[str, Dict] = {}
+        self._sessions_lock = threading.Lock()
 
-        self.custom_message = None
-        self.last_message_ctx = {}
-        self.request_counter = 0
+        # Last documents pushed by the agent (populated by /config and /stats).
+        self.last_config: Optional[Dict] = None
+        self.last_stats: Optional[Dict] = None
 
-        self._queue_response_req_message = Queue()
+        self._requests: List[Dict] = []
+        self._requests_lock = threading.Lock()
+        self._httpd: Optional[TLSHTTPServer] = None
+        self._thread: Optional[threading.Thread] = None
+        self._cert_dir: Optional[str] = None
 
-    # Properties
+    # Properties.
 
     @property
-    def queue(self) -> Queue:
-        """
-        Get the queue used for storing received messages.
+    def requests(self) -> List[Dict]:
+        """Snapshot of all received requests (each a dict: method/path/headers/agent_id/body)."""
+        return self.get_requests()
 
-        Returns:
-            Queue: MitM queue object that stores received messages.
-        """
-        return self.__mitm.queue
+    @property
+    def settings_hash(self) -> str:
+        """SHA-256 of the exact startup response body.
 
-    # Methods
+        Matches how the agent derives its settings baseline (over the received startup
+        bytes), so a notify never triggers a spurious settings refresh. Read-only and
+        derived: to force a settings change, mutate limits/cluster/groups.
+        """
+        return hashlib.sha256(json.dumps(self.startup_response()).encode()).hexdigest()
+
+    # Methods.
 
     def start(self) -> None:
-        """
-        Start the simulator and the MitM object.
-        """
+        """Start the TLS HTTP server in a background thread."""
         if self.running:
             return
-        self.__mitm.start()
+
+        self._cert_dir = tempfile.mkdtemp(prefix='remoted_simulator_')
+        cert_path, key_path = generate_self_signed_certificate(self._cert_dir)
+
+        self._httpd = TLSHTTPServer((self.server_ip, self.port), _RemotedRequestHandler,
+                                    certfile=cert_path, keyfile=key_path, context=self)
+
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
+        self._thread.start()
         self.running = True
 
-        if self.merged_mg_content is not None:
-            self._push_thread = threading.Thread(
-                target=self._merged_mg_push_worker, daemon=True)
-            self._push_thread.start()
-
     def shutdown(self) -> None:
-        """
-        Shutdown the simulator and the MitM object.
-        """
+        """Stop the TLS HTTP server and clean up the temporary certificate."""
         if not self.running:
             return
-        self.__mitm.shutdown()
+
+        self._httpd.shutdown()
+        self._thread.join()
+        self._httpd.server_close()
         self.running = False
 
-    def clear(self) -> None:
-        """
-        Clear the queue and the event of the MitM object.
+        if self._cert_dir:
+            shutil.rmtree(self._cert_dir, ignore_errors=True)
+            self._cert_dir = None
 
-        This method removes all the messages from the queue and resets the event to False.
-        """
-        while not self.__mitm.queue.empty():
-            self.__mitm.queue.get_nowait()
-        self.__mitm.event.clear()
+    def clear(self) -> None:
+        """Remove all recorded requests."""
+        with self._requests_lock:
+            self._requests.clear()
 
     def destroy(self) -> None:
-        """
-        Clear and shutdown the simulator.
-        """
+        """Clear the queue and shut the simulator down."""
         self.clear()
         self.shutdown()
-        if self._push_thread and self._push_thread.is_alive():
-            self._handshake_event.set()
-            self._push_thread.join(timeout=5)
 
-    def _merged_mg_push_worker(self):
-        """Wait for handshake, sleep for delay, then queue file push messages."""
-        self._handshake_event.wait()
-        time.sleep(self.merged_mg_send_delay)
-
-        # Protocol: #!-up file <md5> merged.mg\n -> 900-byte chunks -> #!-close file
-        self._file_push_queue.put(
-            f'#!-up file {self.merged_mg_hash} merged.mg\n'.encode())
-
-        for offset in range(0, len(self.merged_mg_content), 900):
-            chunk = self.merged_mg_content[offset:offset + 900]
-            if isinstance(chunk, str):
-                chunk = chunk.encode()
-            self._file_push_queue.put(chunk)
-
-        self._file_push_queue.put(b'#!-close file ')
-
-    def send_custom_message(self, message: Union[str, bytes]) -> None:
-        """
-        Send a custom message to the connected wazuh agent.
+    def add_task(self, task: Dict) -> None:
+        """Queue a manager-to-agent task to attach to the next ``notify`` response.
 
         Args:
-            message (Union[str, bytes]): The message to send. Can be a string or bytes.
-
-        Raises:
-            TypeError: If message is not a string or bytes.
+            task (dict): A task object (e.g. ``{"task_id", "task_type", "payload"}``).
         """
-        if not isinstance(message, (str, bytes)):
-            raise TypeError('Message must be a string or bytes.')
+        with self._tasks_lock:
+            self._tasks.append(task)
 
-        if not isinstance(message, bytes):
-            message = message.encode()
+    def record_request(self, method: str, path: str, headers, body: bytes) -> None:
+        """Store a received request for later assertions.
 
-        with self._queue_response_req_message.mutex:
-            self._queue_response_req_message.queue.clear()
-        self.custom_message_sent = False
+        Args:
+            method (str): HTTP method of the request.
+            path (str): Raw request target (path plus query string).
+            headers: The request headers (email.message.Message).
+            body (bytes): Exact request body bytes.
+        """
+        with self._requests_lock:
+            self._requests.append({
+                'method': method,
+                'path': path,
+                'headers': dict(headers.items()),
+                'agent_id': self._agent_id_from_headers(headers),
+                'body': body,
+            })
 
-        self.custom_message = message
+    def get_requests(self, path: str = None) -> List[Dict]:
+        """Return a snapshot of captured requests, optionally filtered by endpoint path.
+
+        Args:
+            path (str, optional): If given, only requests whose target path (ignoring any
+                query string) equals this value are returned.
+
+        Returns:
+            List[Dict]: Copied request records, in arrival order.
+        """
+        with self._requests_lock:
+            snapshot = list(self._requests)
+        if path is None:
+            return snapshot
+        return [request for request in snapshot if urlsplit(request['path']).path == path]
+
+    def last_request(self, path: str = None) -> Optional[Dict]:
+        """Return the most recent captured request (optionally for a path), or None."""
+        matches = self.get_requests(path)
+        return matches[-1] if matches else None
+
+    # Response builders. Pure functions of the injectable state.
+
+    def startup_response(self) -> Dict:
+        """Build the ``startup`` response body: limits, cluster and groups (no hash)."""
+        return {
+            'limits': self.limits,
+            'cluster': self.cluster,
+            'agent': {'groups': self.groups},
+        }
+
+    def notify_response(self) -> Dict:
+        """Build the ``notify`` response body: hashes plus any pending tasks (drained)."""
+        response = {
+            'agent': {'groups': self.groups, 'config_hash': self.config_hash},
+            'settings_hash': self.settings_hash,
+        }
+        tasks = self._drain_tasks()
+        if tasks:
+            response['tasks'] = tasks
+        return response
+
+    def shutdown_response(self) -> Dict:
+        """Build the ``shutdown`` response body (empty acknowledgement)."""
+        return {}
+
+    def cmac_key_for(self, agent_id: str) -> Optional[bytes]:
+        """Resolve an agent's 16-byte AES-CMAC key from client.keys.
+
+        Args:
+            agent_id (str): The agent identifier to look up.
+
+        Returns:
+            Optional[bytes]: The 16-byte key, or None if the agent is unknown or its key
+                is not valid CMAC key material.
+        """
+        for entry in get_client_keys(self.keys_path):
+            if entry['id'] == agent_id:
+                try:
+                    return request_auth.derive_cmac_key(entry['key'])
+                except ValueError:
+                    return None
+        return None
+
+    def process_session(self, session_id: str) -> Dict:
+        """Return the ``/stateful`` result for a session id; retries are idempotent.
+
+        The first request for a given id records and returns a result; a retry with the
+        same id returns the cached result unchanged (whole-session retry dedup).
+
+        Args:
+            session_id (str): The ``X-Session-Id`` identifying the session.
+
+        Returns:
+            Dict: The session result ``{status, sessionId, itemsProcessed}``.
+        """
+        with self._sessions_lock:
+            if session_id not in self.stateful_sessions:
+                self.stateful_sessions[session_id] = {
+                    'status': 'ok',
+                    'sessionId': session_id,
+                    'itemsProcessed': self.stateful_items_processed,
+                }
+            return self.stateful_sessions[session_id]
+
+    def download_resource(self, resource_type: str) -> Optional[bytes]:
+        """Return the bytes ``/download`` serves for a resource type, or None if unavailable.
+
+        ``config`` serves the merged.mg; ``wpk`` serves the injected WPK bytes (None until set).
+
+        Args:
+            resource_type (str): The requested resource type (``config`` or ``wpk``).
+
+        Returns:
+            Optional[bytes]: The resource bytes, or None if the type is unknown or unset.
+        """
+        if resource_type == 'config':
+            return self.merged_mg
+        if resource_type == 'wpk':
+            return self.wpk
+        return None
 
     # Internal methods.
 
-    def __remoted_response_simulation(self, request: Any) -> bytes:
-        """
-        Simulate a Remoted response to an agent based on the received message and the
-        mode of operation.
+    def _drain_tasks(self) -> List[Dict]:
+        """Atomically return and clear the pending tasks (delivered once, locally)."""
+        with self._tasks_lock:
+            tasks, self._tasks = self._tasks, []
+            return tasks
 
-        This method is passed as a callback function to the MitM object and is executed
-        for every received message.
-
-        Args:
-            _request (Any): The received message from the agent.
-
-        Returns:
-            bytes: The response message to send back to the agent. If protocol is 'tcp',
-                   then it also includes a header with the length of the response.
-        """
-        self.request_counter += 1
-
-        if not request:
-            return _RESPONSE_EMPTY
-
-        if b'#ping' in request:
-            return b'#pong'
-
-        # Save header values.
-        self.__save_encryption_values(request)
-        # Decrypt and decode the request message.
-        message = self.__decrypt_received_message(request)
-
-        # Set the correct response message.
-        if self.mode == 'WRONG_KEY':
-            self.encryption_key = secure_message.get_encryption_key('a', 'b', 'c')
-            response = _RESPONSE_ACK
-        elif self.mode == 'INVALID_MSG':
-            response = b'INVALID'
-        elif '#!-agent shutdown' in message:
-            response = _RESPONSE_SHUTDOWN
-        elif '#!-agent startup' in message:
-            # Response to HC_STARTUP with module limits JSON
-            json_payload = json.dumps(self.limits_config)
-            response = _RESPONSE_ACK + json_payload.encode()
-            self._handshake_event.set()
-        elif '#!-req' in message:
-            self._queue_response_req_message.put(message)
-            response = _RESPONSE_EMPTY
-        elif not self._file_push_queue.empty():
-            try:
-                response = self._file_push_queue.get_nowait()
-            except Empty:
-                response = _RESPONSE_EMPTY
-        elif self.custom_message and not self.custom_message_sent:
-            response = self.custom_message
-            self.custom_message_sent = True
-            self.custom_message = None
-        elif '#!-' in message:
-            response = _RESPONSE_ACK
-        else:
-            response = _RESPONSE_EMPTY
-
-        # Save the full context of the message.
-        self.__save_message_context(request, message, response)
-
-        # If response is empty, return it without encryption.
-        if response == _RESPONSE_EMPTY:
-            return response
-
-        # Encrypt the response.
-        response = self.__encrypt_response_message(response)
-
-        if self.protocol == "tcp":
-            return secure_message.pack(len(response)) + response
-
-        return response
-
-    def __get_client_keys(self):
-        """
-        Get the client keys from the keys file.
-
-        Returns:
-            bytes: The encryption key derived from the client keys.
-        """
-        client_keys = get_client_keys(self.keys_path)[0]
-        client_keys.pop('ip')
-
-        return secure_message.get_encryption_key(**client_keys)
-
-    def __decrypt_received_message(self, message: bytes) -> str:
-        """
-        Decrypt and decode a received message from the agent.
-
-        Args:
-            message (bytes): The received message from the agent.
-
-        Returns:
-            str: The decrypted and decoded message.
-        """
-        payload = secure_message.get_payload(message, self.algorithm)
-        decrypted = secure_message.decrypt(payload, self.encryption_key, self.algorithm)
-
-        return secure_message.decode(decrypted)
-
-    def __encrypt_response_message(self, message: bytes) -> str:
-        """
-        Encrypt and encode a response message to the agent.
-
-        Args:
-            message (bytes): The response message to the agent.
-
-        Returns:
-            bytes: The encrypted and encoded message with an algorithm header.
-        """
-        encoded = secure_message.encode(message)
-        payload = secure_message.encrypt(encoded, self.encryption_key, self.algorithm)
-
-        return secure_message.set_algorithm_header(payload, self.algorithm)
-
-    def __save_encryption_values(self, message: bytes) -> None:
-        # Get the decryption/encryption algorithm and key.
-        self.algorithm = secure_message.get_algorithm(message)
-        self.encryption_key = self.__get_client_keys()
-
-    def __save_message_context(self, request: bytes, message: str, response: bytes) -> None:
-        """
-        Save the context of a received request from the agent.
-
-        The context includes the agent ID, counter and checksum of the request.
-
-        Args:
-            request (bytes): The received request from the agent.
-            message (str): The decrypted and decoded message.
-            response (str): The response message to the agent.
-        """
-        if agent_id := secure_message.get_agent_id(request):
-            self.last_message_ctx['id'] = agent_id
-
-        self.last_message_ctx['ip'] = self.__mitm.listener.last_address[0]
-        self.last_message_ctx['algorithm'] = self.algorithm
-        self.last_message_ctx['message'] = message
-        self.last_message_ctx['response'] = response
+    @staticmethod
+    def _agent_id_from_headers(headers) -> Optional[str]:
+        """Extract the agent id from an ``Authorization: Wazuh <id>:<ts>:<mac>`` header."""
+        authorization = headers.get('Authorization', '')
+        if authorization.startswith('Wazuh '):
+            credentials = authorization[len('Wazuh '):]
+            return credentials.split(':', 1)[0] or None
+        return None
