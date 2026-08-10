@@ -66,6 +66,7 @@ All notable changes to this project will be documented in this file.
 | [#345](https://github.com/wazuh/qa-integration-framework/pull/345) | Fixed Python unit test coverage script. |
 | [#615](https://github.com/wazuh/qa-integration-framework/pull/615) | Fixed server clean up minor issues. |
 | [#621](https://github.com/wazuh/qa-integration-framework/pull/621) | Increased net stop retries and force kill process as last resort. |
+| [#812](https://github.com/wazuh/qa-integration-framework/pull/812) | Fixed logcollector config validation crashing on non-logcollector sections. |
 
 ## Prior versions
 
