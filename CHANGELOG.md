@@ -65,3 +65,14 @@ All notable changes to this project will be documented in this file.
 | [#345](https://github.com/wazuh/qa-integration-framework/pull/345) | Fixed Python unit test coverage script. |
 | [#615](https://github.com/wazuh/qa-integration-framework/pull/615) | Fixed server clean up minor issues. |
 | [#621](https://github.com/wazuh/qa-integration-framework/pull/621) | Increased net stop retries and force kill process as last resort. |
+
+## Prior versions
+
+- [v4.14.5](https://github.com/wazuh/qa-integration-framework/blob/v4.14.5/CHANGELOG.md)
+- [v4.14.4](https://github.com/wazuh/qa-integration-framework/blob/v4.14.4/CHANGELOG.md)
+- [v4.14.3](https://github.com/wazuh/qa-integration-framework/blob/v4.14.3/CHANGELOG.md)
+- [v4.14.2](https://github.com/wazuh/qa-integration-framework/blob/v4.14.2/CHANGELOG.md)
+- [v4.14.1](https://github.com/wazuh/qa-integration-framework/blob/v4.14.1/CHANGELOG.md)
+- [v4.14.0](https://github.com/wazuh/qa-integration-framework/blob/v4.14.0/CHANGELOG.md)
+- [v4.13.1](https://github.com/wazuh/qa-integration-framework/blob/v4.13.1/CHANGELOG.md)
+- [v4.13.0](https://github.com/wazuh/qa-integration-framework/blob/v4.13.0/CHANGELOG.md)
