@@ -13,7 +13,7 @@ from typing import Union
 from wazuh_testing.constants.daemons import CLUSTER_DAEMON, API_DAEMON, WAZUH_AGENT, WAZUH_MANAGER, WAZUH_AGENT_WIN
 from wazuh_testing.constants.paths.binaries import BIN_PATH, WAZUH_CONTROL_PATH
 from wazuh_testing.constants.paths.sockets import WAZUH_SOCKETS, WAZUH_OPTIONAL_SOCKETS
-from wazuh_testing.constants.paths.variables import VAR_RUN_PATH, VERSION_FILE
+from wazuh_testing.constants.paths.variables import VAR_PATH, VAR_RUN_PATH, VERSION_FILE
 from wazuh_testing.constants.platforms import MACOS, WINDOWS
 
 from . import sockets
@@ -136,6 +136,34 @@ def control_service(action, daemon=None, debug_mode=False):
                     print("[control_service] The service is still not responding after forced kill.")
     else:  # Default Unix
         if daemon is None:
+            # wazuh-control (src/init/wazuh-client.sh / wazuh-server.sh) serializes every
+            # start/stop/reload through a single lock directory (var/start-script-lock). A
+            # reload triggered from inside the product (e.g. the agent's own reloadAgent())
+            # can still be holding that lock when a test's teardown calls stop right after --
+            # that stop then fails with "Another instance is locking this process" even
+            # though nothing is actually wrong, it just lost the race with a reload that's
+            # still finishing.
+            #
+            # Can't detect this from the subprocess's result: on Linux 'service' runs
+            # through systemd, which never forwards the control script's stdout back to us
+            # (it goes to the journal). Waiting out the lock file directly, before even
+            # attempting the call, works the same way on every platform this runs on.
+            #
+            # The deadline below is NOT bounded by lock()'s own acquisition retry (that one
+            # only covers a second process failing to ever GET the lock, ~60s). What actually
+            # holds the lock for a while is whoever already has it running start_service(),
+            # which polls for each daemon's pidfile with its own ~60s-per-daemon budget
+            # (same MAX_ITERATION=60, different loop) before giving up on that daemon and
+            # unlocking. A reload restarts several daemons in sequence, so the realistic
+            # worst case is closer to that per-daemon budget than to lock()'s number.
+            start_script_lock = os.path.join(VAR_PATH, 'start-script-lock')
+            lock_wait_deadline = time.time() + 90
+            while os.path.exists(start_script_lock) and time.time() < lock_wait_deadline:
+                time.sleep(1)
+            if os.path.exists(start_script_lock):
+                print(f"[control_service] '{start_script_lock}' still present after "
+                      "90s; proceeding anyway, the next call will likely fail.")
+
             if sys.platform == MACOS:
                 result = subprocess.run(
                     [WAZUH_CONTROL_PATH, action]).returncode
