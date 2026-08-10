@@ -8,6 +8,7 @@ from wazuh_testing.constants.paths.sockets import LOGCOLLECTOR_SOCKET_PATH
 from wazuh_testing.utils import sockets
 from wazuh_testing.modules.logcollector import patterns
 from wazuh_testing.tools.socket_controller import SocketController
+from wazuh_testing.logger import logger
 
 
 def get_localfile_runtime_configuration():
@@ -41,6 +42,13 @@ def validate_test_config_with_module_config(test_configuration):
 
     for section in test_configuration['sections']:
         test_section = section['section']
+        # Only 'localfile' and 'socket' are logcollector's own sections (handled below); a
+        # test_configuration built for other purposes (e.g. the agent/server block some
+        # tests inject to reach a manager) has no matching 'getconfig' reply on this socket.
+        if test_section not in ('localfile', 'socket'):
+            logger.debug(f"Skipping section '{test_section}': not one of logcollector's own "
+                         "sections ('localfile', 'socket'), nothing to validate against its socket.")
+            continue
         test_elements = section['elements']
         msg_request = f'getconfig {test_section}'
         response = sockets.send_request_socket(query = msg_request, socket_path = LOGCOLLECTOR_SOCKET_PATH)
