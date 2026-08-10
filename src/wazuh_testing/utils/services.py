@@ -151,18 +151,23 @@ def control_service(action, daemon=None, debug_mode=False):
             #
             # The deadline below is NOT bounded by lock()'s own acquisition retry (that one
             # only covers a second process failing to ever GET the lock, ~60s). What actually
-            # holds the lock for a while is whoever already has it running start_service(),
-            # which polls for each daemon's pidfile with its own ~60s-per-daemon budget
-            # (same MAX_ITERATION=60, different loop) before giving up on that daemon and
-            # unlocking. A reload restarts several daemons in sequence, so the realistic
-            # worst case is closer to that per-daemon budget than to lock()'s number.
+            # holds the lock for a while is whoever already has it running restart_service()
+            # (lock; stop_service; start_service; unlock): stop_service() waits per daemon on
+            # its kill/exit (its own ~30s-per-daemon budget), then start_service() waits per
+            # daemon on its pidfile (~60s-per-daemon) -- both loop over every daemon a reload
+            # restarts in sequence (4 on the agent, 7 on the manager), so the realistic worst
+            # case scales with daemon count and can run well past any single fixed number.
+            # No timeout here can be a hard guarantee; this is a best-effort wait, not a
+            # correctness bound -- the deadline just keeps that wait from being unbounded, and
+            # the log line below plus the returncode check further down still surface it
+            # correctly if the lock genuinely outlasts it.
             start_script_lock = os.path.join(VAR_PATH, 'start-script-lock')
             lock_wait_deadline = time.time() + 90
             while os.path.exists(start_script_lock) and time.time() < lock_wait_deadline:
                 time.sleep(1)
             if os.path.exists(start_script_lock):
                 print(f"[control_service] '{start_script_lock}' still present after "
-                      "90s; proceeding anyway, the next call will likely fail.")
+                      "90s; proceeding anyway, this may take longer or fail.")
 
             if sys.platform == MACOS:
                 result = subprocess.run(
