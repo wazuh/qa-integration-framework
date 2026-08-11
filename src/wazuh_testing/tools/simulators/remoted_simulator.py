@@ -368,6 +368,15 @@ class RemotedSimulator(BaseSimulator):
 
     MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
 
+    # Exposed so a test/fixture can pre-seed the agent's local merged.mg with content that
+    # already matches a freshly-constructed simulator's default config_hash (see __init__'s
+    # `self.merged_mg = DEFAULT_MERGED_MG`), letting the HTTPS startup gate release immediately
+    # via startup_gate_check_manager_config_hash()'s SHA-256 comparison instead of waiting on a
+    # /download round trip. Kept as a class attribute (not just the module-level constant above)
+    # for parity with the pre-HTTPS RemotedSimulator's DEFAULT_MERGED_MG_CONTENT, which
+    # tests/integration/conftest.py's autouse ensure_merged_mg fixture depends on by that name.
+    DEFAULT_MERGED_MG_CONTENT = DEFAULT_MERGED_MG
+
     def __init__(self,
                  server_ip: str = '127.0.0.1',
                  port: int = DEFAULT_HTTPS_REMOTE_CONNECTION_PORT,
