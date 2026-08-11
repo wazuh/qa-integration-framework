@@ -8,7 +8,7 @@ protocol (/control, /stateless, /stateful, /download, /config, /stats).
 
 Quickstart in a test:
 
-    sim = RemotedSimulator(port=1514)
+    sim = RemotedSimulator(port=1517)
     sim.add_task({'task_id': 't1', 'task_type': 'agent_restart', 'payload': {}})  # rides next notify
     sim.start()
     try:
@@ -40,6 +40,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urlsplit
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
+from wazuh_testing.constants.ports import DEFAULT_HTTPS_REMOTE_CONNECTION_PORT
 from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
                                               generate_self_signed_certificate)
 from wazuh_testing.utils import request_auth
@@ -369,7 +370,7 @@ class RemotedSimulator(BaseSimulator):
 
     def __init__(self,
                  server_ip: str = '127.0.0.1',
-                 port: int = 1514,
+                 port: int = DEFAULT_HTTPS_REMOTE_CONNECTION_PORT,
                  mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
                  verify_auth: bool = False) -> None:
@@ -377,7 +378,9 @@ class RemotedSimulator(BaseSimulator):
 
         Args:
             server_ip (str, optional): Address to bind the TLS server to. Defaults: '127.0.0.1'.
-            port (int, optional): Port to bind the TLS server to. Defaults: 1514.
+            port (int, optional): Port to bind the TLS server to. Defaults: 1517 (the HTTPS
+                control port, DEFAULT_HTTPS_REMOTE_CONNECTION_PORT) -- not 1514, the legacy
+                protocol's port.
             mode (str, optional): Fault-injection mode. Must be one of MODES. Defaults: 'ACCEPT'.
             keys_path (str, optional): Path to the client.keys file. Defaults: WAZUH_CLIENT_KEYS_PATH.
             verify_auth (bool, optional): Enforce AES-CMAC Authorization on every request

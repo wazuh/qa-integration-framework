@@ -7,6 +7,12 @@ from typing import List
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.utils import file
 
+# A valid client.keys secret is 32/48/64 hex characters (AES-CMAC 16/24/32-byte key sizes) --
+# anything else fails bridge_key_is_valid() on the agent's HTTPS client (https_client_bridge.c)
+# and derive_cmac_key() here (request_auth.py) raises ValueError. 64 hex chars, matching the
+# length the real manager produces (md5+md5, agent_validate_op.c).
+DEFAULT_AUTHD_SECRET = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
+
 
 def add_client_keys_entry(agent_id: str, agent_name: str, agent_ip: str = 'any', agent_key: str = None) -> None:
     """Add new entry to client keys file. If the agent_id already exists, this will be overwritten.
@@ -79,7 +85,7 @@ def get_client_keys(path: str = WAZUH_CLIENT_KEYS_PATH) -> List[dict]:
             Each dictionary contains the following keys: 'id', 'name', 'ip', and 'key'.
     """
     if not file.exists_and_is_file(path):
-        return [{'id': '001', 'name': 'ubuntu-agent', 'ip': 'any', 'key': 'SuperSecretKey'}]
+        return [{'id': '001', 'name': 'ubuntu-agent', 'ip': 'any', 'key': DEFAULT_AUTHD_SECRET}]
 
     keys = []
     for line in file.read_file_lines(path):
