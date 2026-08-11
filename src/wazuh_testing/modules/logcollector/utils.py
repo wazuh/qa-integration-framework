@@ -41,14 +41,6 @@ def get_localfile_runtime_configuration():
 # no comparison branch here.
 _LOGCOLLECTOR_SECTIONS = ('localfile', 'socket')
 
-# 'agent' is not logcollector's own section: some shared config templates inject it (with a
-# nested <server>/<ssl> block) purely so the mocked HTTPS handshake in those tests succeeds --
-# logcollector's socket has no 'getconfig agent' reply, so it is skipped here by name rather
-# than through a catch-all. Any OTHER section is unexpected: silently skipping it too would
-# let a real bug (a typo, or a config block that should not be there) pass unnoticed instead
-# of failing the assertion this function exists to make.
-_KNOWN_NON_LOGCOLLECTOR_SECTIONS = ('agent',)
-
 
 def validate_test_config_with_module_config(test_configuration):
     """Assert if configuration values provided are the same that configuration provided for module response.
@@ -59,16 +51,10 @@ def validate_test_config_with_module_config(test_configuration):
 
     for section in test_configuration['sections']:
         test_section = section['section']
-        if test_section in _KNOWN_NON_LOGCOLLECTOR_SECTIONS:
-            logger.debug(f"Skipping section '{test_section}': known non-logcollector section, "
-                         "injected for reasons unrelated to this validation.")
-            continue
         if test_section not in _LOGCOLLECTOR_SECTIONS:
             raise ValueError(
-                f"Unexpected section '{test_section}' in test configuration: it is neither one "
-                f"of logcollector's own sections {_LOGCOLLECTOR_SECTIONS} nor a known "
-                f"non-logcollector section {_KNOWN_NON_LOGCOLLECTOR_SECTIONS}. If this section "
-                "is deliberate, add it to whichever list applies; otherwise this may be a real "
+                f"Unexpected section '{test_section}' in test configuration: it is not one of "
+                f"logcollector's own sections {_LOGCOLLECTOR_SECTIONS}. This may be a real "
                 "configuration or test bug that skipping it would have hidden.")
         test_elements = section['elements']
         msg_request = f'getconfig {test_section}'
