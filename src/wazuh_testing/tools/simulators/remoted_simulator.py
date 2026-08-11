@@ -73,7 +73,26 @@ ENDPOINTS = (
 # against the manager implementation once it lands.
 DEFAULT_LIMITS = {
     'fim': {'file': 100000, 'registry_key': 100000, 'registry_value': 100000},
-    'syscollector': {'packages': 50000, 'processes': 50000, 'ports': 50000},
+    # All 13 fields are required: bridge_parse_syscollector_limits() (https_client_bridge.c)
+    # rejects the whole limits object -- for fim/syscollector/sca alike, since the three are
+    # parsed as one atomic unit -- if even one of these is missing. An incomplete block here
+    # silently leaves every module's document limits unset agent-wide ("Module limits not
+    # configured", agcom.c), not just syscollector's own.
+    'syscollector': {
+        'hotfixes': 50000,
+        'packages': 50000,
+        'processes': 50000,
+        'ports': 50000,
+        'network_iface': 50000,
+        'network_protocol': 50000,
+        'network_address': 50000,
+        'hardware': 50000,
+        'os_info': 50000,
+        'users': 50000,
+        'groups': 50000,
+        'services': 50000,
+        'browser_extensions': 50000,
+    },
     'sca': {'checks': 10000},
 }
 DEFAULT_CLUSTER = {'name': 'wazuh-cluster', 'node': 'node01'}
@@ -439,13 +458,24 @@ class RemotedSimulator(BaseSimulator):
 
     @property
     def settings_hash(self) -> str:
-        """SHA-256 of the exact startup response body.
+        """SHA-256 of the {limits, cluster} envelope, matching the agent's own baseline.
 
-        Matches how the agent derives its settings baseline (over the received startup
-        bytes), so a notify never triggers a spurious settings refresh. Read-only and
-        derived: to force a settings change, mutate limits/cluster/groups.
+        The agent's computeSettingsHash() (controlStream.cpp) re-extracts only "limits"
+        and "cluster" from the startup body into a fresh nlohmann::json object and hashes
+        *that* -- not the raw startup response bytes, and not "agent"/"groups", which the
+        real object never includes in this envelope. nlohmann::json's default object type
+        serializes keys sorted alphabetically with no extra whitespace, so this must use
+        the matching sort_keys=True + compact separators, and hash the same two-key
+        subset, or the value will never equal what the agent computes on its own --
+        turning every single notify into a spurious "settings changed" (every mismatch
+        re-requests Startup; see maybeArmSettingsRefresh()'s comment on exactly this
+        failure mode: "the manager's hash is not computed over the bytes it sends").
+        Read-only and derived: to force a settings change, mutate limits/cluster.
         """
-        return hashlib.sha256(json.dumps(self.startup_response()).encode()).hexdigest()
+        envelope = {'limits': self.limits, 'cluster': self.cluster}
+        return hashlib.sha256(
+            json.dumps(envelope, sort_keys=True, separators=(',', ':')).encode()
+        ).hexdigest()
 
     # Methods.
 
