@@ -296,9 +296,6 @@
                                         "select-agent-group": {
                                           "type": "integer"
                                         },
-                                        "select-agent-name": {
-                                          "type": "integer"
-                                        },
                                         "set-agent-groups": {
                                           "type": "integer"
                                         },
@@ -341,7 +338,6 @@
                                         "insert-agent",
                                         "reset-agents-connection",
                                         "select-agent-group",
-                                        "select-agent-name",
                                         "set-agent-groups",
                                         "sync-agent-groups-get",
                                         "sync-agent-info-get",
@@ -493,9 +489,6 @@
                                         "select-agent-group": {
                                           "type": "integer"
                                         },
-                                        "select-agent-name": {
-                                          "type": "integer"
-                                        },
                                         "set-agent-groups": {
                                           "type": "integer"
                                         },
@@ -538,7 +531,6 @@
                                         "insert-agent",
                                         "reset-agents-connection",
                                         "select-agent-group",
-                                        "select-agent-name",
                                         "set-agent-groups",
                                         "sync-agent-groups-get",
                                         "sync-agent-info-get",
