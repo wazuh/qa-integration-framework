@@ -7,7 +7,7 @@ import hashlib
 def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1', register_ip='127.0.0.1',
                            internal_key='', os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4',
                            os_type='centos-8', os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020', os_arch='x86_64',
-                           version='Wazuh v4.3.0', node_name='node01', date_add='1612942494',
+                           version='Wazuh v4.3.0', date_add='1612942494',
                            last_keepalive='253402300799', group='', sync_status='synced', connection_status='active',
                            disconnection_time='0', status_code='0'):
     """Create an agent or update its info if it already exists (checking agent_id).
@@ -26,7 +26,6 @@ def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1',
         os_platform (str): Platform version of the OS.
         os_arch (str): Architecture of the OS.
         version (str): Version of the agent.
-        node_name (str): Name of the node.
         date_add (str): Date of the added/updated agent.
         last_keepalive (str): Last keep alive timestamp reported.
         group (str): Group of the agent.
@@ -37,11 +36,11 @@ def create_or_update_agent(agent_id='001', name='centos8-agent', ip='127.0.0.1',
     """
     query = 'global sql INSERT OR REPLACE INTO AGENT  (id, name, ip, register_ip, internal_key, os_name, os_version, ' \
             'os_major, os_minor, os_type, os_platform, os_arch, version, ' \
-            'node_name, date_add, last_keepalive, "group", sync_status, connection_status, ' \
+            'date_add, last_keepalive, "group", sync_status, connection_status, ' \
             f"disconnection_time, status_code) VALUES  ('{agent_id}', '{name}', '{ip}', '{register_ip}', '{internal_key}', " \
             f"'{os_name}', '{os_version}', '{os_major}', '{os_minor}', '{os_type}', " \
             f"'{os_platform}', '{os_arch}', '{version}', " \
-            f"'{node_name}', '{date_add}', '{last_keepalive}', '{group}', '{sync_status}', " \
+            f"'{date_add}', '{last_keepalive}', '{group}', '{sync_status}', " \
             f"'{connection_status}', '{disconnection_time}', '{status_code}')"
 
     database.query_wdb(query)

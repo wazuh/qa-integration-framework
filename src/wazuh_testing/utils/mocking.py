@@ -56,7 +56,7 @@ SYSTEM_DATA = {
              'version': 'Wazuh v4.3.0', 'os_release': '', 'checksum': '1645433796303855540', 'os_display_version': '',
              'reference': '0886f3023b131f5bf1ecbc33f651807114cb5a53', 'name': 'amz', 'ip': '127.0.0.1',
              'register_ip': '127.0.0.1', 'internal_key': '',
-             'os_arch': 'x86_64', 'node_name': 'node01',
+             'os_arch': 'x86_64',
              'date_add': '1645433793', 'last_keepalive': '253402300799', 'sync_status': 'synced',
              'connection_status': 'active', 'disconnection_time': '0'},
     'ALAS2': {'hostname': 'alas2', 'architecture': 'x86_64', 'os_name': 'Amazon Linux', 'os_version': '2',
@@ -64,7 +64,7 @@ SYSTEM_DATA = {
               'sysname': 'Linux', 'release': '4.14.198-152.320.amzn2.x86_64', 'version': 'Wazuh v4.3.0',
               'os_release': '', 'checksum': '1645538649327530789', 'name': 'alas2', 'ip': '127.0.0.1',
               'register_ip': '127.0.0.1', 'internal_key': '',
-              'os_arch': 'x86_64', 'node_name': 'node01',
+              'os_arch': 'x86_64',
               'date_add': '1645538646', 'last_keepalive': '253402300799', 'sync_status': 'synced',
               'connection_status': 'active'},
     'ALAS_2022': {'hostname': 'alas2022', 'architecture': 'x86_64', 'os_name': 'Amazon Linux', 'os_version': '2022',
@@ -72,7 +72,7 @@ SYSTEM_DATA = {
                   'os_platform': 'amzn', 'sysname': 'Linux', 'release': '5.15.29-16.111.amzn2022.x86_64',
                   'version': 'Wazuh v4.4.0', 'os_release': '', 'checksum': '1645538649327530789', 'name': 'alas2022',
                   'ip': '127.0.0.1', 'register_ip': '127.0.0.1', 'internal_key': '', 'os_arch': 'x86_64',
-                  'node_name': 'node01', 'date_add': '1645538646',
+                  'date_add': '1645538646',
                   'last_keepalive': '253402300799',  'sync_status': 'synced', 'connection_status': 'active'},
     'RHEL8': {'os_name': 'CentOS Linux', 'os_major': '8', 'os_minor': '1', 'os_platform': 'centos',
               'name': 'centos8', 'connection_status': 'active'},
@@ -88,7 +88,7 @@ SYSTEM_DATA = {
               'os_type': 'Focal Fossa', 'os_major': '20', 'os_minor': '04', 'os_patch': '3',
               'os_platform': 'ubuntu', 'sysname': 'Linux', 'release': '5.4.0-99-generic', 'version': 'Wazuh v4.3.0',
               'os_release': '', 'checksum': '1645531600116313579', 'name': 'focal', 'ip': '127.0.0.1',
-              'register_ip': '127.0.0.1', 'internal_key': '', 'os_arch': 'x86_64', 'node_name': 'node01',
+              'register_ip': '127.0.0.1', 'internal_key': '', 'os_arch': 'x86_64',
               'date_add': '1645531596', 'last_keepalive': '253402300799', 'sync_status': 'synced',
               'connection_status': 'active'},
     'BIONIC': {'os_name': 'Ubuntu', 'os_major': '18', 'os_minor': '04', 'os_platform': 'ubuntu',
@@ -102,7 +102,7 @@ SYSTEM_DATA = {
                  'os_platform': 'debian', 'sysname': 'Linux', 'release': '5.10.0-10-amd64', 'version': 'Wazuh v4.3.0',
                  'os_release': '', 'checksum': '1645537989645288350', 'name': 'bullseye', 'ip': '127.0.0.1',
                  'register_ip': '127.0.0.1', 'internal_key': '', 'os_arch': 'x86_64',
-                 'node_name': 'node01', 'date_add': '1645537986', 'last_keepalive': '253402300799',
+                 'date_add': '1645537986', 'last_keepalive': '253402300799',
                  'sync_status': 'synced', 'connection_status': 'active'},
     'BUSTER': {'os_name': 'Debian GNU/Linux', 'os_major': '10', 'os_minor': '0', 'os_platform': 'debian',
                'name': 'debian10'},
@@ -123,7 +123,7 @@ SYSTEM_DATA = {
                'os_platform': 'sles', 'sysname': 'Linux', 'release': '5.3.18-22-default', 'version': 'Wazuh v4.4.0',
                'os_release': '', 'checksum': '1652388661375945607', 'name': 'SUSE15', 'ip': '127.0.0.1',
                'register_ip': 'any', 'internal_key': '', 'os_arch': 'x64',
-               'node_name': 'node01', 'date_add': '1652381429', 'last_keepalive': '253402300799',
+               'date_add': '1652381429', 'last_keepalive': '253402300799',
                'sync_status': 'synced', 'connection_status': 'active'}
 }
 
@@ -160,7 +160,7 @@ def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_
                         os_name='CentOS Linux', os_version='8.4', os_major='8', os_minor='4', os_type='centos-8',
                         os_platform='#1 SMP Thu Apr 9 13:49:54 UTC 2020',
                         os_arch='x64', version='Wazuh v4.3.0',
-                        node_name='node01', date_add='1612942494', hostname='centos-8',
+                        date_add='1612942494', hostname='centos-8',
                         last_keepalive='253402300799', group='', sync_status='synced', connection_status='active',
                         client_key_secret=None, os_release='', os_patch='', release='', sysname='Linux',
                         checksum='checksum', os_display_version='', reference='', disconnection_time='0',
@@ -182,7 +182,6 @@ def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_
         os_platform (str): Platform version of the OS.
         os_arch (str): Architecture of the OS.
         version (str): Version of the agent.
-        node_name (str): Name of the node.
         date_add (str): Date of the added/updated agent.
         hostname (str): Hostname.
         last_keepalive (str): Last keep alive timestamp reported.
@@ -219,7 +218,7 @@ def create_mocked_agent(id=None, name='centos8-agent', ip='127.0.0.1', register_
                                      internal_key=internal_key, os_name=os_name, os_version=os_version,
                                      os_major=os_major, os_minor=os_minor, os_type=os_type,
                                      os_platform=os_platform, os_arch=os_arch, version=version,
-                                     node_name=node_name, date_add=date_add,
+                                     date_add=date_add,
                                      last_keepalive=last_keepalive, group=group,
                                      sync_status=sync_status, connection_status=connection_status,
                                      disconnection_time=disconnection_time)
