@@ -8,6 +8,7 @@ from wazuh_testing.constants.paths.sockets import LOGCOLLECTOR_SOCKET_PATH
 from wazuh_testing.utils import sockets
 from wazuh_testing.modules.logcollector import patterns
 from wazuh_testing.tools.socket_controller import SocketController
+from wazuh_testing.logger import logger
 
 
 def get_localfile_runtime_configuration():
@@ -32,6 +33,15 @@ def get_localfile_runtime_configuration():
     return localfile_section
 
 
+# 'localfile'/'socket' are the sections this function knows how to compare against a
+# test's declared <section> config (see the per-section branches below). lccom_getconfig()
+# (src/logcollector/src/lccom.c) also answers a third one, 'internal' -- but that reports
+# live internal-option values (getLogcollectorInternalOptions()), not a <section> block a
+# wazuh_conf.yaml template ever declares, so it cannot legitimately reach this loop and has
+# no comparison branch here.
+_LOGCOLLECTOR_SECTIONS = ('localfile', 'socket')
+
+
 def validate_test_config_with_module_config(test_configuration):
     """Assert if configuration values provided are the same that configuration provided for module response.
 
@@ -41,6 +51,11 @@ def validate_test_config_with_module_config(test_configuration):
 
     for section in test_configuration['sections']:
         test_section = section['section']
+        if test_section not in _LOGCOLLECTOR_SECTIONS:
+            raise ValueError(
+                f"Unexpected section '{test_section}' in test configuration: it is not one of "
+                f"logcollector's own sections {_LOGCOLLECTOR_SECTIONS}. This may be a real "
+                "configuration or test bug that skipping it would have hidden.")
         test_elements = section['elements']
         msg_request = f'getconfig {test_section}'
         response = sockets.send_request_socket(query = msg_request, socket_path = LOGCOLLECTOR_SOCKET_PATH)
