@@ -2,6 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
-DEFAULT_SSL_REMOTE_CONNECTION_PORT = 1514
+DEFAULT_SSL_REMOTE_CONNECTION_PORT = 1514  # legacy protocol (DEFAULT_REMOTE_PORT, defs.h)
+DEFAULT_HTTPS_REMOTE_CONNECTION_PORT = 1517  # HTTPS protocol (DEFAULT_HTTPS_REMOTE_PORT, defs.h)
 DEFAULT_SSL_REMOTE_ENROLLMENT_PORT = 1515
 DEFAULT_SSL_CLUSTER_PORT = 1516
