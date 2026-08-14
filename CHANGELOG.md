@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 | [#305](https://github.com/wazuh/qa-integration-framework/pull/305) | Added version file for package installation in default branch. |
 | [#620](https://github.com/wazuh/qa-integration-framework/pull/620) | Added `--set-as-main` flag support to repository bumper. |
 | [#684](https://github.com/wazuh/qa-integration-framework/pull/684) | Added support for running AWS integration tests on agent. |
+| [#822](https://github.com/wazuh/qa-integration-framework/pull/822) | Added HTTPS agent-manager protocol support: TLS HTTP server, AES-CMAC request authentication, and updated simulators/patterns/templates. |
 
 ### Changed
 
@@ -65,3 +66,16 @@ All notable changes to this project will be documented in this file.
 | [#345](https://github.com/wazuh/qa-integration-framework/pull/345) | Fixed Python unit test coverage script. |
 | [#615](https://github.com/wazuh/qa-integration-framework/pull/615) | Fixed server clean up minor issues. |
 | [#621](https://github.com/wazuh/qa-integration-framework/pull/621) | Increased net stop retries and force kill process as last resort. |
+
+## Prior versions
+
+- [v4.14.7](https://github.com/wazuh/qa-integration-framework/blob/v4.14.7/CHANGELOG.md)
+- [v4.14.6](https://github.com/wazuh/qa-integration-framework/blob/v4.14.6/CHANGELOG.md)
+- [v4.14.5](https://github.com/wazuh/qa-integration-framework/blob/v4.14.5/CHANGELOG.md)
+- [v4.14.4](https://github.com/wazuh/qa-integration-framework/blob/v4.14.4/CHANGELOG.md)
+- [v4.14.3](https://github.com/wazuh/qa-integration-framework/blob/v4.14.3/CHANGELOG.md)
+- [v4.14.2](https://github.com/wazuh/qa-integration-framework/blob/v4.14.2/CHANGELOG.md)
+- [v4.14.1](https://github.com/wazuh/qa-integration-framework/blob/v4.14.1/CHANGELOG.md)
+- [v4.14.0](https://github.com/wazuh/qa-integration-framework/blob/v4.14.0/CHANGELOG.md)
+- [v4.13.1](https://github.com/wazuh/qa-integration-framework/blob/v4.13.1/CHANGELOG.md)
+- [v4.13.0](https://github.com/wazuh/qa-integration-framework/blob/v4.13.0/CHANGELOG.md)
