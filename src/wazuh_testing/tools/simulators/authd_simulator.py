@@ -8,6 +8,7 @@ from typing import List, Literal, Any
 from wazuh_testing.constants.paths.configurations import BASE_CONF_PATH
 from wazuh_testing.tools.mitm import ManInTheMiddle
 from wazuh_testing.tools.certificate_controller import CertificateController
+from wazuh_testing.utils.client_keys import DEFAULT_AUTHD_SECRET
 
 from .base_simulator import BaseSimulator
 
@@ -24,7 +25,10 @@ class AuthdSimulator(BaseSimulator):
         server_ip (str): The IP address of the Authd server. Defaults: '127.0.0.1'.
         port (int): The port number of the Authd server. Defaults: 1515.
         running (bool): The actual status of the simulator. Initial state False.
-        secret (str): The secret key used by the Authd server. Defaults: 'SuperSecretKey'.
+        secret (str): The secret key used by the Authd server. Defaults: a fixed, valid
+            64-hex-character placeholder (DEFAULT_AUTHD_SECRET) -- the agent's HTTPS client
+            (https_client_bridge.c's bridge_key_is_valid()) rejects any client.keys secret that
+            isn't 32/48/64 hex characters, unlike the legacy protocol which accepted any string.
         mode (Literal['ACCEPT', 'REJECT']): The mode of operation for the simulator. Valid values are 'ACCEPT'
                                             and 'REJECT'. Defaults: 'ACCEPT'.
         key_path (str): The path for the SSL key used by the server. Defaults: 'BASE_CONF_PATH/manager.key'.
@@ -37,7 +41,7 @@ class AuthdSimulator(BaseSimulator):
                  server_ip: str = '127.0.0.1',
                  port: int = 1515,
                  family: str = 'AF_INET',
-                 secret: str = 'SuperSecretKey',
+                 secret: str = DEFAULT_AUTHD_SECRET,
                  mode: Literal['ACCEPT', 'REJECT'] = 'ACCEPT',
                  key_path: str = f'{BASE_CONF_PATH}/manager.key',
                  cert_path: str = f'{BASE_CONF_PATH}/manager.cert') -> None:
