@@ -159,16 +159,26 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
     def do_POST(self) -> None:
         """Handle every agent request (all endpoints are POST)."""
-        body = self.read_body()
+        raw_body = self.read_body()
         path = urlsplit(self.path).path
         self._authenticated_agent_id = None
+
+        # The agent compresses before signing, so its CMAC covers the encoded bytes:
+        # _verify_auth() below keeps the raw body, everything else uses the decoded one
+        # (including record_request, so tests read what the agent meant to send whether
+        # or not the body arrived compressed).
+        body, encoding_error = self.decode_body(raw_body)
 
         self.simulator.record_request('POST', self.path, self.headers, body)
 
         if self._inject_fault():
             return
 
-        if not self._verify_auth(body):
+        if encoding_error is not None:
+            self.send_error_response(*encoding_error)
+            return
+
+        if not self._verify_auth(raw_body):
             return
 
         if path == CONTROL_ENDPOINT:

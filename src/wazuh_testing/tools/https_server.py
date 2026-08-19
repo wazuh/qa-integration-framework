@@ -17,7 +17,9 @@ import ssl
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
+
+from zstandard import ZstdDecompressor
 
 from wazuh_testing.tools.certificate_controller import CertificateController
 
@@ -114,6 +116,37 @@ class BaseTLSRequestHandler(BaseHTTPRequestHandler):
         if length is None:
             return b''
         return self.rfile.read(int(length))
+
+    def decode_body(self, body: bytes) -> Tuple[bytes, Optional[Tuple[int, str]]]:
+        """Undo the request's ``Content-Encoding``, if it has one.
+
+        Args:
+            body (bytes): The raw request body, exactly as read off the socket.
+
+        Returns:
+            Tuple[bytes, Optional[Tuple[int, str]]]: ``(decoded, error)``. ``error`` is
+            None on success. Otherwise it is the ``(status, message)`` pair the caller
+            should answer with, and ``decoded`` is the untouched input.
+
+        An encoding this server cannot undo is a 415, because that is what a server
+        without support answers and clients are expected to retry uncompressed. A body
+        that claims ``zstd`` but fails to decode is a 400 instead: the encoding was
+        understood, the payload was simply broken.
+        """
+        encoding = self.headers.get('Content-Encoding', '').strip().lower()
+
+        if not encoding or encoding == 'identity':
+            return body, None
+
+        if encoding != 'zstd':
+            return body, (415, f'Unsupported Content-Encoding: {encoding}')
+
+        try:
+            # decompressobj() rather than decompress(): a frame whose header carries no
+            # pledged content size (what the streaming compressor emits) still decodes.
+            return ZstdDecompressor().decompressobj().decompress(body), None
+        except Exception:
+            return body, (400, 'Malformed zstd body')
 
     def _read_chunked_body(self) -> bytes:
         """De-chunk an HTTP/1.1 ``Transfer-Encoding: chunked`` body."""
