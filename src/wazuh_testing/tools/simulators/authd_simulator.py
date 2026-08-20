@@ -1,6 +1,7 @@
 # Copyright (C) 2015-2023, Wazuh Inc.
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
+import warnings
 from queue import Queue
 import ssl
 from typing import List, Literal, Any
@@ -20,6 +21,11 @@ class AuthdSimulator(BaseSimulator):
     This class inherits from BaseSimulator and implements methods to send and receive messages
     from a Wazuh server using a ManInTheMiddle object. It also allows to specify different modes of
     operation to simulate different scenarios.
+
+    Deprecated: superseded by RemotedSimulator's ``POST /enroll``, which implements the
+    HTTPS enrollment endpoint (open/password/mTLS auth) replacing this legacy raw-TLS
+    ``OSSEC A:'...'``/``K:'...'`` protocol. Kept for tests still targeting the pre-HTTPS
+    authd wire protocol; prefer RemotedSimulator's ``/enroll`` for new work.
 
     Attributes:
         server_ip (str): The IP address of the Authd server. Defaults: '127.0.0.1'.
@@ -56,6 +62,10 @@ class AuthdSimulator(BaseSimulator):
             key_path (str): The file path for the SSL key used by the server.
             cert_path (str): The file path for the SSL certificate used by the server.
         """
+        warnings.warn(
+            "AuthdSimulator is deprecated; prefer RemotedSimulator's POST /enroll.",
+            DeprecationWarning, stacklevel=2)
+
         super().__init__(server_ip=server_ip, port=port, running=False)
 
         self.family = family

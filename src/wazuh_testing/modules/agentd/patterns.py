@@ -10,7 +10,13 @@ from . import PREFIX
 AGENTD_HTTPS_STARTUP_ACCEPTED = fr'{PREFIX}.*https_client startup accepted'
 AGENTD_UPDATING_STATE_FILE = r'.*Updating state file'
 AGENTD_RECEIVED_VALID_KEY = r".*Valid key received"
-AGENTD_REQUESTING_KEY = r'.*Requesting a key.*{IP}'
+# A 401 on an already-authenticated request is what actually escalates to re-enrollment
+# (bridge_on_reenroll_required(), https_client_bridge.c) -- there is no longer a distinct
+# "requesting a key" announcement logged before the attempt itself.
+AGENTD_REENROLLING = r'.*credential rejected \(401\); re-enrolling'
+# The initial (no pre-existent key) enrollment loop only logs this backoff line after each
+# failed attempt (try_enroll_to_server(), start_agent.c); it carries no server IP.
+AGENTD_ENROLLMENT_RETRY_BACKOFF = r'.*Sleeping \d+ seconds before trying to enroll again'
 AGENTD_MODULE_STOPPED = r'.*Unable to access queue'
 AGENTD_TRYING_CONNECT = r'.*Trying to connect to server.*{IP}.*{PORT}'
 AGENTD_UNABLE_TO_CONNECT_TO_ANY = r'.*Unable to connect to any server'
@@ -20,5 +26,4 @@ AGENTD_UNABLE_TO_CONNECT_TO_ANY = r'.*Unable to connect to any server'
 AGENTD_ACTIVE_RESPONSE_MALFORMED_PAYLOAD = r'.*active_response task \S+ has a malformed payload; dropping\.'
 
 ENROLLMENT_INVALID_SERVER = r".*ERROR: \(\d+\): Invalid server address found: '{server_ip}'"
-ENROLLMENT_RESOLVE_ERROR = r".*ERROR: Could not resolve hostname: {server_ip}"
-ENROLLMENT_CONNECTED = r".*Connected to enrollment service at '\[{server_ip}\]:{port}'"
+ENROLLMENT_RESOLVE_ERROR = r".*Could not resolve hostname"
