@@ -4,7 +4,7 @@ Created by Wazuh, Inc. <info@wazuh.com>.
 This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 
 RemotedSimulator: a TLS HTTP/1.1 stand-in for the manager side of the Wazuh HTTPS agent
-protocol (/control, /stateless, /stateful, /download, /config, /stats).
+protocol (/control, /stateless, /stateful, /download, /config, /stats, /enroll).
 
 Quickstart in a test:
 
@@ -24,23 +24,30 @@ simulator returns for a /control startup:
 
 (notify_response() also returns settings_hash/config_hash and delivers any queued tasks once.)
 
-- Faults: RemotedSimulator(mode='REJECT_AUTH') or sim.mode = 'SERVICE_UNAVAILABLE'.
+- Faults: RemotedSimulator(mode='REJECT_AUTH') or sim.mode = 'SERVICE_UNAVAILABLE'
+  (applies to every endpoint except /enroll, which authenticates independently).
 - Traffic: sim.requests / sim.get_requests(path) / sim.last_request(path).
 - State: set limits/cluster/groups/config_hash/merged_mg/wpk before start()
   (settings_hash is derived from the startup response).
+- Enrollment: set require_client_cert / enroll_password before start() -- independent,
+  composable gates, see the class docstring; a successful /enroll is immediately usable
+  for later CMAC-authenticated requests, with no client.keys file involved.
 """
 import hashlib
 import hmac
 import json
+import secrets
 import shutil
 import tempfile
 import threading
 import time
+from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urlsplit
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.constants.ports import DEFAULT_HTTPS_REMOTE_CONNECTION_PORT
+from wazuh_testing.tools.certificate_controller import CertificateController
 from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
                                               generate_self_signed_certificate)
 from wazuh_testing.utils import request_auth
@@ -56,6 +63,7 @@ STATEFUL_ENDPOINT = '/stateful'
 DOWNLOAD_ENDPOINT = '/download'
 CONFIG_ENDPOINT = '/config'
 STATS_ENDPOINT = '/stats'
+ENROLL_ENDPOINT = '/enroll'
 
 ENDPOINTS = (
     CONTROL_ENDPOINT,
@@ -64,7 +72,21 @@ ENDPOINTS = (
     DOWNLOAD_ENDPOINT,
     CONFIG_ENDPOINT,
     STATS_ENDPOINT,
+    ENROLL_ENDPOINT,
 )
+
+# /enroll's forced-outcome table. A locally-rejected request (this simulator's own body 
+# validation, not a forwarded authd error) uses code 0, matching how the manager's own
+# "disabled"/generic-401 responses use 0 -- authd's 900x codes are reserved for errors 
+#that actually came back from authd over the local socket.
+ENROLL_FORCED_ERRORS = {
+    'invalid_request': (400, 0, 'Invalid request'),
+    'disabled': (403, 0, 'Enrollment is disabled on this manager'),
+    'duplicate': (409, 9008, 'Duplicate name'),
+    'internal_error': (500, 9001, 'Internal error'),
+    'max_agents': (503, 9013, 'Maximum number of agents reached'),
+    'cluster_unavailable': (503, 9016, 'Cannot communicate with master node'),
+}
 
 # Default injectable state. Tests that need to customize it (e.g. the startup-hash
 # suite) overwrite these attributes on the instance before start(); they are not
@@ -170,6 +192,20 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         body, encoding_error = self.decode_body(raw_body)
 
         self.simulator.record_request('POST', self.path, self.headers, body)
+
+        if path == ENROLL_ENDPOINT:
+            # No agent id exists yet, so /enroll authenticates itself (open/password/mTLS,
+            # see _authenticate_enroll) instead of going through the generic per-agent
+            # CMAC check below. Dispatched ahead of _inject_fault() deliberately: that
+            # fault-injection mode models a manager refusing an already-authenticated
+            # agent's traffic (e.g. REJECT_AUTH on /control to drive re-enrollment), not
+            # refusing enrollment itself -- and since /enroll now shares a port with
+            # /control, one instance needs to be able to do both at once.
+            if encoding_error is not None:
+                self.send_error_response(*encoding_error)
+                return
+            self._handle_enroll(body, raw_body)
+            return
 
         if self._inject_fault():
             return
@@ -361,6 +397,90 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
         self.send_chunked(data)
 
+    def _handle_enroll(self, body: bytes, raw_body: bytes) -> None:
+        """Handle a ``POST /enroll`` request: authenticate, then mint/refresh a key.
+
+        Unlike every other endpoint, errors use a nested ``{"error": {"code", "message"}}``
+        envelope (see :meth:`RemotedSimulator.enroll_error_body`), not the flat
+        ``send_error_response`` shape -- this matches the manager's own contract and how the
+        agent parses it.
+        """
+        if not self._authenticate_enroll(raw_body):
+            self.send_json(401, self.simulator.enroll_error_body(0, 'Invalid client authentication'))
+            return
+
+        try:
+            request = json.loads(body or b'{}')
+        except json.JSONDecodeError:
+            request = None
+        if not isinstance(request, dict):
+            self.send_json(400, self.simulator.enroll_error_body(0, 'Invalid request'))
+            return
+        # Local body validation uses code 0, like the manager's own locally-rejected
+        # requests -- authd's 900x codes are reserved for errors actually forwarded back
+        # from authd over the local socket, not for requests remoted rejects itself.
+        if not request.get('name'):
+            self.send_json(400, self.simulator.enroll_error_body(0, 'Missing or invalid field: name'))
+            return
+        if not request.get('version'):
+            self.send_json(400, self.simulator.enroll_error_body(0, 'Missing or invalid field: version'))
+            return
+
+        forced = self.simulator.enroll_force_error
+        if forced is not None:
+            status, code, message = ENROLL_FORCED_ERRORS[forced]
+            self.send_json(status, self.simulator.enroll_error_body(code, message))
+            return
+
+        response = self.simulator.enroll_agent(
+            name=request['name'],
+            version=request['version'],
+            groups=request.get('groups'),
+            ip=request.get('ip'),
+            key_hash=request.get('key_hash'),
+        )
+        self.send_json(200, response)
+
+    def _authenticate_enroll(self, raw_body: bytes) -> bool:
+        """Authenticate a ``/enroll`` request against two independent, composable gates.
+
+        Mirrors the real manager: a client-certificate requirement and a password
+        requirement are decided independently at startup, and both, either, or neither may
+        be active. Modeling this as a single exclusive mode (as an earlier version of this
+        simulator did) would silently drop the password check whenever a certificate was
+        also required -- exactly the failure mode the manager's own implementation calls
+        out avoiding.
+
+        - Certificate gate (``self.simulator.require_client_cert``): enforced by the TLS
+          layer itself before any handler runs (see :meth:`RemotedSimulator.start`); a
+          missing/invalid one never reaches HTTP at all, so this only confirms one was
+          presented.
+        - Password gate (``self.simulator.enroll_password`` set): ``Authorization:
+          WazuhEnroll <ts>:<mac>``, HKDF+CMAC-verified.
+
+        Neither gate active is 'open' mode: only ``protocol-version`` is required.
+        """
+        if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
+            return False
+
+        if self.simulator.require_client_cert and not self.connection.getpeercert():
+            return False
+
+        if self.simulator.enroll_password is None:
+            return True
+
+        credentials = request_auth.parse_enroll_authorization(self.headers.get('Authorization', ''))
+        if credentials is None:
+            return False
+        timestamp, mac = credentials
+
+        if not self._timestamp_in_window(timestamp):
+            return False
+
+        key = request_auth.derive_enroll_key(self.simulator.enroll_password)
+        canonical = request_auth.build_enroll_canonical_request(self.path, timestamp, raw_body)
+        return hmac.compare_digest(request_auth.compute_cmac(key, canonical), mac)
+
 
 class RemotedSimulator(BaseSimulator):
     """Simulate the manager side of the Wazuh HTTPS agent protocol.
@@ -382,6 +502,30 @@ class RemotedSimulator(BaseSimulator):
     follow the current contract: startup carries no hash; config_hash appears in notify and
     drives a /download; config is not pushed inline.
 
+    ``/enroll`` authenticates a brand-new agent (one with no key yet) and mints or
+    refreshes its identity -- it does not replicate authd's real business logic (duplicate
+    detection, max_agents, cluster forwarding); those are scripted via ``enroll_force_error``
+    instead. Two independent, composable gates are decided once per instance, set before
+    :meth:`start` (mTLS wiring happens once, at server startup, like the real manager fixing
+    its config at boot) -- both, either, or neither may be active, matching the real
+    manager: modeling this as a single exclusive mode would silently drop the password
+    check whenever a certificate was also required.
+
+    - ``require_client_cert = True``: every connection to this instance (not just /enroll)
+      requires a client certificate signed by ``certificate_controller``'s CA -- mint one
+      with ``certificate_controller.generate_agent_certificates(...)``. A client with no
+      cert never reaches HTTP: the TLS handshake itself fails, so there is no HTTP 401 for
+      that case.
+    - ``enroll_password`` set (non-None): the request must carry a HKDF+CMAC-signed
+      ``Authorization: WazuhEnroll <ts>:<mac>`` header.
+    - Neither set (both defaults): 'open' mode -- no credential beyond ``protocol-version``.
+
+    A successful enrollment is immediately usable: :meth:`cmac_key_for` checks the
+    in-memory enrolled-agent store before falling back to ``keys_path``, so the returned
+    key authenticates later requests with no client.keys file involved. Re-enrollment (a
+    request carrying ``key_hash`` -- SHA1(id + name + raw_key), matching the agent's own
+    ``w_get_key_hash``) returns the *same* id and key instead of minting a new identity.
+
     Attributes:
         MODES (list): Valid fault-injection modes for the simulator.
         limits (dict): Module limits returned by the startup response.
@@ -393,6 +537,14 @@ class RemotedSimulator(BaseSimulator):
         stateful_sessions (dict): X-Session-Id -> result cache backing idempotent retries.
         config_hash (str): SHA256 the notify response advertises for the group config.
         settings_hash (str): Derived, read-only SHA256 of the startup response body.
+        require_client_cert (bool): Whether /enroll (and every other endpoint on this
+            instance) requires a client certificate signed by certificate_controller's CA.
+        enroll_password (str): Shared secret for the password gate, or None to disable it.
+        enroll_force_error (str): One of ENROLL_FORCED_ERRORS' keys to force that outcome
+            on the next /enroll, or None (default) for normal handling.
+        certificate_controller (CertificateController): CA used to validate client
+            certificates when require_client_cert is set; also mints them via
+            generate_agent_certificates().
     """
 
     MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
@@ -453,6 +605,18 @@ class RemotedSimulator(BaseSimulator):
         self.last_config: Optional[Dict] = None
         self.last_stats: Optional[Dict] = None
 
+        # /enroll: two independent gates, fixed per instance, set before start() (the cert
+        # gate's TLS wiring happens once, at server startup). certificate_controller
+        # is created eagerly -- one RSA keygen, same cost generate_self_signed_certificate()
+        # already pays per instance -- so a test can mint a client cert any time before start().
+        self.require_client_cert = False
+        self.enroll_password: Optional[str] = None
+        self._enroll_force_error: Optional[str] = None
+        self.certificate_controller = CertificateController()
+        self._enrolled_agents: Dict[str, Dict] = {}
+        self._enrolled_by_key_hash: Dict[str, str] = {}
+        self._enrollment_lock = threading.Lock()
+
         self._requests: List[Dict] = []
         self._requests_lock = threading.Lock()
         self._httpd: Optional[TLSHTTPServer] = None
@@ -487,6 +651,18 @@ class RemotedSimulator(BaseSimulator):
             json.dumps(envelope, sort_keys=True, separators=(',', ':')).encode()
         ).hexdigest()
 
+    @property
+    def enroll_force_error(self) -> Optional[str]:
+        """One of ENROLL_FORCED_ERRORS' keys to force on the next /enroll, or None."""
+        return self._enroll_force_error
+
+    @enroll_force_error.setter
+    def enroll_force_error(self, outcome: Optional[str]) -> None:
+        if outcome is not None and outcome not in ENROLL_FORCED_ERRORS:
+            raise ValueError(f'Invalid enroll_force_error. Valid outcomes: '
+                             f'{list(ENROLL_FORCED_ERRORS)}')
+        self._enroll_force_error = outcome
+
     # Methods.
 
     def start(self) -> None:
@@ -497,8 +673,18 @@ class RemotedSimulator(BaseSimulator):
         self._cert_dir = tempfile.mkdtemp(prefix='remoted_simulator_')
         cert_path, key_path = generate_self_signed_certificate(self._cert_dir)
 
+        # require_client_cert requires a client certificate on every connection to this
+        # instance (not just /enroll -- TLS has no per-route granularity), signed by this
+        # simulator's own CA rather than the (unrelated) CA behind the server's own cert.
+        client_ca_cert = None
+        if self.require_client_cert:
+            client_ca_cert = str(Path(self._cert_dir) / 'enroll_ca.cert')
+            self.certificate_controller.store_ca_certificate(
+                self.certificate_controller.root_ca_cert, client_ca_cert)
+
         self._httpd = TLSHTTPServer((self.server_ip, self.port), _RemotedRequestHandler,
-                                    certfile=cert_path, keyfile=key_path, context=self)
+                                    certfile=cert_path, keyfile=key_path,
+                                    client_ca_cert=client_ca_cert, context=self)
 
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         self._thread.start()
@@ -519,9 +705,12 @@ class RemotedSimulator(BaseSimulator):
             self._cert_dir = None
 
     def clear(self) -> None:
-        """Remove all recorded requests."""
+        """Remove all recorded requests and enrolled agents."""
         with self._requests_lock:
             self._requests.clear()
+        with self._enrollment_lock:
+            self._enrolled_agents.clear()
+            self._enrolled_by_key_hash.clear()
 
     def destroy(self) -> None:
         """Clear the queue and shut the simulator down."""
@@ -611,6 +800,10 @@ class RemotedSimulator(BaseSimulator):
             Optional[bytes]: The 16-byte key, or None if the agent is unknown or its key
                 is not valid CMAC key material.
         """
+        enrolled = self._enrolled_agents.get(agent_id)
+        if enrolled is not None:
+            return request_auth.derive_cmac_key(enrolled['key'])
+
         for entry in get_client_keys(self.keys_path):
             if entry['id'] == agent_id:
                 try:
@@ -657,6 +850,55 @@ class RemotedSimulator(BaseSimulator):
             return self.wpk
         return None
 
+    def enroll_response(self, agent_id: str, name: str, ip: Optional[str], key: str) -> Dict:
+        """Build the successful ``/enroll`` response body: ``{id, name, ip, key}``."""
+        return {'id': agent_id, 'name': name, 'ip': ip or 'any', 'key': key}
+
+    def enroll_error_body(self, code: int, message: str) -> Dict:
+        """Build ``/enroll``'s nested error envelope: ``{"error": {"code", "message"}}``.
+
+        Unlike every other endpoint's flat ``{"error", "code"}`` shape
+        (:meth:`~wazuh_testing.tools.https_server.BaseTLSRequestHandler.send_error_response`),
+        matching the manager's own contract and the agent's ``enrollment.c`` response parser.
+        """
+        return {'error': {'code': code, 'message': message}}
+
+    def enroll_agent(self, name: str, version: Optional[str] = None,
+                     groups: Optional[str] = None, ip: Optional[str] = None,
+                     key_hash: Optional[str] = None) -> Dict:
+        """Mint or refresh an enrolled agent's identity; return the ``/enroll`` response body.
+
+        A ``key_hash`` matching an already-enrolled agent (``SHA1(id + name + raw_key)``,
+        the same algorithm the agent's own ``w_get_key_hash`` computes over its existing
+        local entry) is treated as a re-enrollment: the *same* id and key are returned, with
+        name/ip refreshed. This matters because the agent never updates its own cached id
+        after the first enrollment -- handing a re-enrolling agent a different id would
+        desync it from the manager permanently. Anything else mints a fresh id and a fresh
+        64-hex key.
+
+        Args:
+            name (str): Agent name.
+            version (str, optional): Agent version string (recorded, not otherwise used).
+            groups (str, optional): Comma-separated group list (recorded, not otherwise used).
+            ip (str, optional): Agent IP override.
+            key_hash (str, optional): SHA1(id + name + raw_key) of an existing local entry.
+
+        Returns:
+            Dict: The ``{id, name, ip, key}`` response body.
+        """
+        with self._enrollment_lock:
+            agent_id = self._enrolled_by_key_hash.get(key_hash) if key_hash else None
+            key = self._enrolled_agents[agent_id]['key'] if agent_id else secrets.token_hex(32)
+            agent_id = agent_id or self._next_agent_id()
+
+            self._enrolled_agents[agent_id] = {
+                'name': name, 'ip': ip, 'key': key, 'version': version, 'groups': groups,
+            }
+            new_hash = hashlib.sha1(f'{agent_id}{name}{key}'.encode()).hexdigest()
+            self._enrolled_by_key_hash[new_hash] = agent_id
+
+        return self.enroll_response(agent_id, name, ip, key)
+
     # Internal methods.
 
     def _drain_tasks(self) -> List[Dict]:
@@ -664,6 +906,18 @@ class RemotedSimulator(BaseSimulator):
         with self._tasks_lock:
             tasks, self._tasks = self._tasks, []
             return tasks
+
+    def _next_agent_id(self) -> str:
+        """Allocate the next 3-digit agent id, past every id already known to this instance.
+
+        Deliberately simple (a max-plus-one scan over client.keys + already-enrolled ids):
+        the real manager's id-assignment algorithm is authd's business, out of scope here --
+        this only needs a deterministic, collision-free id for the wire contract.
+        """
+        known_ids = [entry['id'] for entry in get_client_keys(self.keys_path)]
+        known_ids += list(self._enrolled_agents)
+        numeric_ids = [int(agent_id) for agent_id in known_ids if agent_id.isdigit()]
+        return f'{(max(numeric_ids) + 1) if numeric_ids else 1:03d}'
 
     @staticmethod
     def _agent_id_from_headers(headers) -> Optional[str]:

@@ -61,7 +61,8 @@ class TLSHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
     def __init__(self, server_address: Tuple[str, int], handler_class,
-                 certfile: str, keyfile: str, context=None) -> None:
+                 certfile: str, keyfile: str, client_ca_cert: Optional[str] = None,
+                 context=None) -> None:
         """Bind, wrap the listening socket in TLS, and store the caller context.
 
         Args:
@@ -69,13 +70,26 @@ class TLSHTTPServer(ThreadingHTTPServer):
             handler_class: A BaseHTTPRequestHandler subclass.
             certfile (str): Path to the TLS server certificate (PEM).
             keyfile (str): Path to the TLS server private key (PEM).
+            client_ca_cert (str, optional): Path to a CA certificate (PEM). When given,
+                every client on this listener must present a certificate signed by this CA
+                -- the TLS handshake itself fails otherwise (mutual TLS), before any HTTP
+                request is ever read. Defaults: None (no client certificate required).
             context: Arbitrary state exposed to handlers via ``self.server.context``.
         """
+        # ThreadingHTTPServer defaults to AF_INET; binding an IPv6 literal against it
+        # fails with "Address family for hostname not supported" (EAI_ADDRFAMILY), not
+        # a clearer error, so detect it up front the same way every other IPv6-literal
+        # check in this codebase does.
+        if ':' in server_address[0]:
+            self.address_family = socket.AF_INET6
         super().__init__(server_address, handler_class)
         self.context = context
 
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        if client_ca_cert:
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            ssl_context.load_verify_locations(cafile=client_ca_cert)
         self.socket = ssl_context.wrap_socket(self.socket, server_side=True)
 
     def handle_error(self, request, client_address) -> None:
