@@ -6,3 +6,4 @@
 AGENTD_WINDOWS_DEBUG = 'windows.debug'
 AGENTD_DEBUG = 'agent.debug'
 AGENTD_TIMEOUT = 'agent.recv_timeout'
+AGENTD_ENROLLMENT_RETRY_DELTA = 'agent.enrollment_retry_delta'
