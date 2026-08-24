@@ -89,9 +89,6 @@
                               "ping": {
                                 "type": "integer"
                               },
-                              "states": {
-                                "type": "integer"
-                              },
                               "unknown": {
                                 "type": "integer"
                               },
@@ -107,7 +104,6 @@
                               "events_failed",
                               "events",
                               "ping",
-                              "states",
                               "unknown",
                               "upgrade_ack"
                             ]
@@ -118,13 +114,7 @@
                               "ack": {
                                 "type": "integer"
                               },
-                              "ar": {
-                                "type": "integer"
-                              },
                               "discarded": {
-                                "type": "integer"
-                              },
-                              "request": {
                                 "type": "integer"
                               },
                               "shared": {
@@ -133,9 +123,7 @@
                             },
                             "required": [
                               "ack",
-                              "ar",
                               "discarded",
-                              "request",
                               "shared"
                             ]
                           }
