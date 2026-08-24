@@ -20,6 +20,8 @@ from typing import Optional, Tuple
 
 from cryptography.hazmat.primitives import cmac
 from cryptography.hazmat.primitives.ciphers import algorithms
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.hashes import SHA256
 
 # Authentication protocol version (part of the canonical request, so it is authenticated).
 PROTOCOL_VERSION = '1'
@@ -30,6 +32,15 @@ CMAC_KEY_SIZES = (16, 24, 32)  # AES-128 / AES-192 / AES-256, selected by key le
 # MAX_SKEW seconds in the future.
 TIMESTAMP_MAX_AGE = 300
 TIMESTAMP_MAX_SKEW = 30
+
+# /enroll's password-mode scheme: no agent-id field yet, so it is a distinct scheme from
+# the one above, not a variant of it.
+_ENROLL_AUTH_SCHEME = 'WazuhEnroll '
+# Explicit 32 zero bytes -- RFC 5869's default for an omitted salt, made explicit to match
+# the agent's C++ derivation.
+_ENROLL_HKDF_SALT = bytes(32)
+_ENROLL_HKDF_INFO = b'WAZUH-ENROLL-CMAC-KEY' + b'\x01'
+_ENROLL_KEY_LENGTH = 32  # AES-256 CMAC key.
 
 
 def derive_cmac_key(agent_key: str) -> bytes:
@@ -131,3 +142,77 @@ def sign_authorization(method: str, target: str, agent_id: str, timestamp, body:
     canonical = build_canonical_request(method, target, agent_id, timestamp, body)
     mac = compute_cmac(key, canonical)
     return f'{_AUTH_SCHEME}{agent_id}:{timestamp}:{mac}'
+
+
+def derive_enroll_key(password: str) -> bytes:
+    """Derive the 32-byte AES-256 CMAC key for ``/enroll``'s password scheme.
+
+    HKDF-SHA256(IKM=password, salt=32 zero bytes, info="WAZUH-ENROLL-CMAC-KEY"+0x01, L=32).
+    Mirrors the manager's C++ ``EnrollSigner::deriveKey`` byte-for-byte.
+
+    Args:
+        password (str): The shared enrollment password (``etc/authd.pass`` contents).
+
+    Returns:
+        bytes: The 32-byte derived AES-256 CMAC key.
+    """
+    hkdf = HKDF(algorithm=SHA256(), length=_ENROLL_KEY_LENGTH, salt=_ENROLL_HKDF_SALT,
+                info=_ENROLL_HKDF_INFO)
+    return hkdf.derive(password.encode())
+
+
+def build_enroll_canonical_request(target: str, timestamp, body: bytes) -> bytes:
+    """Build the canonical byte sequence ``/enroll``'s password-mode MAC is computed over.
+
+    Layout (each separator is a single ``0x0A``; there is no trailing newline after the
+    body); the method is always ``POST`` -- the only method ``/enroll`` accepts::
+
+        WAZUH-ENROLL\\n<protocol-version>\\nPOST\\n<request-target>\\n<timestamp>\\n<body>
+
+    Args:
+        target (str): Raw request target (path plus query string), exactly as transmitted.
+        timestamp: UNIX timestamp in seconds (int or str).
+        body (bytes): Exact request body bytes (may be empty).
+
+    Returns:
+        bytes: The canonical request.
+    """
+    head = f'WAZUH-ENROLL\n{PROTOCOL_VERSION}\nPOST\n{target}\n{timestamp}\n'.encode()
+    return head + (body or b'')
+
+
+def parse_enroll_authorization(header: str) -> Optional[Tuple[str, str]]:
+    """Parse an ``Authorization: WazuhEnroll <ts>:<mac>`` header value.
+
+    Args:
+        header (str): The Authorization header value.
+
+    Returns:
+        Optional[Tuple[str, str]]: (timestamp, mac), or None if the header is missing the
+            scheme or is malformed.
+    """
+    if not header.startswith(_ENROLL_AUTH_SCHEME):
+        return None
+    parts = header[len(_ENROLL_AUTH_SCHEME):].split(':', 1)
+    if len(parts) != 2 or not all(parts):
+        return None
+    return parts[0], parts[1]
+
+
+def sign_enroll_authorization(target: str, timestamp, body: bytes, key: bytes) -> str:
+    """Build the ``WazuhEnroll <ts>:<mac>`` Authorization value for an ``/enroll`` request.
+
+    Convenience for a signing client (a test or driver playing an enrolling agent).
+
+    Args:
+        target (str): Raw request target.
+        timestamp: UNIX timestamp in seconds.
+        body (bytes): Exact request body bytes.
+        key (bytes): The 32-byte AES-256 CMAC key (see :func:`derive_enroll_key`).
+
+    Returns:
+        str: The Authorization header value.
+    """
+    canonical = build_enroll_canonical_request(target, timestamp, body)
+    mac = compute_cmac(key, canonical)
+    return f'{_ENROLL_AUTH_SCHEME}{timestamp}:{mac}'
