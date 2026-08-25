@@ -21,19 +21,16 @@ AUTHD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'auth.sock')
 EXECD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'com')
 LOGCOLLECTOR_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'logcollector')
 MODULESD_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules')
-MODULESD_DOWNLOAD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'download')
 MODULESD_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control')
 # The manager renamed these two; the agent keeps the legacy names, so each product
 # needs its own constant.
 MANAGER_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules.sock')
 MANAGER_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control.sock')
-MODULESD_KREQUEST_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'krequest')
 MODULESD_C_INTERNAL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'cluster-internal.sock')
 MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor.sock')
 REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote.sock')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
 WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wdb.sock')
-ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'ar')
 
 
 WAZUH_SOCKETS = {
@@ -51,9 +48,7 @@ WAZUH_SOCKETS = {
     'wazuh-manager-db': [WAZUH_DB_SOCKET_PATH],
     'wazuh-modulesd': [
         MODULESD_WMODULES_SOCKET_PATH,
-        MODULESD_DOWNLOAD_SOCKET_PATH,
         MODULESD_CONTROL_SOCKET_PATH,
-        MODULESD_KREQUEST_SOCKET_PATH
     ],
     'wazuh-manager-modulesd': [
         MANAGER_WMODULES_SOCKET_PATH,
@@ -64,6 +59,5 @@ WAZUH_SOCKETS = {
 
 # These sockets do not exist with default Wazuh configuration
 WAZUH_OPTIONAL_SOCKETS = [
-    MODULESD_KREQUEST_SOCKET_PATH,
     AUTHD_SOCKET_PATH
 ]
