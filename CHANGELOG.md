@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 | [#592](https://github.com/wazuh/qa-integration-framework/pull/592) | Support manager naming changes. |
 | [#783](https://github.com/wazuh/qa-integration-framework/pull/783) | Updated the analysisd statistics template to the engine metrics dump format. |
 | [#790](https://github.com/wazuh/qa-integration-framework/pull/790) | Updated the agent analysisd statistics template to the engine metrics dump format. |
+| [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Updated the manager socket constants to the standardized `queue/sockets` layout. |
 
 ### Removed
 
