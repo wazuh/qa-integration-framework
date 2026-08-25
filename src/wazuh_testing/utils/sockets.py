@@ -7,7 +7,6 @@ import ipaddress
 
 from wazuh_testing.tools.socket_controller import SocketController
 from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
-                                                  MODULESD_C_INTERNAL_SOCKET_PATH, \
                                                   ACTIVE_RESPONSE_SOCKET_PATH
 from wazuh_testing.utils.network import UDP
 
@@ -23,10 +22,6 @@ def delete_sockets(path=None):
             path = QUEUE_SOCKETS_PATH
             for file in os.listdir(path):
                 os.remove(os.path.join(path, file))
-            if os.path.exists(WAZUH_DB_SOCKET_PATH):
-                os.remove(WAZUH_DB_SOCKET_PATH)
-            if os.path.exists(MODULESD_C_INTERNAL_SOCKET_PATH):
-                os.remove(MODULESD_C_INTERNAL_SOCKET_PATH)
         else:
             for item in path:
                 os.remove(item)
