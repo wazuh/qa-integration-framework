@@ -16,16 +16,18 @@ def delete_sockets(path=None):
     Args:
         path (list, optional): Absolute socket path. Default `None`.
     """
-    try:
-        if path is None:
-            path = QUEUE_SOCKETS_PATH
-            for file in os.listdir(path):
-                os.remove(os.path.join(path, file))
-        else:
-            for item in path:
-                os.remove(item)
-    except FileNotFoundError:
-        pass
+    if path is None:
+        try:
+            path = [os.path.join(QUEUE_SOCKETS_PATH, file) for file in os.listdir(QUEUE_SOCKETS_PATH)]
+        except FileNotFoundError:
+            return
+
+    # An absent socket must not stop the removal of the rest.
+    for item in path:
+        try:
+            os.remove(item)
+        except FileNotFoundError:
+            pass
 
 def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
     """Send queries request to socket in the argument.
