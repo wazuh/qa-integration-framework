@@ -38,12 +38,14 @@ All notable changes to this project will be documented in this file.
 | [#592](https://github.com/wazuh/qa-integration-framework/pull/592) | Support manager naming changes. |
 | [#783](https://github.com/wazuh/qa-integration-framework/pull/783) | Updated the analysisd statistics template to the engine metrics dump format. |
 | [#790](https://github.com/wazuh/qa-integration-framework/pull/790) | Updated the agent analysisd statistics template to the engine metrics dump format. |
+| [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Updated the manager socket constants to the standardized `queue/sockets` layout. |
 
 ### Removed
 
 | Issue | Comment |
 |-------|---------|
 | [#585](https://github.com/wazuh/qa-integration-framework/pull/585) | Removed wazuh-execd from manager daemon lists. |
+| [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Removed the socket constants for sockets the manager no longer creates. |
 | [#470](https://github.com/wazuh/qa-integration-framework/pull/470) | Removed Wazuh Manager deprecated daemons and CLI tools. |
 | [#444](https://github.com/wazuh/qa-integration-framework/pull/444) | Removed agent-auth references. |
 | [#442](https://github.com/wazuh/qa-integration-framework/pull/442) | Removed osquery references. |

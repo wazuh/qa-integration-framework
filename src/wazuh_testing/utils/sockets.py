@@ -6,9 +6,7 @@ import socket
 import ipaddress
 
 from wazuh_testing.tools.socket_controller import SocketController
-from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
-                                                  MODULESD_C_INTERNAL_SOCKET_PATH, \
-                                                  ACTIVE_RESPONSE_SOCKET_PATH
+from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH
 from wazuh_testing.utils.network import UDP
 
 
@@ -18,20 +16,18 @@ def delete_sockets(path=None):
     Args:
         path (list, optional): Absolute socket path. Default `None`.
     """
-    try:
-        if path is None:
-            path = QUEUE_SOCKETS_PATH
-            for file in os.listdir(path):
-                os.remove(os.path.join(path, file))
-            if os.path.exists(WAZUH_DB_SOCKET_PATH):
-                os.remove(WAZUH_DB_SOCKET_PATH)
-            if os.path.exists(MODULESD_C_INTERNAL_SOCKET_PATH):
-                os.remove(MODULESD_C_INTERNAL_SOCKET_PATH)
-        else:
-            for item in path:
-                os.remove(item)
-    except FileNotFoundError:
-        pass
+    if path is None:
+        try:
+            path = [os.path.join(QUEUE_SOCKETS_PATH, file) for file in os.listdir(QUEUE_SOCKETS_PATH)]
+        except FileNotFoundError:
+            return
+
+    # An absent socket must not stop the removal of the rest.
+    for item in path:
+        try:
+            os.remove(item)
+        except FileNotFoundError:
+            pass
 
 def send_request_socket(query, socket_path=WAZUH_DB_SOCKET_PATH):
     """Send queries request to socket in the argument.
@@ -79,19 +75,6 @@ def send_message_to_syslog_socket(message, port, protocol, manager_address="127.
 
     sock.connect((manager_address, port))
     sock.send(message.encode())
-    sock.close()
-
-
-def send_active_response_message(active_response_command):
-    """Send active response message to `/var/ossec/queue/alerts/ar` socket.
-
-    Args:
-        active_response_command (str): Active response message.
-    """
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-
-    sock.connect(ACTIVE_RESPONSE_SOCKET_PATH)
-    sock.send(f"{active_response_command}".encode())
     sock.close()
 
 
