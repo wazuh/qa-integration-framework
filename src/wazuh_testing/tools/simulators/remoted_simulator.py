@@ -6,6 +6,12 @@ This program is free software; you can redistribute it and/or modify it under th
 RemotedSimulator: a TLS HTTP/1.1 stand-in for the manager side of the Wazuh HTTPS agent
 protocol (/control, /stateless, /stateful, /download, /config, /stats, /enroll).
 
+By default (``prefix=None``) it answers both at bare root and under the real manager's
+default reverse-proxy prefix (``/wazuh-manager/...``), so it works unmodified whether the
+agent under test opts out of the prefix or uses the default. Pass an explicit ``prefix``
+(including ``''`` for a strict opt-out) to require exactly that shape and 404 anything else --
+see :meth:`RemotedSimulator.__init__`.
+
 Quickstart in a test:
 
     sim = RemotedSimulator(port=1517)
@@ -74,6 +80,11 @@ ENDPOINTS = (
     STATS_ENDPOINT,
     ENROLL_ENDPOINT,
 )
+
+# The path prefix a real 5.x manager's reverse proxy serves everything under by default
+# (see wazuh/wazuh#38624's <endpoint> grammar). Used only by RemotedSimulator's `prefix=None`
+# (lenient) mode, below.
+DEFAULT_MANAGER_ENDPOINT_PREFIX = 'wazuh-manager'
 
 # /enroll's forced-outcome table. A locally-rejected request (this simulator's own body 
 # validation, not a forwarded authd error) uses code 0, matching how the manager's own
@@ -183,6 +194,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         """Handle every agent request (all endpoints are POST)."""
         raw_body = self.read_body()
         path = urlsplit(self.path).path
+        logical_path = self.simulator.strip_prefix(path)
         self._authenticated_agent_id = None
 
         # The agent compresses before signing, so its CMAC covers the encoded bytes:
@@ -193,7 +205,14 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
 
         self.simulator.record_request('POST', self.path, self.headers, body)
 
-        if path == ENROLL_ENDPOINT:
+        if logical_path is None:
+            # The configured prefix (or its absence) doesn't match this request's path --
+            # a real reverse proxy would never route it to remoted at all, so this is
+            # decided ahead of fault injection, auth and /enroll alike.
+            self.send_error_response(404, 'Not found')
+            return
+
+        if logical_path == ENROLL_ENDPOINT:
             # No agent id exists yet, so /enroll authenticates itself (open/password/mTLS,
             # see _authenticate_enroll) instead of going through the generic per-agent
             # CMAC check below. Dispatched ahead of _inject_fault() deliberately: that
@@ -217,19 +236,19 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         if not self._verify_auth(raw_body):
             return
 
-        if path == CONTROL_ENDPOINT:
+        if logical_path == CONTROL_ENDPOINT:
             self._handle_control(body)
-        elif path == STATELESS_ENDPOINT:
+        elif logical_path == STATELESS_ENDPOINT:
             self._handle_stateless(body)
-        elif path == STATEFUL_ENDPOINT:
+        elif logical_path == STATEFUL_ENDPOINT:
             self._handle_stateful(body)
-        elif path == CONFIG_ENDPOINT:
+        elif logical_path == CONFIG_ENDPOINT:
             self._handle_report(body, 'last_config')
-        elif path == STATS_ENDPOINT:
+        elif logical_path == STATS_ENDPOINT:
             self._handle_report(body, 'last_stats')
-        elif path == DOWNLOAD_ENDPOINT:
+        elif logical_path == DOWNLOAD_ENDPOINT:
             self._handle_download(body)
-        elif path in ENDPOINTS:
+        elif logical_path in ENDPOINTS:
             # Not yet implemented in this phase; acknowledge with an empty 200.
             self.send_json(200, {})
         else:
@@ -537,6 +556,8 @@ class RemotedSimulator(BaseSimulator):
         stateful_sessions (dict): X-Session-Id -> result cache backing idempotent retries.
         config_hash (str): SHA256 the notify response advertises for the group config.
         settings_hash (str): Derived, read-only SHA256 of the startup response body.
+        prefix (Optional[str]): Reverse-proxy path prefix this instance answers under.
+            None (default) is lenient -- see :meth:`__init__` for the three modes.
         require_client_cert (bool): Whether /enroll (and every other endpoint on this
             instance) requires a client certificate signed by certificate_controller's CA.
         enroll_password (str): Shared secret for the password gate, or None to disable it.
@@ -563,7 +584,8 @@ class RemotedSimulator(BaseSimulator):
                  port: int = DEFAULT_HTTPS_REMOTE_CONNECTION_PORT,
                  mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
-                 verify_auth: bool = False) -> None:
+                 verify_auth: bool = False,
+                 prefix: Optional[str] = None) -> None:
         """Initialize a RemotedSimulator.
 
         Args:
@@ -575,12 +597,24 @@ class RemotedSimulator(BaseSimulator):
             keys_path (str, optional): Path to the client.keys file. Defaults: WAZUH_CLIENT_KEYS_PATH.
             verify_auth (bool, optional): Enforce AES-CMAC Authorization on every request
                 (agent keys resolved from keys_path). Defaults: False.
+            prefix (str, optional): Reverse-proxy path prefix this simulator answers under,
+                mirroring the real manager's ``global_prefix``. Three modes:
+                - None (default): lenient -- accepts requests both under the real manager's
+                  default prefix (``DEFAULT_MANAGER_ENDPOINT_PREFIX``, ``wazuh-manager``) and
+                  at bare root, so existing tests that don't configure the agent's ``<endpoint>``
+                  prefix at all keep working unchanged either way.
+                - '' (empty string): strict opt-out -- only bare-root requests are valid;
+                  anything under a prefix is a 404, mirroring a manager with no reverse proxy.
+                - Any other string: strict -- only requests under that exact prefix are valid
+                  (bare-root or a different prefix both 404), so a test can assert the agent
+                  actually used the configured prefix rather than merely tolerate either shape.
         """
         super().__init__(server_ip, port, False)
 
         self.mode = mode
         self.keys_path = keys_path
         self.verify_auth = verify_auth
+        self.prefix = prefix
 
         # Injectable server state (assign directly before start() to customize).
         self.limits = json.loads(json.dumps(DEFAULT_LIMITS))
@@ -748,8 +782,11 @@ class RemotedSimulator(BaseSimulator):
         """Return a snapshot of captured requests, optionally filtered by endpoint path.
 
         Args:
-            path (str, optional): If given, only requests whose target path (ignoring any
-                query string) equals this value are returned.
+            path (str, optional): If given, only requests whose target *bare* endpoint path
+                (this instance's ``prefix`` stripped, ignoring any query string) equals this
+                value are returned -- so ``get_requests('/control')`` matches a captured
+                ``/control`` request regardless of whether this simulator's ``prefix`` mode
+                required, tolerated, or rejected a reverse-proxy prefix on the wire.
 
         Returns:
             List[Dict]: Copied request records, in arrival order.
@@ -758,7 +795,45 @@ class RemotedSimulator(BaseSimulator):
             snapshot = list(self._requests)
         if path is None:
             return snapshot
-        return [request for request in snapshot if urlsplit(request['path']).path == path]
+        return [request for request in snapshot
+                if self.strip_prefix(urlsplit(request['path']).path) == path]
+
+    def strip_prefix(self, path: str) -> Optional[str]:
+        """Resolve `path` to its bare endpoint form under this instance's `prefix` setting.
+
+        Args:
+            path (str): A request target's path component (no query string).
+
+        Returns:
+            Optional[str]: The bare endpoint path (e.g. ``/control``) if `path` is addressed
+                the way this simulator's `prefix` requires, or None if it is not -- a real
+                reverse proxy configured the same way would not route it either. See the
+                `prefix` parameter's docstring in :meth:`__init__` for the three modes.
+        """
+        if self.prefix is None:
+            marker = f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}'
+            if path == marker:
+                return ''
+            if path.startswith(marker + '/'):
+                return path[len(marker):]
+            return path
+
+        if self.prefix == '':
+            # Opt-out means every endpoint is served bare, one path segment deep. Any path
+            # carrying an extra leading segment -- the default prefix or any other -- is a
+            # routing miss, not just a collision with DEFAULT_MANAGER_ENDPOINT_PREFIX
+            # specifically: a real unprefixed manager has no reverse proxy to route through
+            # in the first place, so it wouldn't recognize *any* prefix.
+            if path.count('/') > 1:
+                return None
+            return path
+
+        marker = f'/{self.prefix}'
+        if path == marker:
+            return ''
+        if path.startswith(marker + '/'):
+            return path[len(marker):]
+        return None
 
     def last_request(self, path: str = None) -> Optional[Dict]:
         """Return the most recent captured request (optionally for a path), or None."""
