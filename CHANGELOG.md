@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 | [#620](https://github.com/wazuh/qa-integration-framework/pull/620) | Added `--set-as-main` flag support to repository bumper. |
 | [#684](https://github.com/wazuh/qa-integration-framework/pull/684) | Added support for running AWS integration tests on agent. |
 | [#822](https://github.com/wazuh/qa-integration-framework/pull/822) | Added HTTPS agent-manager protocol support: TLS HTTP server, AES-CMAC request authentication, and updated simulators/patterns/templates. |
-| [#835](https://github.com/wazuh/qa-integration-framework/issues/835) | Added reverse-proxy `prefix` support to `RemotedSimulator`, so it can route requests under the manager's default `/wazuh-manager/` prefix (or a custom one) instead of only bare root. |
+| [#840](https://github.com/wazuh/qa-integration-framework/pull/840) | Added reverse-proxy `prefix` support to `RemotedSimulator`, so it can route requests under the manager's default `/wazuh-manager/` prefix (or a custom one) instead of only bare root. |
 
 ### Changed
 
