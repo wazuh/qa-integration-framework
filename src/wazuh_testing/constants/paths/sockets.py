@@ -15,21 +15,22 @@ QUEUE_RIDS_PATH = os.path.join(WAZUH_PATH, 'queue', 'rids')
 QUEUE_ALERTS_PATH = os.path.join(WAZUH_PATH, 'queue', 'alerts')
 DIFF_PATH_FILE = os.path.join(QUEUE_DIFF_PATH, 'file')
 
-ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'analysis')
+ANALYSISD_ANALISIS_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'engine-api-http.sock')
 ANALYSISD_QUEUE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'queue')
-AUTHD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'auth')
+AUTHD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'auth.sock')
 EXECD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'com')
 LOGCOLLECTOR_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'logcollector')
 MODULESD_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules')
-MODULESD_DOWNLOAD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'download')
 MODULESD_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control')
-MODULESD_KREQUEST_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'krequest')
-MODULESD_C_INTERNAL_SOCKET_PATH = os.path.join(QUEUE_CLUSTER_PATH, 'c-internal.sock')
-MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor')
-REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote')
+# The manager renamed these two; the agent keeps the legacy names, so each product
+# needs its own constant.
+MANAGER_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules.sock')
+MANAGER_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control.sock')
+MODULESD_C_INTERNAL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'cluster-internal.sock')
+MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor.sock')
+REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote.sock')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
-WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_DB_PATH, 'wdb')
-ACTIVE_RESPONSE_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'ar')
+WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wdb.sock')
 
 
 WAZUH_SOCKETS = {
@@ -47,19 +48,16 @@ WAZUH_SOCKETS = {
     'wazuh-manager-db': [WAZUH_DB_SOCKET_PATH],
     'wazuh-modulesd': [
         MODULESD_WMODULES_SOCKET_PATH,
-        MODULESD_DOWNLOAD_SOCKET_PATH,
         MODULESD_CONTROL_SOCKET_PATH,
-        MODULESD_KREQUEST_SOCKET_PATH
     ],
     'wazuh-manager-modulesd': [
-        MODULESD_WMODULES_SOCKET_PATH,
-        MODULESD_CONTROL_SOCKET_PATH,
+        MANAGER_WMODULES_SOCKET_PATH,
+        MANAGER_CONTROL_SOCKET_PATH,
     ],
     'wazuh-manager-clusterd': [MODULESD_C_INTERNAL_SOCKET_PATH]
 }
 
 # These sockets do not exist with default Wazuh configuration
 WAZUH_OPTIONAL_SOCKETS = [
-    MODULESD_KREQUEST_SOCKET_PATH,
     AUTHD_SOCKET_PATH
 ]
