@@ -6,11 +6,9 @@ This program is free software; you can redistribute it and/or modify it under th
 RemotedSimulator: a TLS HTTP/1.1 stand-in for the manager side of the Wazuh HTTPS agent
 protocol (/control, /stateless, /stateful, /download, /config, /stats, /enroll).
 
-By default (``prefix=None``) it answers both at bare root and under the real manager's
-default reverse-proxy prefix (``/wazuh-manager/...``), so it works unmodified whether the
-agent under test opts out of the prefix or uses the default. Pass an explicit ``prefix``
-(including ``''`` for a strict opt-out) to require exactly that shape and 404 anything else --
-see :meth:`RemotedSimulator.__init__`.
+By default it answers under the real manager's default reverse-proxy prefix
+(``/wazuh-manager/...``). Pass ``prefix=''`` for a bare-root manager, or another string for a
+custom prefix -- see :meth:`RemotedSimulator.__init__`.
 
 Quickstart in a test:
 
@@ -82,8 +80,7 @@ ENDPOINTS = (
 )
 
 # The path prefix a real 5.x manager's reverse proxy serves everything under by default
-# (see wazuh/wazuh#38624's <endpoint> grammar). Used only by RemotedSimulator's `prefix=None`
-# (lenient) mode, below.
+# (see wazuh/wazuh#38624's <endpoint> grammar), and RemotedSimulator's own default `prefix`.
 DEFAULT_MANAGER_ENDPOINT_PREFIX = 'wazuh-manager'
 
 # /enroll's forced-outcome table. A locally-rejected request (this simulator's own body 
@@ -555,8 +552,8 @@ class RemotedSimulator(BaseSimulator):
         stateful_sessions (dict): X-Session-Id -> result cache backing idempotent retries.
         config_hash (str): SHA256 the notify response advertises for the group config.
         settings_hash (str): Derived, read-only SHA256 of the startup response body.
-        prefix (Optional[str]): Reverse-proxy path prefix this instance answers under.
-            None (default) is lenient -- see :meth:`__init__` for the three modes.
+        prefix (str): Reverse-proxy path prefix this instance answers under. Defaults to
+            the real manager's own default (``wazuh-manager``); see :meth:`__init__`.
         require_client_cert (bool): Whether /enroll (and every other endpoint on this
             instance) requires a client certificate signed by certificate_controller's CA.
         enroll_password (str): Shared secret for the password gate, or None to disable it.
@@ -584,7 +581,7 @@ class RemotedSimulator(BaseSimulator):
                  mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
                  verify_auth: bool = False,
-                 prefix: Optional[str] = None) -> None:
+                 prefix: str = DEFAULT_MANAGER_ENDPOINT_PREFIX) -> None:
         """Initialize a RemotedSimulator.
 
         Args:
@@ -597,18 +594,16 @@ class RemotedSimulator(BaseSimulator):
             verify_auth (bool, optional): Enforce AES-CMAC Authorization on every request
                 (agent keys resolved from keys_path). Defaults: False.
             prefix (str, optional): Reverse-proxy path prefix this simulator answers under,
-                mirroring the real manager's ``global_prefix``. Three modes:
-                - None (default): lenient -- accepts requests both under the real manager's
-                  default prefix (``DEFAULT_MANAGER_ENDPOINT_PREFIX``, ``wazuh-manager``) and
-                  at bare root, so existing tests that don't configure the agent's ``<endpoint>``
-                  prefix at all keep working unchanged either way.
-                - '' (empty string): strict opt-out -- only bare-root requests are valid;
-                  anything under a prefix is a 404, mirroring a manager with no reverse proxy.
-                - Any other string: strict -- only requests under that exact prefix are valid
-                  (bare-root or a different prefix both 404), so a test can assert the agent
-                  actually used the configured prefix rather than merely tolerate either shape.
+                mirroring the real manager's ``global_prefix``. Defaults to the real manager's
+                own default (``wazuh-manager``). Pass ``''`` for a bare-root manager (anything
+                prefixed 404s); pass another string to require that exact prefix instead.
         """
         super().__init__(server_ip, port, False)
+
+        # None used to be the (lenient) default; reject it explicitly rather than let it
+        # silently fall through resolve_endpoint()'s falsy check as bare-root-strict.
+        if prefix is None:
+            raise TypeError("prefix must be a str, not None -- pass '' for bare-root")
 
         self.mode = mode
         self.keys_path = keys_path
@@ -821,13 +816,12 @@ class RemotedSimulator(BaseSimulator):
 
         Returns:
             Optional[str]: The matching member of :data:`ENDPOINTS` (e.g. ``/control``) if
-                `raw_path` is addressed the way this instance's `prefix` setting requires,
-                or None if it is not -- a real reverse proxy configured the same way would
-                not route it either. See the `prefix` parameter's docstring in
-                :meth:`__init__` for the three modes.
+                `raw_path` is addressed under this instance's `prefix`, or None if it is
+                not -- a real reverse proxy configured the same way would not route it
+                either.
 
                 Matches the whole path literally against ``base + endpoint`` for each
-                candidate base, rather than splitting on ``/`` and counting segments, so a
+                endpoint, rather than splitting on ``/`` and counting segments, so a
                 multi-segment prefix (``<endpoint>`` supports e.g.
                 ``host:port/gateway/wazuh-manager``, see
                 ``src/unit_tests/config/test_client-config_https.c:810``) or a
@@ -836,18 +830,11 @@ class RemotedSimulator(BaseSimulator):
                 resolve correctly with no special-casing.
         """
         path = urlsplit(raw_path).path
+        base = f'/{self.prefix}' if self.prefix else ''
 
-        if self.prefix is None:
-            bases = ('', f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}')
-        elif self.prefix == '':
-            bases = ('',)
-        else:
-            bases = (f'/{self.prefix}',)
-
-        for base in bases:
-            for endpoint in ENDPOINTS:
-                if path == base + endpoint:
-                    return endpoint
+        for endpoint in ENDPOINTS:
+            if path == base + endpoint:
+                return endpoint
         return None
 
     def last_request(self, path: str = None) -> Optional[Dict]:
