@@ -20,51 +20,62 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # --------------------------------------------------------------------------------------
-# strip_prefix(): pure routing logic, no HTTP involved.
+# resolve_endpoint(): pure routing logic, no HTTP involved.
 # --------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize('path, expected', [
     ('/control', '/control'),
     (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}/control', '/control'),
-    (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}', ''),
-    ('/other-proxy/control', '/other-proxy/control'),
+    (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}', None),
+    ('/other-proxy/control', None),
 ])
-def test_strip_prefix_lenient_default(path, expected):
+def test_resolve_endpoint_lenient_default(path, expected):
     """prefix=None accepts bare-root and the real manager's default prefix alike."""
     simulator = RemotedSimulator()
     assert simulator.prefix is None
-    assert simulator.strip_prefix(path) == expected
+    assert simulator.resolve_endpoint(path) == expected
 
 
 @pytest.mark.parametrize('path, expected', [
     ('/control', '/control'),
     (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}/control', None),
-    (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}', f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}'),
+    (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}', None),
     ('/other-proxy/control', None),
 ])
-def test_strip_prefix_strict_opt_out(path, expected):
-    """prefix='' rejects any path with an extra leading segment, default prefix or not.
-
-    A single-segment path never has an extra segment to strip -- including, degenerately,
-    a bare ``/wazuh-manager`` with nothing after it, which passes through unchanged even
-    though it isn't a real endpoint either; that case 404s downstream the same way any
-    other unrecognized bare path would, prefix-aware or not.
-    """
+def test_resolve_endpoint_strict_opt_out(path, expected):
+    """prefix='' rejects any path with an extra leading segment, default prefix or not."""
     simulator = RemotedSimulator(prefix='')
-    assert simulator.strip_prefix(path) == expected
+    assert simulator.resolve_endpoint(path) == expected
 
 
 @pytest.mark.parametrize('path, expected', [
     ('/custom-proxy/control', '/control'),
-    ('/custom-proxy', ''),
+    ('/custom-proxy', None),
     ('/control', None),
     (f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}/control', None),
     ('/other-proxy/control', None),
 ])
-def test_strip_prefix_strict_custom(path, expected):
+def test_resolve_endpoint_strict_custom(path, expected):
     """A non-empty prefix requires exactly that prefix; anything else is unroutable (None)."""
     simulator = RemotedSimulator(prefix='custom-proxy')
-    assert simulator.strip_prefix(path) == expected
+    assert simulator.resolve_endpoint(path) == expected
+
+
+@pytest.mark.parametrize('path, expected', [
+    ('/gateway/wazuh-manager/control', '/control'),
+    ('/gateway/wazuh-manager/stateless', '/stateless'),
+    # A one-segment prefix short of the configured two-segment one is a routing miss, not
+    # a partial match -- confirms this is literal path equality, not a startswith check.
+    ('/gateway/control', None),
+    ('/wazuh-manager/control', None),
+])
+def test_resolve_endpoint_multi_segment_prefix(path, expected):
+    """A multi-segment prefix (the agent supports host:port/gateway/wazuh-manager, see
+    src/unit_tests/config/test_client-config_https.c:810) resolves correctly: literal
+    path equality needs no special-casing for how many segments the prefix has.
+    """
+    simulator = RemotedSimulator(prefix='gateway/wazuh-manager')
+    assert simulator.resolve_endpoint(path) == expected
 
 
 def test_get_requests_filters_by_bare_path_regardless_of_prefix():
@@ -82,9 +93,37 @@ def test_get_requests_filters_by_bare_path_regardless_of_prefix():
     }
 
 
+def test_get_requests_finds_a_request_resolve_endpoint_would_reject():
+    """A request get_requests(path) returns for a strict simulator can still have been a
+    404 -- the point of recording it is to let a test assert exactly that ("the agent sent
+    the wrong prefix and got 404"), which requires finding it by its bare endpoint name
+    even though resolve_endpoint() rejects it.
+    """
+    simulator = RemotedSimulator(prefix='wazuh-manager')  # strict
+    simulator.record_request('POST', '/control', {}, b'{}')  # bare: rejected by this mode
+    simulator.record_request('POST', '/wazuh-manager/control', {}, b'{}')  # accepted
+
+    assert simulator.resolve_endpoint('/control') is None  # confirms it would be a 404
+
+    matches = simulator.get_requests('/control')
+    assert len(matches) == 2
+    assert {request['path'] for request in matches} == {'/control', '/wazuh-manager/control'}
+
+
+def test_get_requests_rejects_a_path_without_leading_slash():
+    """A caller typo ('control' instead of '/control') is a loud error, not a silent
+    false-positive match against an unrelated recorded path like '/foocontrol'.
+    """
+    simulator = RemotedSimulator()
+    simulator.record_request('POST', '/foocontrol', {}, b'{}')
+
+    with pytest.raises(ValueError):
+        simulator.get_requests('control')
+
+
 # --------------------------------------------------------------------------------------
-# End-to-end: drive the real TLS server to prove do_POST actually wires strip_prefix in,
-# not just that the pure function is correct in isolation.
+# End-to-end: drive the real TLS server to prove do_POST actually wires resolve_endpoint
+# in, not just that the pure function is correct in isolation.
 # --------------------------------------------------------------------------------------
 
 @pytest.fixture()
@@ -110,9 +149,11 @@ def _post(port: int, path: str) -> requests.Response:
     ('custom-proxy', '/custom-proxy/control', 200),
     ('custom-proxy', '/control', 404),
     ('custom-proxy', f'/{DEFAULT_MANAGER_ENDPOINT_PREFIX}/control', 404),
+    ('gateway/wazuh-manager', '/gateway/wazuh-manager/control', 200),
+    ('gateway/wazuh-manager', '/gateway/control', 404),
 ])
 def test_routing_over_real_https(free_port, prefix, path, expected_status):
-    """The actual TLS server 404s or dispatches exactly as strip_prefix's mode dictates."""
+    """The actual TLS server 404s or dispatches exactly as resolve_endpoint's mode dictates."""
     simulator = RemotedSimulator(port=free_port, prefix=prefix)
     simulator.start()
     try:
