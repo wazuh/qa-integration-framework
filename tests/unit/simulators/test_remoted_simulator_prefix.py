@@ -110,6 +110,20 @@ def test_get_requests_finds_a_request_resolve_endpoint_would_reject():
     assert {request['path'] for request in matches} == {'/control', '/wazuh-manager/control'}
 
 
+def test_get_requests_ignores_a_query_string_on_the_filter_argument():
+    """get_requests('/control?type=notify') finds the same request as get_requests('/control').
+
+    record_request() stores the raw target, which does carry a query string; the filter
+    argument needs the same normalization or a caller passing one back (a plausible mistake,
+    since both parameters are named `path`) gets a silent [] instead of the match.
+    """
+    simulator = RemotedSimulator()
+    simulator.record_request('POST', '/control?type=notify', {}, b'{}')
+
+    assert simulator.get_requests('/control?type=notify') == simulator.get_requests('/control')
+    assert len(simulator.get_requests('/control')) == 1
+
+
 def test_get_requests_rejects_a_path_without_leading_slash():
     """A caller typo ('control' instead of '/control') is a loud error, not a silent
     false-positive match against an unrelated recorded path like '/foocontrol'.

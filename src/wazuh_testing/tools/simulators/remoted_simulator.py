@@ -789,7 +789,10 @@ class RemotedSimulator(BaseSimulator):
                 returning None for a request does not stop it from being recorded, nor from
                 being found here). Every :data:`ENDPOINTS` value starts with ``/``, so a raw
                 target cannot end in one without addressing that endpoint -- but only if
-                `path` itself starts with ``/`` too; see the raised error otherwise.
+                `path` itself starts with ``/`` too; see the raised error otherwise. Any query
+                string on `path` is ignored (matching how a recorded request's own raw target,
+                which does carry one, is compared), so ``get_requests('/control?type=notify')``
+                works the same as ``get_requests('/control')``.
 
         Raises:
             ValueError: If `path` does not start with ``/`` -- without a leading slash the
@@ -806,8 +809,9 @@ class RemotedSimulator(BaseSimulator):
             return snapshot
         if not path.startswith('/'):
             raise ValueError(f"path must start with '/', got {path!r}")
+        bare_path = urlsplit(path).path
         return [request for request in snapshot
-                if urlsplit(request['path']).path.endswith(path)]
+                if urlsplit(request['path']).path.endswith(bare_path)]
 
     def resolve_endpoint(self, raw_path: str) -> Optional[str]:
         """Resolve a raw request target to the bare endpoint it addresses, if any.
