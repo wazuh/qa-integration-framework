@@ -45,6 +45,7 @@ All notable changes to this project will be documented in this file.
 | Issue | Comment |
 |-------|---------|
 | [#585](https://github.com/wazuh/qa-integration-framework/pull/585) | Removed wazuh-execd from manager daemon lists. |
+| [#835](https://github.com/wazuh/qa-integration-framework/pull/835) | Removed `wazuh-manager-monitord` from the manager daemon list. |
 | [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Removed the socket constants for sockets the manager no longer creates. |
 | [#470](https://github.com/wazuh/qa-integration-framework/pull/470) | Removed Wazuh Manager deprecated daemons and CLI tools. |
 | [#444](https://github.com/wazuh/qa-integration-framework/pull/444) | Removed agent-auth references. |
