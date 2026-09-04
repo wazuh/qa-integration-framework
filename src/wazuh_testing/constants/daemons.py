@@ -13,7 +13,6 @@ API_DAEMON = 'wazuh-manager-apid'
 AUTHD_DAEMON = 'wazuh-manager-authd'
 CLUSTER_DAEMON = 'wazuh-manager-clusterd'
 MODULES_DAEMON = 'wazuh-manager-modulesd'
-MONITOR_DAEMON = 'wazuh-manager-monitord'
 REMOTE_DAEMON = 'wazuh-manager-remoted'
 WAZUH_DB_DAEMON = 'wazuh-manager-db'
 
@@ -27,7 +26,6 @@ WAZUH_MANAGER_DAEMONS = [ANALYSISD_DAEMON,
                          API_DAEMON,
                          CLUSTER_DAEMON,
                          MODULES_DAEMON,
-                         MONITOR_DAEMON,
                          REMOTE_DAEMON,
                          WAZUH_DB_DAEMON]
 
