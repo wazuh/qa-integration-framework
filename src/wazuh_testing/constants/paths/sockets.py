@@ -27,7 +27,6 @@ MODULESD_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control')
 MANAGER_WMODULES_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wmodules.sock')
 MANAGER_CONTROL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'control.sock')
 MODULESD_C_INTERNAL_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'cluster-internal.sock')
-MONITORD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'monitor.sock')
 REMOTED_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'remote.sock')
 SYSCHECKD_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'syscheck')
 WAZUH_DB_SOCKET_PATH = os.path.join(QUEUE_SOCKETS_PATH, 'wdb.sock')
@@ -42,7 +41,6 @@ WAZUH_SOCKETS = {
     'wazuh-manager-authd': [AUTHD_SOCKET_PATH],
     'wazuh-execd': [EXECD_SOCKET_PATH],
     'wazuh-logcollector': [LOGCOLLECTOR_SOCKET_PATH],
-    'wazuh-manager-monitord': [MONITORD_SOCKET_PATH],
     'wazuh-manager-remoted': [REMOTED_SOCKET_PATH],
     'wazuh-syscheckd': [SYSCHECKD_SOCKET_PATH],
     'wazuh-manager-db': [WAZUH_DB_SOCKET_PATH],

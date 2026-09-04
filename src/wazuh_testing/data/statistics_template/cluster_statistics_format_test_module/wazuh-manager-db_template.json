@@ -33,204 +33,6 @@
                         "received_breakdown": {
                           "type": "object",
                           "properties": {
-                            "agent": {
-                              "type": "integer"
-                            },
-                            "agent_breakdown": {
-                              "type": "object",
-                              "properties": {
-                                "db": {
-                                  "type": "object",
-                                  "properties": {
-                                    "begin": {
-                                      "type": "integer"
-                                    },
-                                    "close": {
-                                      "type": "integer"
-                                    },
-                                    "commit": {
-                                      "type": "integer"
-                                    },
-                                    "remove": {
-                                      "type": "integer"
-                                    },
-                                    "sql": {
-                                      "type": "integer"
-                                    },
-                                    "vacuum": {
-                                      "type": "integer"
-                                    },
-                                    "get_fragmentation": {
-                                      "type": "integer"
-                                    }
-                                  },
-                                  "required": [
-                                    "begin",
-                                    "close",
-                                    "commit",
-                                    "remove",
-                                    "sql",
-                                    "vacuum",
-                                    "get_fragmentation"
-                                  ]
-                                },
-                                "tables": {
-                                  "type": "object",
-                                  "properties": {
-                                    "rootcheck": {
-                                      "type": "object",
-                                      "properties": {
-                                        "rootcheck": {
-                                          "type": "integer"
-                                        }
-                                      },
-                                      "required": [
-                                        "rootcheck"
-                                      ]
-                                    },
-                                    "sca": {
-                                      "type": "object",
-                                      "properties": {
-                                        "sca": {
-                                          "type": "integer"
-                                        }
-                                      },
-                                      "required": [
-                                        "sca"
-                                      ]
-                                    },
-                                    "sync": {
-                                      "type": "object",
-                                      "properties": {
-                                        "dbsync": {
-                                          "type": "integer"
-                                        }
-                                      },
-                                      "required": [
-                                        "dbsync"
-                                      ]
-                                    },
-                                    "syscheck": {
-                                      "type": "object",
-                                      "properties": {
-                                        "fim_file": {
-                                          "type": "integer"
-                                        },
-                                        "fim_registry": {
-                                          "type": "integer"
-                                        },
-                                        "syscheck": {
-                                          "type": "integer"
-                                        }
-                                      },
-                                      "required": [
-                                        "fim_file",
-                                        "fim_registry",
-                                        "syscheck"
-                                      ]
-                                    },
-                                    "syscollector": {
-                                      "type": "object",
-                                      "properties": {
-                                        "syscollector_hotfixes": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_hwinfo": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_network_address": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_network_iface": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_network_protocol": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_osinfo": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_packages": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_ports": {
-                                          "type": "integer"
-                                        },
-                                        "syscollector_processes": {
-                                          "type": "integer"
-                                        },
-                                        "deprecated": {
-                                          "type": "object",
-                                          "properties": {
-                                            "hardware": {
-                                              "type": "integer"
-                                            },
-                                            "hotfix": {
-                                              "type": "integer"
-                                            },
-                                            "netaddr": {
-                                              "type": "integer"
-                                            },
-                                            "netinfo": {
-                                              "type": "integer"
-                                            },
-                                            "netproto": {
-                                              "type": "integer"
-                                            },
-                                            "osinfo": {
-                                              "type": "integer"
-                                            },
-                                            "package": {
-                                              "type": "integer"
-                                            },
-                                            "port": {
-                                              "type": "integer"
-                                            },
-                                            "process": {
-                                              "type": "integer"
-                                            }
-                                          },
-                                          "required": [
-                                            "hardware",
-                                            "hotfix",
-                                            "netaddr",
-                                            "netinfo",
-                                            "netproto",
-                                            "osinfo",
-                                            "package",
-                                            "port",
-                                            "process"
-                                          ]
-                                        }
-                                      },
-                                      "required": [
-                                        "syscollector_hotfixes",
-                                        "syscollector_hwinfo",
-                                        "syscollector_network_address",
-                                        "syscollector_network_iface",
-                                        "syscollector_network_protocol",
-                                        "syscollector_osinfo",
-                                        "syscollector_packages",
-                                        "syscollector_ports",
-                                        "syscollector_processes",
-                                        "deprecated"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "rootcheck",
-                                    "sca",
-                                    "sync",
-                                    "syscheck",
-                                    "syscollector"
-                                  ]
-                                }
-                              },
-                              "required": [
-                                "db",
-                                "tables"
-                              ]
-                            },
                             "global": {
                               "type": "integer"
                             },
@@ -251,13 +53,17 @@
                                     },
                                     "get_fragmentation": {
                                       "type": "integer"
+                                    },
+                                    "sleep": {
+                                      "type": "integer"
                                     }
                                   },
                                   "required": [
                                     "backup",
                                     "sql",
                                     "vacuum",
-                                    "get_fragmentation"
+                                    "get_fragmentation",
+                                    "sleep"
                                   ]
                                 },
                                 "tables": {
@@ -400,13 +206,35 @@
                                 "db",
                                 "tables"
                               ]
+                            },
+                            "mitre": {
+                              "type": "integer"
+                            },
+                            "mitre_breakdown": {
+                              "type": "object",
+                              "properties": {
+                                "db": {
+                                  "type": "object",
+                                  "properties": {
+                                    "sql": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "sql"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "db"
+                              ]
                             }
                           },
                           "required": [
                             "global",
                             "global_breakdown",
-                            "task",
-                            "task_breakdown"
+                            "mitre",
+                            "mitre_breakdown"
                           ]
                         }
                       },
@@ -433,6 +261,9 @@
                                 "db": {
                                   "type": "object",
                                   "properties": {
+                                    "open": {
+                                      "type": "integer"
+                                    },
                                     "backup": {
                                       "type": "integer"
                                     },
@@ -444,13 +275,18 @@
                                     },
                                     "get_fragmentation": {
                                       "type": "integer"
+                                    },
+                                    "sleep": {
+                                      "type": "integer"
                                     }
                                   },
                                   "required": [
                                     "backup",
                                     "sql",
                                     "vacuum",
-                                    "get_fragmentation"
+                                    "get_fragmentation",
+                                    "sleep",
+                                    "open"
                                   ]
                                 },
                                 "tables": {
@@ -594,10 +430,10 @@
                                 "tables"
                               ]
                             },
-                            "task": {
+                            "mitre": {
                               "type": "integer"
                             },
-                            "task_breakdown": {
+                            "mitre_breakdown": {
                               "type": "object",
                               "properties": {
                                 "db": {
@@ -610,54 +446,18 @@
                                   "required": [
                                     "sql"
                                   ]
-                                },
-                                "tables": {
-                                  "type": "object",
-                                  "properties": {
-                                    "tasks": {
-                                      "type": "object",
-                                      "properties": {
-                                        "cleanup_expired": {
-                                          "type": "integer"
-                                        },
-                                        "create": {
-                                          "type": "integer"
-                                        },
-                                        "delete_old": {
-                                          "type": "integer"
-                                        },
-                                        "get_pending": {
-                                          "type": "integer"
-                                        },
-                                        "mark_delivered": {
-                                          "type": "integer"
-                                        }
-                                      },
-                                      "required": [
-                                        "cleanup_expired",
-                                        "create",
-                                        "delete_old",
-                                        "get_pending",
-                                        "mark_delivered"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "tasks"
-                                  ]
                                 }
                               },
                               "required": [
-                                "db",
-                                "tables"
+                                "db"
                               ]
                             }
                           },
                           "required": [
                             "global",
                             "global_breakdown",
-                            "task",
-                            "task_breakdown"
+                            "mitre",
+                            "mitre_breakdown"
                           ]
                         }
                       },
