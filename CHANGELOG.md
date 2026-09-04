@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 
 | Issue | Comment |
 |-------|---------|
+| [#38714](https://github.com/wazuh/wazuh/issues/38714) | The manager configuration is YAML (`etc/wazuh-manager.yml`): `WAZUH_CONF_PATH` points to it, `set_manager_conf` writes YAML sections and `get_minimal_configuration` returns `all_disabled_wazuh.yml`; invalid options are reported with `INVALID_CONFIGURATION` (1244 + JSON pointer). |
 | [#595](https://github.com/wazuh/qa-integration-framework/pull/595) | Adapted qa integration framework to new agent module startup. |
 | [#683](https://github.com/wazuh/qa-integration-framework/pull/683) | Migrated certificate generation to the `cryptography` API to keep up with pyOpenSSL 26.2.0 deprecations. |
 | [#468](https://github.com/wazuh/qa-integration-framework/pull/468) | Adapted Inventory patterns to use new sync protocol module. |
