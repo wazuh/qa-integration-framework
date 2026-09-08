@@ -37,6 +37,7 @@ simulator returns for a /control startup:
   composable gates, see the class docstring; a successful /enroll is immediately usable
   for later CMAC-authenticated requests, with no client.keys file involved.
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -46,8 +47,11 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlsplit
+
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.constants.ports import DEFAULT_HTTPS_REMOTE_CONNECTION_PORT
@@ -138,6 +142,100 @@ DEFAULT_MERGED_MG = (
 
 # Seconds advertised in the Retry-After header of the SERVICE_UNAVAILABLE (503) fault mode.
 RETRY_AFTER_SECONDS = 5
+
+
+# SPKI pin helpers (RFC 7469 section 2.4) -- the manager side of the enrollment-token
+# bootstrap. The token's `pin` is the SHA-256 of a certificate's DER
+# SubjectPublicKeyInfo, NOT of the certificate: an SPKI digest survives the CA being
+# re-encoded or reissued from the same key pair, so a token minted today keeps working
+# through a CA renewal that keeps the key.
+#
+# These are pure functions, deliberately usable without a running simulator: a test mints
+# a token from a pin, which has to happen before the agent is ever started.
+#
+# Interop, which is the whole reason these live here: the agent computes the same value in
+# C++ (client-agent/https_client/src/spkiPin.cpp) via OpenSSL's X509_get0_pubkey +
+# i2d_PUBKEY. `public_bytes(DER, SubjectPublicKeyInfo)` below is the same key-derived
+# encoding, which is also what `openssl x509 -noout -pubkey | openssl pkey -pubin -outform
+# der` produces -- so all three agree byte for byte. tests/unit/test_spki_pin.py pins that
+# against the same fixture certificates the C++ suite uses.
+
+CertificateLike = Union[x509.Certificate, bytes, str, Path]
+
+
+def load_certificate(material: CertificateLike) -> x509.Certificate:
+    """Load an X.509 certificate from whatever form the caller has it in.
+
+    Args:
+        material: An already-parsed certificate, PEM or DER bytes, PEM text, or a
+            path to a PEM/DER file.
+
+    Returns:
+        x509.Certificate: The parsed certificate.
+
+    Raises:
+        ValueError: If the material is not a certificate in any accepted form.
+    """
+    if isinstance(material, x509.Certificate):
+        return material
+
+    if isinstance(material, Path):
+        data = material.read_bytes()
+    elif isinstance(material, str):
+        # A PEM blob, or a path to one. A PEM header is unambiguous; anything else
+        # short enough to be a path is treated as one.
+        data = material.encode() if '-----BEGIN' in material else Path(material).read_bytes()
+    elif isinstance(material, bytes):
+        data = material
+    else:
+        raise ValueError(f'cannot load a certificate from {type(material).__name__}')
+
+    if b'-----BEGIN' in data:
+        return x509.load_pem_x509_certificate(data)
+
+    return x509.load_der_x509_certificate(data)
+
+
+def spki_sha256(material: CertificateLike) -> bytes:
+    """SHA-256 over a certificate's DER SubjectPublicKeyInfo: the pin's 32 raw bytes.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        bytes: The 32-byte digest.
+    """
+    public_key = load_certificate(material).public_key()
+    spki = public_key.public_bytes(serialization.Encoding.DER,
+                                   serialization.PublicFormat.SubjectPublicKeyInfo)
+    return hashlib.sha256(spki).digest()
+
+
+def spki_pin(material: CertificateLike) -> str:
+    """The pin as an enrollment token carries it: 43 chars of unpadded base64url.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        str: 43 characters, URL-safe alphabet, no padding.
+    """
+    return base64.urlsafe_b64encode(spki_sha256(material)).rstrip(b'=').decode()
+
+
+def spki_pin_hex(material: CertificateLike) -> str:
+    """The same digest as 64 lowercase hex characters, for diagnostics and runbooks.
+
+    Matches `openssl x509 -noout -pubkey | openssl pkey -pubin -outform der
+    | openssl dgst -sha256` so a value can be checked by hand.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        str: 64 lowercase hex characters.
+    """
+    return spki_sha256(material).hex()
 
 
 def parse_he_batch(body: bytes):
@@ -535,6 +633,16 @@ class RemotedSimulator(BaseSimulator):
       ``Authorization: WazuhEnroll <ts>:<mac>`` header.
     - Neither set (both defaults): 'open' mode -- no credential beyond ``protocol-version``.
 
+    Certificate material follows the same set-before-:meth:`start` contract.
+    ``tls_certificate`` (a ``(cert PEM, key PEM)`` pair) replaces the generated
+    listener certificate; ``cacerts_certificate`` (a cert PEM) replaces the separate
+    one a ``GET /cacerts`` route serves. Either way :attr:`tls_pin` and
+    :attr:`cacerts_pin` report the SPKI pin of whatever is actually being served, and
+    both are readable before :meth:`start` so a test can mint an enrollment token
+    carrying the right pin and only then launch an agent. Serving chosen material is
+    what makes the negative cases expressible -- a CA that does not match the token's
+    pin, or a valid certificate for a different name.
+
     A successful enrollment is immediately usable: :meth:`cmac_key_for` checks the
     in-memory enrolled-agent store before falling back to ``keys_path``, so the returned
     key authenticates later requests with no client.keys file involved. Re-enrollment (a
@@ -561,7 +669,12 @@ class RemotedSimulator(BaseSimulator):
             on the next /enroll, or None (default) for normal handling.
         certificate_controller (CertificateController): CA used to validate client
             certificates when require_client_cert is set; also mints them via
-            generate_agent_certificates().
+            generate_agent_certificates(). Unrelated to the listener's own
+            certificate -- keeping the two apart is deliberate.
+        tls_certificate (tuple): (cert PEM, key PEM) to serve instead of a generated
+            pair, or None (default) to generate one. Set before start().
+        cacerts_certificate (bytes): Certificate PEM for a GET /cacerts route to serve
+            instead of a generated one, or None (default). Set before start().
     """
 
     MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
@@ -641,6 +754,22 @@ class RemotedSimulator(BaseSimulator):
         self.enroll_password: Optional[str] = None
         self._enroll_force_error: Optional[str] = None
         self.certificate_controller = CertificateController()
+
+        # TLS material for THIS listener, and the certificate GET /cacerts serves.
+        # Both are generated lazily on first access and then cached for the life of the
+        # instance -- not in __init__ (an RSA keygen every construction would tax the
+        # many tests that never look at a pin) and not in start() (a token has to be
+        # minted from tls_pin BEFORE the agent runs, so the pin must be readable before
+        # the listener exists). The cache deliberately outlives shutdown(), so a
+        # restarted simulator keeps presenting the same certificate: silently rotating
+        # the key across a restart would break pin-based tests in a way that looks like
+        # an agent bug.
+        # Assign either attribute before start() to serve chosen material instead --
+        # which is what makes an unmatched-pin or wrong-name negative test expressible.
+        self.tls_certificate: Optional[Tuple[bytes, bytes]] = None
+        self.cacerts_certificate: Optional[bytes] = None
+        self._tls_material: Optional[Tuple[bytes, bytes]] = None
+        self._cacerts_pem: Optional[bytes] = None
         self._enrolled_agents: Dict[str, Dict] = {}
         self._enrolled_by_key_hash: Dict[str, str] = {}
         self._enrollment_lock = threading.Lock()
@@ -680,6 +809,45 @@ class RemotedSimulator(BaseSimulator):
         ).hexdigest()
 
     @property
+    def tls_certificate_pem(self) -> bytes:
+        """PEM of the certificate this listener presents (generated on first access)."""
+        return self._ensure_tls_material()[0]
+
+    @property
+    def tls_pin(self) -> str:
+        """SPKI pin of the listener's certificate: 43 chars of unpadded base64url.
+
+        Readable before start(), which is what lets a test mint an enrollment token
+        carrying this pin and only then launch the agent.
+        """
+        return spki_pin(self.tls_certificate_pem)
+
+    @property
+    def tls_pin_hex(self) -> str:
+        """The same digest as 64 lowercase hex characters, for diagnostics."""
+        return spki_pin_hex(self.tls_certificate_pem)
+
+    @property
+    def cacerts_pem(self) -> bytes:
+        """PEM of the certificate a GET /cacerts route serves.
+
+        Deliberately a DIFFERENT certificate from the listener's own: a test asserting
+        on this body then proves the agent received exactly the bytes this route
+        served, rather than something it could have derived from the handshake it rode
+        in on. (The agent-side C++ harness, fakeManager.hpp, splits them the same way
+        and for the same reason.)
+        """
+        if self._cacerts_pem is None:
+            self._cacerts_pem = (self.cacerts_certificate if self.cacerts_certificate is not None
+                                 else self._generate_certificate()[0])
+        return self._cacerts_pem
+
+    @property
+    def cacerts_pin(self) -> str:
+        """SPKI pin of the /cacerts certificate -- the value a token should carry."""
+        return spki_pin(self.cacerts_pem)
+
+    @property
     def enroll_force_error(self) -> Optional[str]:
         """One of ENROLL_FORCED_ERRORS' keys to force on the next /enroll, or None."""
         return self._enroll_force_error
@@ -699,7 +867,14 @@ class RemotedSimulator(BaseSimulator):
             return
 
         self._cert_dir = tempfile.mkdtemp(prefix='remoted_simulator_')
-        cert_path, key_path = generate_self_signed_certificate(self._cert_dir)
+        # Same two filenames generate_self_signed_certificate() produced when it was
+        # called here directly, so nothing observable about start() changed; the
+        # material itself now comes from the instance cache (see __init__).
+        cert_pem, key_pem = self._ensure_tls_material()
+        cert_path = str(Path(self._cert_dir) / 'server.cert')
+        key_path = str(Path(self._cert_dir) / 'server.key')
+        Path(cert_path).write_bytes(cert_pem)
+        Path(key_path).write_bytes(key_pem)
 
         # require_client_cert requires a client certificate on every connection to this
         # instance (not just /enroll -- TLS has no per-route granularity), signed by this
@@ -977,6 +1152,31 @@ class RemotedSimulator(BaseSimulator):
         return self.enroll_response(agent_id, name, ip, key)
 
     # Internal methods.
+
+    @staticmethod
+    def _generate_certificate() -> Tuple[bytes, bytes]:
+        """Generate one self-signed certificate/key pair and return them as PEM.
+
+        Goes through generate_self_signed_certificate() rather than reimplementing the
+        encoding, so this stays in step with whatever that helper decides to emit; the
+        scratch directory only exists to read the bytes back out of.
+
+        Returns:
+            Tuple[bytes, bytes]: (certificate PEM, private key PEM).
+        """
+        scratch = tempfile.mkdtemp(prefix='remoted_simulator_cert_')
+        try:
+            cert_path, key_path = generate_self_signed_certificate(scratch)
+            return Path(cert_path).read_bytes(), Path(key_path).read_bytes()
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+    def _ensure_tls_material(self) -> Tuple[bytes, bytes]:
+        """Return this instance's (certificate PEM, key PEM), generating them once."""
+        if self._tls_material is None:
+            self._tls_material = (self.tls_certificate if self.tls_certificate is not None
+                                  else self._generate_certificate())
+        return self._tls_material
 
     def _drain_tasks(self) -> List[Dict]:
         """Atomically return and clear the pending tasks (delivered once, locally)."""
