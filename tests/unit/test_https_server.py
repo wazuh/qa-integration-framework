@@ -5,15 +5,20 @@ This program is free software; you can redistribute it and/or modify it under th
 
 Unit tests for the reusable TLS transport building blocks in wazuh_testing.tools.https_server.
 
-The certificate helpers are a prerequisite for the enrollment-token bootstrap that
+Two things are under test here, both prerequisites for the enrollment-token bootstrap that
 RemotedSimulator hosts (fetch a CA over an unverified GET /cacerts, pin it, then reconnect fully
 verified against that CA alone):
 
-A client performing the verified reconnect checks the chain *and* the
+1. The certificate helpers. A client performing the verified reconnect checks the chain *and* the
    hostname, so the listener needs a leaf that a fetched CA actually signs and whose
    SubjectAlternativeName covers the address being connected to. The historical
-generate_self_signed_certificate() produces neither -- it emits a CN=Manager CA with no SAN,
-which is why every agentd integration suite disables verification.
+   generate_self_signed_certificate() produces neither -- it emits a CN=Manager CA with no SAN,
+   which is why every agentd integration suite disables verification.
+
+2. TLSHTTPServer's handshake accounting. A client that refuses the certificate this listener
+   serves is the observable half of a pin-mismatch or wrong-name test, and until the listener
+   stopped wrapping its own accept socket that event was discarded by socketserver before any
+   error hook ran (see TLSHTTPServer.get_request).
 
 Run with:  PYTHONPATH=src python3 -m pytest tests/unit/test_https_server.py -v
 """
@@ -201,6 +206,31 @@ def test_a_client_trusting_only_the_ca_completes_a_fully_verified_connection():
         response = connection.getresponse()
         assert (response.status, response.read()) == (200, b'ok')
         connection.close()
+
+        assert server.handshake_failures == []
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_client_trusting_an_unrelated_ca_is_refused_and_the_refusal_is_recorded():
+    """The negative half. Before TLSHTTPServer wrapped per connection, socketserver discarded this
+    event (ssl.SSLError is an OSError) and the simulator had no evidence it ever happened."""
+    ca_pem, ca_key = generate_ca_certificate()
+    leaf_pem, leaf_key = generate_leaf_certificate(ca_pem, ca_key)
+    unrelated_pem, _ = generate_ca_certificate(common_name='Unrelated CA')
+    server, port = serve(leaf_pem, leaf_key)
+
+    try:
+        with pytest.raises(ssl.SSLCertVerificationError):
+            http.client.HTTPSConnection('127.0.0.1', port, context=anchored_context(unrelated_pem),
+                                        timeout=10).request('GET', '/')
+
+        deadline = time.time() + 5
+        while not server.handshake_failures and time.time() < deadline:
+            time.sleep(0.05)
+        assert len(server.handshake_failures) == 1
+        assert server.handshake_failures[0]['reason'] == 'TLSV1_ALERT_UNKNOWN_CA'
     finally:
         server.shutdown()
         server.server_close()
@@ -229,6 +259,74 @@ def test_a_leaf_without_a_matching_san_fails_the_hostname_check_only():
         connection = http.client.HTTPSConnection('127.0.0.1', port, context=lenient, timeout=10)
         connection.request('GET', '/')
         assert connection.getresponse().status == 200
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_plain_http_probe_is_recorded_but_distinguishable_from_a_refusal():
+    """Expected noise, kept rather than filtered: a silently dropped category is how the refusal
+    case went unnoticed in the first place. Tests filter on `reason`."""
+    ca_pem, ca_key = generate_ca_certificate()
+    leaf_pem, leaf_key = generate_leaf_certificate(ca_pem, ca_key)
+    server, port = serve(leaf_pem, leaf_key)
+
+    try:
+        probe = socket.create_connection(('127.0.0.1', port), timeout=10)
+        probe.sendall(b'GET / HTTP/1.0\r\n\r\n')
+        try:
+            probe.recv(64)  # The listener drops the connection once the handshake fails.
+        except OSError:
+            pass
+        probe.close()
+
+        deadline = time.time() + 5
+        while not server.handshake_failures and time.time() < deadline:
+            time.sleep(0.05)
+        assert [failure['reason'] for failure in server.handshake_failures] == ['HTTP_REQUEST']
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_listening_socket_is_plain_tcp_and_the_context_is_retained():
+    """Both are load-bearing: the accept socket must not be an SSLSocket (or the handshake runs
+    inside get_request's caller, which swallows it), and the context must outlive __init__ so
+    each connection can be wrapped."""
+    ca_pem, ca_key = generate_ca_certificate()
+    leaf_pem, leaf_key = generate_leaf_certificate(ca_pem, ca_key)
+    server, _ = serve(leaf_pem, leaf_key)
+
+    try:
+        assert not isinstance(server.socket, ssl.SSLSocket)
+        assert isinstance(server.ssl_context, ssl.SSLContext)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_an_opt_in_minimum_tls_version_is_enforced():
+    """Off by default -- a hard floor would fail existing suites on an unknown CI OpenSSL build
+    for a reason unrelated to what they test."""
+    ca_pem, ca_key = generate_ca_certificate()
+    leaf_pem, leaf_key = generate_leaf_certificate(ca_pem, ca_key)
+    server, port = serve(leaf_pem, leaf_key, min_tls_version=ssl.TLSVersion.TLSv1_3)
+
+    try:
+        assert server.ssl_context.minimum_version == ssl.TLSVersion.TLSv1_3
+
+        capped = anchored_context(ca_pem)
+        capped.maximum_version = ssl.TLSVersion.TLSv1_2
+        with pytest.raises(ssl.SSLError):
+            http.client.HTTPSConnection('127.0.0.1', port, context=capped,
+                                        timeout=10).request('GET', '/')
+
+        connection = http.client.HTTPSConnection('127.0.0.1', port, context=anchored_context(ca_pem),
+                                                 timeout=10)
+        connection.request('GET', '/')
+        assert connection.getresponse().status == 200
+        assert connection.sock.version() == 'TLSv1.3'
         connection.close()
     finally:
         server.shutdown()

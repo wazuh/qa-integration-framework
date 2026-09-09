@@ -17,9 +17,11 @@ import json
 import socket
 import ssl
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -245,7 +247,7 @@ def write_pem_pair(dest_dir: str, certificate_pem: bytes, key_pem: bytes,
 
 
 class TLSHTTPServer(ThreadingHTTPServer):
-    """A threaded HTTP/1.1 server whose listening socket is wrapped in TLS.
+    """A threaded HTTP/1.1 server that terminates TLS per accepted connection.
 
     Protocol-agnostic: it terminates TLS and dispatches every connection (in its own
     thread) to ``handler_class``. Callers attach arbitrary state through ``context``,
@@ -253,6 +255,11 @@ class TLSHTTPServer(ThreadingHTTPServer):
 
     Attributes:
         context: Arbitrary caller-provided state (e.g. the owning simulator).
+        ssl_context (ssl.SSLContext): The server-side TLS context, retained so a test can
+            inspect it.
+        handshake_failures (List[Dict]): One record per TLS handshake that failed, appended by
+            :meth:`get_request` and :meth:`handle_error`. This is the only server-side evidence
+            that a client refused the certificate served to it -- see :meth:`get_request`.
     """
 
     daemon_threads = True
@@ -260,8 +267,8 @@ class TLSHTTPServer(ThreadingHTTPServer):
 
     def __init__(self, server_address: Tuple[str, int], handler_class,
                  certfile: str, keyfile: str, client_ca_cert: Optional[str] = None,
-                 context=None) -> None:
-        """Bind, wrap the listening socket in TLS, and store the caller context.
+                 context=None, min_tls_version: Optional[ssl.TLSVersion] = None) -> None:
+        """Bind, build the TLS context, and store the caller context.
 
         Args:
             server_address (Tuple[str, int]): (host, port) to bind to.
@@ -273,6 +280,11 @@ class TLSHTTPServer(ThreadingHTTPServer):
                 -- the TLS handshake itself fails otherwise (mutual TLS), before any HTTP
                 request is ever read. Defaults: None (no client certificate required).
             context: Arbitrary state exposed to handlers via ``self.server.context``.
+            min_tls_version (ssl.TLSVersion, optional): Lowest protocol version this listener
+                accepts. Defaults: None (whatever the interpreter's OpenSSL allows), because a
+                hard floor here would fail existing suites on an unknown CI OpenSSL build for a
+                reason unrelated to what they test. A client's own floor is a client-side
+                setting; this exists so a test can pin the server side deliberately.
         """
         # ThreadingHTTPServer defaults to AF_INET; binding an IPv6 literal against it
         # fails with "Address family for hostname not supported" (EAI_ADDRFAMILY), not
@@ -283,22 +295,68 @@ class TLSHTTPServer(ThreadingHTTPServer):
         super().__init__(server_address, handler_class)
         self.context = context
 
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        if min_tls_version is not None:
+            self.ssl_context.minimum_version = min_tls_version
+        self.ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         if client_ca_cert:
-            ssl_context.verify_mode = ssl.CERT_REQUIRED
-            ssl_context.load_verify_locations(cafile=client_ca_cert)
-        self.socket = ssl_context.wrap_socket(self.socket, server_side=True)
+            self.ssl_context.verify_mode = ssl.CERT_REQUIRED
+            self.ssl_context.load_verify_locations(cafile=client_ca_cert)
+
+        self.handshake_failures: List[Dict] = []
+        self._handshake_lock = threading.Lock()
+
+    def get_request(self) -> Tuple[socket.socket, Tuple]:
+        """Accept a connection and complete its TLS handshake, recording a failure.
+
+        The listening socket is deliberately left as plain TCP and each accepted connection is
+        wrapped here instead. Wrapping the listener (as this class used to) runs the handshake
+        inside ``SSLSocket.accept()``, i.e. inside this very method, and
+        ``BaseServer._handle_request_noblock`` does ``except OSError: return`` around the call --
+        ``ssl.SSLError`` IS an ``OSError``, so every failed handshake was discarded before
+        :meth:`handle_error` ever ran. A client that refuses the certificate this listener serves
+        is exactly the case a pin-mismatch or wrong-name test needs to observe.
+
+        It also stops a stalled client from blocking the accept loop: ``ThreadingMixIn`` only
+        moves to a thread once this method returns.
+        """
+        connection, client_address = self.socket.accept()
+        try:
+            return self.ssl_context.wrap_socket(connection, server_side=True), client_address
+        except OSError as error:
+            self.record_handshake_failure(client_address, error)
+            connection.close()
+            # Re-raised as the OSError socketserver expects, so the connection is dropped
+            # exactly as it was before this override existed.
+            raise
+
+    def record_handshake_failure(self, client_address, error: BaseException) -> None:
+        """Record one failed TLS handshake (or post-handshake TLS error)."""
+        with self._handshake_lock:
+            self.handshake_failures.append({
+                'client_address': client_address,
+                'error': str(error),
+                'reason': getattr(error, 'reason', None),
+                'timestamp': time.time(),
+            })
 
     def handle_error(self, request, client_address) -> None:
-        """Swallow expected transport noise; surface genuine handler bugs.
+        """Record TLS errors, swallow expected transport noise, surface genuine handler bugs.
 
-        A plain-HTTP probe on the TLS port or a client disconnect is expected and
-        silenced. Anything else is a real error and is delegated to the stdlib
-        handler (which prints a traceback) so it is not hidden.
+        TLS errors reach here as well as :meth:`get_request`, and both paths have to record or the
+        interesting case is caught only half the time: under TLS 1.3 the peer's rejection alert
+        arrives *after* the server's Finished, so a client refusing this listener's certificate
+        commonly surfaces on the first read, in the handler thread, with the handshake having
+        already "succeeded" server-side.
+
+        A client disconnect is expected and stays silent. Anything else is a real error and is
+        delegated to the stdlib handler (which prints a traceback) so it is not hidden.
         """
         exc = sys.exc_info()[1]
-        if isinstance(exc, (ssl.SSLError, ConnectionResetError, BrokenPipeError, socket.timeout)):
+        if isinstance(exc, ssl.SSLError):
+            self.record_handshake_failure(client_address, exc)
+            return
+        if isinstance(exc, (ConnectionResetError, BrokenPipeError, socket.timeout)):
             return
         super().handle_error(request, client_address)
 
