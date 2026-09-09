@@ -64,6 +64,7 @@ from wazuh_testing.tools.https_server import (DEFAULT_CA_COMMON_NAME, DEFAULT_SE
                                               generate_ca_certificate, generate_leaf_certificate,
                                               generate_self_signed_certificate)
 from wazuh_testing.utils import request_auth
+from wazuh_testing.utils.enrollment_token import adr_for, encode_token
 from wazuh_testing.utils.client_keys import get_client_keys
 
 from .base_simulator import BaseSimulator
@@ -77,7 +78,12 @@ DOWNLOAD_ENDPOINT = '/download'
 CONFIG_ENDPOINT = '/config'
 STATS_ENDPOINT = '/stats'
 ENROLL_ENDPOINT = '/enroll'
+CACERTS_ENDPOINT = '/cacerts'
 
+# The POST set. Kept as ENDPOINTS, unchanged, because tests/integration and the /control-style
+# handlers import that name; /cacerts is deliberately NOT a member. Adding it would make
+# `POST /cacerts` resolve, survive fault injection and auth, and land on do_POST's final else
+# branch, whose comment (correctly) claims to be unreachable.
 ENDPOINTS = (
     CONTROL_ENDPOINT,
     STATELESS_ENDPOINT,
@@ -87,6 +93,27 @@ ENDPOINTS = (
     STATS_ENDPOINT,
     ENROLL_ENDPOINT,
 )
+POST_ENDPOINTS = ENDPOINTS
+GET_ENDPOINTS = (CACERTS_ENDPOINT,)
+
+# GET /cacerts hands out the CA that signs this listener's certificate, so an agent holding an
+# enrollment token can bootstrap trust without an out-of-band copy of the PEM. The real
+# manager's contract (remoted_module/src/endpoints/cacertsEndpoint.cpp), reproduced verbatim
+# including the absence of whitespace in the error bodies -- json.dumps would insert a space
+# after the colon and a byte-comparing test would fail on it.
+CACERTS_CONTENT_TYPE = 'application/x-pem-file'
+CACERTS_PEM_HEADER = b'-----BEGIN CERTIFICATE-----'
+CACERTS_NOT_FOUND_BODY = b'{"error":"not_found"}'
+CACERTS_CA_MISMATCH_BODY = b'{"error":"ca_mismatch"}'
+
+# /cacerts' forced-outcome table, mirroring ENROLL_FORCED_ERRORS' shape. 'ca_mismatch' is a flag
+# rather than something derived from cacerts_signs_listener on purpose: the default topology is
+# two unrelated certificates, so a derived 503 would fire on every default instance. Same call
+# this file already makes for /enroll, which scripts authd's outcomes instead of modelling them.
+CACERTS_FORCED_ERRORS = {
+    'not_found': (404, CACERTS_NOT_FOUND_BODY),
+    'ca_mismatch': (503, CACERTS_CA_MISMATCH_BODY),
+}
 
 # The path prefix a real 5.x manager's reverse proxy serves everything under by default
 # (see wazuh/wazuh#38624's <endpoint> grammar), and RemotedSimulator's own default `prefix`.
@@ -291,7 +318,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         return self.server.context
 
     def do_POST(self) -> None:
-        """Handle every agent request (all endpoints are POST)."""
+        """Handle every agent request except GET /cacerts (see :meth:`do_GET`)."""
         raw_body = self.read_body()
         endpoint = self.simulator.resolve_endpoint(self.path)
         self._authenticated_agent_id = None
@@ -302,7 +329,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         # or not the body arrived compressed).
         body, encoding_error = self.decode_body(raw_body)
 
-        self.simulator.record_request('POST', self.path, self.headers, body)
+        self.simulator.record_request('POST', self.path, self.headers, body, tls=self.tls_info())
 
         if endpoint is None:
             # The configured prefix (or its absence) doesn't match this request's path --
@@ -352,6 +379,73 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             # only if ENDPOINTS grows a member before its handler is added above --
             # resolve_endpoint() never returns a value outside ENDPOINTS.
             self.send_json(200, {})
+
+    def do_GET(self) -> None:
+        """Handle GET /cacerts, the only GET route the agent uses.
+
+        Recorded before the routing decision, exactly as do_POST does, so a request sent to the
+        wrong spelling is still visible in get_requests('/cacerts') instead of vanishing into a
+        404 with nothing to inspect.
+        """
+        # Body-less by contract, but drain anything unexpected so keep-alive framing survives.
+        self.read_body()
+        endpoint = self.simulator.resolve_endpoint(self.path, method='GET')
+        self.simulator.record_request('GET', self.path, self.headers, b'', tls=self.tls_info())
+
+        if endpoint == CACERTS_ENDPOINT:
+            self._handle_cacerts()
+            return
+
+        # The transport's own unknown-route answer, which closes the connection.
+        self.send_body(CACERTS_NOT_FOUND_BODY, 404, 'application/json', close_connection=True)
+
+    def _handle_cacerts(self) -> None:
+        """Serve the CA an agent bootstraps trust from.
+
+        Unauthenticated by nature -- the caller has nothing to authenticate with yet -- and so
+        deliberately NOT routed through _inject_fault() or _verify_auth(): the real manager
+        registers this route with no auth gateway and outside the in-flight byte budget, and its
+        handler ignores the request entirely, Authorization header included. A consequence worth
+        knowing: mode='REJECT_AUTH' and mode='SERVICE_UNAVAILABLE' do not touch /cacerts. Script
+        its failures with cacerts_force_error instead.
+        """
+        forced = self.simulator.cacerts_force_error
+        if forced is not None:
+            status, body = CACERTS_FORCED_ERRORS[forced]
+            self.send_body(body, status, 'application/json')
+            return
+
+        pem = self.simulator.cacerts_pem
+
+        # The manager's own 404 rule: a CA file that is missing, unreadable or carries no
+        # certificate block. Derived rather than flagged, so `cacerts_certificate = b''`
+        # expresses it with no extra switch.
+        if CACERTS_PEM_HEADER not in pem:
+            self.send_body(CACERTS_NOT_FOUND_BODY, 404, 'application/json')
+            return
+
+        # Byte for byte, with no normalisation: a bundle is served as a bundle, and the agent
+        # copies whatever arrives into a fixed char[8192].
+        self.send_body(pem, 200, CACERTS_CONTENT_TYPE)
+
+    def tls_info(self) -> Dict:
+        """Connection-level facts about the request being handled.
+
+        Note the limit: `peer_certificate` is about a certificate the CLIENT presented, so this
+        can say the bootstrap fetch carried none and rode TLS 1.3, but it cannot say whether the
+        client verified this listener -- nothing server-side can. A client that refused the
+        certificate shows up in :attr:`RemotedSimulator.handshake_failures` instead.
+        """
+        connection = self.connection
+        try:
+            return {
+                'version': connection.version(),
+                'cipher': connection.cipher(),
+                'peer_certificate': connection.getpeercert(),
+            }
+        except AttributeError:
+            # A plain socket, which only happens in a test harness driving the handler directly.
+            return {'version': None, 'cipher': None, 'peer_certificate': None}
 
     def _inject_fault(self) -> bool:
         """Apply the simulator's fault-injection mode before normal routing.
@@ -790,6 +884,7 @@ class RemotedSimulator(BaseSimulator):
         self.require_client_cert = False
         self.enroll_password: Optional[str] = None
         self._enroll_force_error: Optional[str] = None
+        self._cacerts_force_error: Optional[str] = None
         self._certificate_controller: Optional[CertificateController] = None
 
         # TLS material for THIS listener, and the certificate GET /cacerts serves. Both are
@@ -998,6 +1093,27 @@ class RemotedSimulator(BaseSimulator):
                              f'{list(ENROLL_FORCED_ERRORS)}')
         self._enroll_force_error = outcome
 
+    @property
+    def cacerts_force_error(self) -> Optional[str]:
+        """One of CACERTS_FORCED_ERRORS' keys to force on GET /cacerts, or None.
+
+        Unlike enroll_force_error this is not consumed after one request: a manager whose CA is
+        unreadable, or whose CA does not match the certificate it serves, stays that way.
+        """
+        return self._cacerts_force_error
+
+    @cacerts_force_error.setter
+    def cacerts_force_error(self, outcome: Optional[str]) -> None:
+        if outcome is not None and outcome not in CACERTS_FORCED_ERRORS:
+            raise ValueError(f'Invalid cacerts_force_error. Valid outcomes: '
+                             f'{list(CACERTS_FORCED_ERRORS)}')
+        self._cacerts_force_error = outcome
+
+    @property
+    def enrollment_adr(self) -> str:
+        """This instance's address in the canonical `adr` form an enrollment token carries."""
+        return adr_for(self.server_ip, self.port, self.prefix)
+
     # Methods.
 
     def start(self) -> None:
@@ -1049,6 +1165,42 @@ class RemotedSimulator(BaseSimulator):
             shutil.rmtree(self._cert_dir, ignore_errors=True)
             self._cert_dir = None
 
+    def mint_enrollment_token(self, anchor: str = 'cacerts', adr: Optional[str] = None,
+                              credential: Optional[Tuple[bytes, bytes]] = None) -> str:
+        """Mint an enrollment token for THIS instance.
+
+        Must be called before :meth:`start`, like every other certificate-dependent operation:
+        reading a pin is what mints and caches the material, so a token minted afterwards could
+        name a certificate other than the one being served.
+
+        Never hardcode a token instead of calling this. The address alone has three traps -- the
+        default port and prefix are dropped on encoding, and a bare-root instance has to be
+        written `host/` rather than `host`, since a bare host means the *default* prefix.
+
+        Args:
+            anchor (str, optional): Which anchor the token carries. 'cacerts' (default) pins the
+                certificate GET /cacerts serves, which is the one a bootstrap is meant to end up
+                trusting. 'tls' pins the listener's own certificate instead -- a
+                deliberately-wrong anchor, since the pin then names something the fetched body is
+                not. 'ca' embeds the /cacerts certificate itself, skipping the fetch entirely.
+            adr (str, optional): Override the address, for wrong-host and wrong-port cases.
+                Defaults to :attr:`enrollment_adr`.
+            credential (Tuple[bytes, bytes], optional): (id, secret), 16 bytes each.
+
+        Returns:
+            str: The token text.
+        """
+        address = self.enrollment_adr if adr is None else adr
+
+        if anchor == 'cacerts':
+            return encode_token(address, pin=self.cacerts_pin, credential=credential)
+        if anchor == 'tls':
+            return encode_token(address, pin=self.tls_pin, credential=credential)
+        if anchor == 'ca':
+            return encode_token(address, ca=self.cacerts_pem.decode(), credential=credential)
+
+        raise ValueError(f"anchor must be 'cacerts', 'tls' or 'ca', not {anchor!r}")
+
     def clear(self) -> None:
         """Remove all recorded requests, handshake failures and enrolled agents."""
         with self._requests_lock:
@@ -1074,7 +1226,8 @@ class RemotedSimulator(BaseSimulator):
         with self._tasks_lock:
             self._tasks.append(task)
 
-    def record_request(self, method: str, path: str, headers, body: bytes) -> None:
+    def record_request(self, method: str, path: str, headers, body: bytes,
+                       tls: Optional[Dict] = None) -> None:
         """Store a received request for later assertions.
 
         Args:
@@ -1082,6 +1235,11 @@ class RemotedSimulator(BaseSimulator):
             path (str): Raw request target (path plus query string).
             headers: The request headers (email.message.Message).
             body (bytes): Exact request body bytes.
+            tls (Dict, optional): Connection-level facts (version, cipher, peer_certificate),
+                which is how a test tells the bootstrap's unverified fetch from a later
+                verified request: the two differ only in the connection they arrived on, not
+                in anything visible in the request itself. None for callers that do not
+                collect them.
         """
         with self._requests_lock:
             self._requests.append({
@@ -1090,6 +1248,7 @@ class RemotedSimulator(BaseSimulator):
                 'headers': dict(headers.items()),
                 'agent_id': self._agent_id_from_headers(headers),
                 'body': body,
+                'tls': tls,
             })
 
     def get_requests(self, path: str = None) -> List[Dict]:
@@ -1128,11 +1287,17 @@ class RemotedSimulator(BaseSimulator):
         return [request for request in snapshot
                 if urlsplit(request['path']).path.endswith(bare_path)]
 
-    def resolve_endpoint(self, raw_path: str) -> Optional[str]:
+    def resolve_endpoint(self, raw_path: str, method: str = 'POST') -> Optional[str]:
         """Resolve a raw request target to the bare endpoint it addresses, if any.
 
         Args:
             raw_path (str): A request's raw target (path, optionally with a query string).
+            method (str, optional): HTTP method, which selects the endpoint set to match
+                against. Defaults: 'POST', so every existing caller is unchanged. 'GET' matches
+                :data:`GET_ENDPOINTS`; a `POST /cacerts` therefore resolves to None and is
+                answered 404, which is what a real manager does too -- its router matches method
+                and path together, so a GET-only route falls through to the transport's
+                not_found handler rather than answering 405.
 
         Returns:
             Optional[str]: The matching member of :data:`ENDPOINTS` (e.g. ``/control``) if
@@ -1152,7 +1317,7 @@ class RemotedSimulator(BaseSimulator):
         path = urlsplit(raw_path).path
         base = f'/{self.prefix}' if self.prefix else ''
 
-        for endpoint in ENDPOINTS:
+        for endpoint in (GET_ENDPOINTS if method == 'GET' else POST_ENDPOINTS):
             if path == base + endpoint:
                 return endpoint
         return None
