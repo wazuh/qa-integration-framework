@@ -246,3 +246,44 @@ def test_a_refused_certificate_is_recorded_on_the_simulator_and_survives_shutdow
 
     simulator.clear()
     assert simulator.handshake_failures == []
+
+
+def test_injecting_a_certificate_after_reading_a_pin_still_takes_effect():
+    """Regression: reading cacerts_pem used to mint BOTH sides, so a tls_certificate assigned
+    afterwards was silently ignored and the listener kept serving the original leaf. The two
+    sides are minted independently now, because signing a leaf with cacerts_key_pem necessarily
+    reads the CA first -- so that ordering has to work, not be a trap."""
+    from wazuh_testing.tools.https_server import generate_leaf_certificate
+
+    simulator = RemotedSimulator(port=free_port(), use_bootstrap_chain=True)
+    original = simulator.tls_certificate_pem
+    # Reads (and so mints) the CA, which is what used to lock the listener's material in.
+    wrong_name = generate_leaf_certificate(simulator.cacerts_pem, simulator.cacerts_key_pem,
+                                           hostnames=('other.invalid',), ip_addresses=())
+    authority_before = simulator.cacerts_pem
+
+    simulator.tls_certificate = wrong_name
+
+    assert simulator.tls_certificate_pem == wrong_name[0]
+    assert simulator.tls_certificate_pem != original
+    # And the CA was NOT regenerated underneath the leaf just signed with it -- which would
+    # leave the listener serving something the anchor cannot vouch for.
+    assert simulator.cacerts_pem == authority_before
+    assert simulator.cacerts_signs_listener is True
+
+
+def test_injecting_a_cacerts_certificate_leaves_the_listener_alone():
+    """The mirror image: replacing the handed-out CA must not silently re-mint the leaf."""
+    from wazuh_testing.tools.https_server import generate_ca_certificate
+
+    simulator = RemotedSimulator(port=free_port(), use_bootstrap_chain=True)
+    listener_before = simulator.tls_certificate_pem
+    unrelated, _ = generate_ca_certificate(common_name='Unrelated CA')
+
+    simulator.cacerts_certificate = unrelated
+
+    assert simulator.cacerts_pem == unrelated
+    assert simulator.tls_certificate_pem == listener_before
+    # An injected CA has no key here, so it cannot have signed anything -- a mismatch fixture.
+    assert simulator.cacerts_key_pem is None
+    assert simulator.cacerts_signs_listener is False

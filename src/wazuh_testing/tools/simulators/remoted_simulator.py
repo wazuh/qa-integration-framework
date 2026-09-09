@@ -897,8 +897,8 @@ class RemotedSimulator(BaseSimulator):
         # break pin-based tests in a way that looks like an agent bug.
         # Assign either attribute before start() to serve chosen material instead -- which is
         # what makes an unmatched-pin or wrong-name negative test expressible.
-        self.tls_certificate: Optional[Tuple[bytes, bytes]] = None
-        self.cacerts_certificate: Optional[bytes] = None
+        self._tls_certificate: Optional[Tuple[bytes, bytes]] = None
+        self._cacerts_certificate: Optional[bytes] = None
 
         # Certificate topology. Default False keeps the historical shape: two unrelated
         # self-signed certificates, so the /cacerts body cannot verify this listener at all.
@@ -958,6 +958,33 @@ class RemotedSimulator(BaseSimulator):
         return hashlib.sha256(
             json.dumps(envelope, sort_keys=True, separators=(',', ':')).encode()
         ).hexdigest()
+
+    @property
+    def tls_certificate(self) -> Optional[Tuple[bytes, bytes]]:
+        """(cert PEM, key PEM) to serve instead of a generated pair, or None to generate one."""
+        return self._tls_certificate
+
+    @tls_certificate.setter
+    def tls_certificate(self, material: Optional[Tuple[bytes, bytes]]) -> None:
+        # Drops only the listener's cached material, never the /cacerts side. That asymmetry is
+        # the point: a test signs a leaf with cacerts_key_pem -- which mints and caches the CA --
+        # and then assigns it here. Invalidating both would regenerate the CA underneath it and
+        # silently serve something else. Assigning after start() takes effect on the next
+        # start(); the running listener has already loaded its files.
+        self._tls_certificate = material
+        with self._material_lock:
+            self._tls_material = None
+
+    @property
+    def cacerts_certificate(self) -> Optional[bytes]:
+        """Certificate PEM for GET /cacerts to serve instead of a generated one, or None."""
+        return self._cacerts_certificate
+
+    @cacerts_certificate.setter
+    def cacerts_certificate(self, material: Optional[bytes]) -> None:
+        self._cacerts_certificate = material
+        with self._material_lock:
+            self._cacerts_material = None
 
     @property
     def certificate_controller(self) -> CertificateController:
@@ -1516,23 +1543,33 @@ class RemotedSimulator(BaseSimulator):
             if self._tls_material is not None and self._cacerts_material is not None:
                 return
 
-            if self.use_bootstrap_chain:
-                authority_pem, authority_key = generate_ca_certificate(
-                    common_name=self.tls_ca_common_name)
-                hostnames, ip_addresses = self._san_entries()
-                listener = generate_leaf_certificate(authority_pem, authority_key,
-                                                     common_name=self.tls_common_name,
-                                                     hostnames=hostnames,
-                                                     ip_addresses=ip_addresses)
-            else:
-                authority_pem, authority_key = self._generate_self_signed_certificate()
-                listener = self._generate_self_signed_certificate()
+            # The /cacerts side first, because in the chained topology the listener's leaf is
+            # signed with its key. Minting the two sides separately is what lets a test read
+            # the CA, sign something with it, and only then inject that as the listener's
+            # certificate -- the ordering the wrong-name fixture needs.
+            if self._cacerts_material is None:
+                if self._cacerts_certificate is not None:
+                    self._cacerts_material = (self._cacerts_certificate, None)
+                elif self.use_bootstrap_chain:
+                    self._cacerts_material = generate_ca_certificate(
+                        common_name=self.tls_ca_common_name)
+                else:
+                    self._cacerts_material = self._generate_self_signed_certificate()
 
-            self._tls_material = (self.tls_certificate if self.tls_certificate is not None
-                                  else listener)
-            self._cacerts_material = ((self.cacerts_certificate, None)
-                                      if self.cacerts_certificate is not None
-                                      else (authority_pem, authority_key))
+            if self._tls_material is None:
+                authority_pem, authority_key = self._cacerts_material
+                if self._tls_certificate is not None:
+                    self._tls_material = self._tls_certificate
+                elif self.use_bootstrap_chain and authority_key is not None:
+                    hostnames, ip_addresses = self._san_entries()
+                    self._tls_material = generate_leaf_certificate(
+                        authority_pem, authority_key, common_name=self.tls_common_name,
+                        hostnames=hostnames, ip_addresses=ip_addresses)
+                else:
+                    # Either the default topology, or a chain whose CA was injected without a
+                    # key so nothing can be signed with it. Both leave the served certificate
+                    # unrelated to the one handed out, which is a mismatch fixture.
+                    self._tls_material = self._generate_self_signed_certificate()
 
     def _ensure_tls_material(self) -> Tuple[bytes, bytes]:
         """Return this instance's (certificate PEM, key PEM), generating them once."""

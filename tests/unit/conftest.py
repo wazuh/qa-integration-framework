@@ -17,7 +17,8 @@ failure. Keep running these as the module docstrings say, with PYTHONPATH=src.
 """
 import socket
 import ssl
-from typing import Optional
+import time
+from typing import Callable, Optional
 
 import pytest
 
@@ -53,6 +54,23 @@ def unverified_context(minimum_version: Optional[ssl.TLSVersion] = None) -> ssl.
     if minimum_version is not None:
         context.minimum_version = minimum_version
     return context
+
+
+def wait_until(predicate: Callable[[], bool], timeout: float = 5.0,
+               interval: float = 0.05) -> bool:
+    """Poll `predicate` until it is true or `timeout` elapses. Returns what it last saw.
+
+    Needed for anything observed on the server thread. A TLS alert in particular does not arrive
+    while the client call that provoked it is still returning: a client rejecting the served
+    certificate raises locally and the server only learns of it when the alert lands, which is
+    after the exception has already propagated.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(interval)
+    return predicate()
 
 
 @pytest.fixture()
