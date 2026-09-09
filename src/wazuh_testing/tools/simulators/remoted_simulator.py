@@ -40,6 +40,7 @@ simulator returns for a /control startup:
 import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import secrets
 import shutil
@@ -51,12 +52,16 @@ from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlsplit
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, padding
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.constants.ports import DEFAULT_HTTPS_REMOTE_CONNECTION_PORT
 from wazuh_testing.tools.certificate_controller import CertificateController
-from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
+from wazuh_testing.tools.https_server import (DEFAULT_CA_COMMON_NAME, DEFAULT_SERVER_COMMON_NAME,
+                                              BaseTLSRequestHandler, TLSHTTPServer,
+                                              generate_ca_certificate, generate_leaf_certificate,
                                               generate_self_signed_certificate)
 from wazuh_testing.utils import request_auth
 from wazuh_testing.utils.client_keys import get_client_keys
@@ -643,6 +648,19 @@ class RemotedSimulator(BaseSimulator):
     what makes the negative cases expressible -- a CA that does not match the token's
     pin, or a valid certificate for a different name.
 
+    ``use_bootstrap_chain`` chooses between two topologies, and it is the difference
+    between a pin that can become trust and one that cannot. By default the listener's
+    certificate and the ``/cacerts`` one are two unrelated self-signed certificates, so
+    a client can pin the fetched body and still fail to verify this listener against it
+    -- which is a useful fixture (it is what proves a matching pin is not, by itself,
+    trust) but is not the manager's shape. Set it True and the ``/cacerts`` body becomes
+    a real CA that signed the leaf this listener presents, with a SubjectAlternativeName
+    covering :attr:`server_ip`, ``localhost`` and loopback, so a fully verified reconnect
+    against the fetched anchor alone actually succeeds. The CA is never appended to the
+    served chain, in either topology, so the ``/cacerts`` bytes are never derivable from
+    the handshake. Tune the generated leaf with ``tls_san_hostnames``,
+    ``tls_san_ip_addresses``, ``tls_common_name`` and ``tls_ca_common_name``.
+
     A successful enrollment is immediately usable: :meth:`cmac_key_for` checks the
     in-memory enrolled-agent store before falling back to ``keys_path``, so the returned
     key authenticates later requests with no client.keys file involved. Re-enrollment (a
@@ -672,9 +690,22 @@ class RemotedSimulator(BaseSimulator):
             generate_agent_certificates(). Unrelated to the listener's own
             certificate -- keeping the two apart is deliberate.
         tls_certificate (tuple): (cert PEM, key PEM) to serve instead of a generated
-            pair, or None (default) to generate one. Set before start().
+            pair, or None (default) to generate one. Set before start(). Under
+            use_bootstrap_chain this deliberately breaks the chain, which is a fixture in
+            its own right: the CA handed out no longer signs what is served.
         cacerts_certificate (bytes): Certificate PEM for a GET /cacerts route to serve
             instead of a generated one, or None (default). Set before start().
+        handshake_failures (list): One record per failed TLS handshake -- the only trace a
+            client that refused this simulator's certificate leaves behind.
+        use_bootstrap_chain (bool): Whether the /cacerts certificate is a CA that signed the
+            listener's leaf. Defaults: False (two unrelated self-signed certificates).
+        tls_common_name (str): CommonName of a generated listener leaf. Left as 'Manager' on
+            purpose, so only the SAN can satisfy a client's hostname check.
+        tls_ca_common_name (str): CommonName of a generated bootstrap CA.
+        tls_san_hostnames (tuple): DNS names for a generated leaf's SAN. server_ip is added
+            automatically when it is not an IP literal.
+        tls_san_ip_addresses (tuple): IP literals for a generated leaf's SAN. server_ip is
+            added automatically when it is one.
     """
 
     MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
@@ -694,7 +725,8 @@ class RemotedSimulator(BaseSimulator):
                  mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
                  verify_auth: bool = False,
-                 prefix: str = DEFAULT_MANAGER_ENDPOINT_PREFIX) -> None:
+                 prefix: str = DEFAULT_MANAGER_ENDPOINT_PREFIX,
+                 use_bootstrap_chain: bool = False) -> None:
         """Initialize a RemotedSimulator.
 
         Args:
@@ -710,6 +742,10 @@ class RemotedSimulator(BaseSimulator):
                 mirroring the real manager's ``global_prefix``. Defaults to the real manager's
                 own default (``wazuh-manager``). Pass ``''`` for a bare-root manager (anything
                 prefixed 404s); pass another string to require that exact prefix instead.
+            use_bootstrap_chain (bool, optional): Serve a listener certificate signed by the
+                CA that GET /cacerts hands out, with a SAN covering server_ip, so a client
+                can pin the fetched CA and then reconnect fully verified against it.
+                Defaults: False, which keeps the historical two-unrelated-certificates shape.
         """
         super().__init__(server_ip, port, False)
 
@@ -747,29 +783,49 @@ class RemotedSimulator(BaseSimulator):
         self.last_stats: Optional[Dict] = None
 
         # /enroll: two independent gates, fixed per instance, set before start() (the cert
-        # gate's TLS wiring happens once, at server startup). certificate_controller
-        # is created eagerly -- one RSA keygen, same cost generate_self_signed_certificate()
-        # already pays per instance -- so a test can mint a client cert any time before start().
+        # gate's TLS wiring happens once, at server startup). certificate_controller is built
+        # on first use rather than here: it is an RSA-4096 keygen wanted only by the mTLS gate
+        # and by tests that mint a client certificate, and this listener's own material no
+        # longer comes from it.
         self.require_client_cert = False
         self.enroll_password: Optional[str] = None
         self._enroll_force_error: Optional[str] = None
-        self.certificate_controller = CertificateController()
+        self._certificate_controller: Optional[CertificateController] = None
 
-        # TLS material for THIS listener, and the certificate GET /cacerts serves.
-        # Both are generated lazily on first access and then cached for the life of the
-        # instance -- not in __init__ (an RSA keygen every construction would tax the
-        # many tests that never look at a pin) and not in start() (a token has to be
-        # minted from tls_pin BEFORE the agent runs, so the pin must be readable before
-        # the listener exists). The cache deliberately outlives shutdown(), so a
-        # restarted simulator keeps presenting the same certificate: silently rotating
-        # the key across a restart would break pin-based tests in a way that looks like
-        # an agent bug.
-        # Assign either attribute before start() to serve chosen material instead --
-        # which is what makes an unmatched-pin or wrong-name negative test expressible.
+        # TLS material for THIS listener, and the certificate GET /cacerts serves. Both are
+        # minted lazily on first access, together, and then cached for the life of the
+        # instance -- not in __init__ (a keygen every construction would tax the many tests
+        # that never look at a pin) and not in start() (a token has to be minted from a pin
+        # BEFORE the agent runs, so the pins must be readable before the listener exists).
+        # The cache deliberately outlives shutdown(), so a restarted simulator keeps
+        # presenting the same certificate: silently rotating the key across a restart would
+        # break pin-based tests in a way that looks like an agent bug.
+        # Assign either attribute before start() to serve chosen material instead -- which is
+        # what makes an unmatched-pin or wrong-name negative test expressible.
         self.tls_certificate: Optional[Tuple[bytes, bytes]] = None
         self.cacerts_certificate: Optional[bytes] = None
+
+        # Certificate topology. Default False keeps the historical shape: two unrelated
+        # self-signed certificates, so the /cacerts body cannot verify this listener at all.
+        # True mints a CA and a leaf it signs, which is the real manager's shape
+        # (remote.https.ca_certificate signs the served certificate) and the only one in which
+        # a client can pin the /cacerts body and then reconnect verified against it. Opt-in
+        # because it changes what every existing instance would serve.
+        self.use_bootstrap_chain = use_bootstrap_chain
+        self.tls_common_name = DEFAULT_SERVER_COMMON_NAME
+        self.tls_ca_common_name = DEFAULT_CA_COMMON_NAME
+        self.tls_san_hostnames: Tuple[str, ...] = ('localhost',)
+        # server_ip is folded in on top of these by _san_entries(), so a simulator bound to
+        # ::1 or to a hostname verifies without the caller restating it.
+        self.tls_san_ip_addresses: Tuple[str, ...] = ('127.0.0.1', '::1')
+
         self._tls_material: Optional[Tuple[bytes, bytes]] = None
-        self._cacerts_pem: Optional[bytes] = None
+        self._cacerts_material: Optional[Tuple[bytes, Optional[bytes]]] = None
+        self._material_lock = threading.Lock()
+
+        # Drained off the listener at shutdown(), so the record of a client that refused this
+        # simulator's certificate survives the server it happened on.
+        self._handshake_failures: List[Dict] = []
         self._enrolled_agents: Dict[str, Dict] = {}
         self._enrolled_by_key_hash: Dict[str, str] = {}
         self._enrollment_lock = threading.Lock()
@@ -809,9 +865,26 @@ class RemotedSimulator(BaseSimulator):
         ).hexdigest()
 
     @property
+    def certificate_controller(self) -> CertificateController:
+        """CA used to sign and validate CLIENT certificates, built on first access.
+
+        Unrelated to this listener's own certificate, deliberately: keeping the mTLS trust root
+        separate from the material the listener presents is what lets the two be tested
+        independently.
+        """
+        if self._certificate_controller is None:
+            self._certificate_controller = CertificateController()
+        return self._certificate_controller
+
+    @property
     def tls_certificate_pem(self) -> bytes:
         """PEM of the certificate this listener presents (generated on first access)."""
         return self._ensure_tls_material()[0]
+
+    @property
+    def tls_key_pem(self) -> bytes:
+        """Private key of the certificate this listener presents."""
+        return self._ensure_tls_material()[1]
 
     @property
     def tls_pin(self) -> str:
@@ -831,21 +904,87 @@ class RemotedSimulator(BaseSimulator):
     def cacerts_pem(self) -> bytes:
         """PEM of the certificate a GET /cacerts route serves.
 
-        Deliberately a DIFFERENT certificate from the listener's own: a test asserting
-        on this body then proves the agent received exactly the bytes this route
-        served, rather than something it could have derived from the handshake it rode
-        in on. (The agent-side C++ harness, fakeManager.hpp, splits them the same way
-        and for the same reason.)
+        Always a DIFFERENT certificate from the listener's own, in both topologies: a test
+        asserting on this body then proves the agent received exactly the bytes this route
+        served, rather than something it could have derived from the handshake it rode in on.
+        (The agent-side C++ harness, fakeManager.hpp, splits them the same way and for the
+        same reason.) Under ``use_bootstrap_chain`` the two become related -- this is the CA
+        that signed the leaf -- but never equal, and the CA is never appended to the served
+        chain, which is what keeps that property true.
         """
-        if self._cacerts_pem is None:
-            self._cacerts_pem = (self.cacerts_certificate if self.cacerts_certificate is not None
-                                 else self._generate_certificate()[0])
-        return self._cacerts_pem
+        return self._ensure_cacerts_material()[0]
+
+    @property
+    def cacerts_key_pem(self) -> Optional[bytes]:
+        """Private key of the /cacerts certificate, or None when the material was injected.
+
+        Only meaningful under ``use_bootstrap_chain``, where it is the CA's key: a test can
+        sign a further leaf with it, e.g. one carrying the wrong SubjectAlternativeName that
+        nonetheless chains to the anchor the token pins.
+        """
+        return self._ensure_cacerts_material()[1]
 
     @property
     def cacerts_pin(self) -> str:
-        """SPKI pin of the /cacerts certificate -- the value a token should carry."""
+        """SPKI pin of the /cacerts certificate -- the value a token should carry.
+
+        A bundle pins its FIRST certificate, which is the rule the agent applies too
+        (spkiSha256FromPem). Raises if the material is not a certificate at all -- which is a
+        legitimate thing to serve, since it is how the route's 404 case is expressed, but a
+        pin of it does not exist and a silent None would flow into a minted token.
+        """
         return spki_pin(self.cacerts_pem)
+
+    @property
+    def cacerts_signs_listener(self) -> Optional[bool]:
+        """Whether the /cacerts certificate actually signed the one this listener presents.
+
+        Diagnostic only: a test can confirm the topology is what it believes without the
+        route's behaviour depending on it (the manager derives its 503 ca_mismatch from the
+        equivalent check, but this simulator scripts that with cacerts_force_error instead).
+        Signature only -- no dates, no chain -- mirroring the manager's own anyCaSignsLeaf.
+        None when either side cannot be parsed as a certificate.
+        """
+        try:
+            authority = load_certificate(self.cacerts_pem)
+            leaf = load_certificate(self.tls_certificate_pem)
+        except Exception:
+            return None
+
+        try:
+            authority.public_key().verify(leaf.signature, leaf.tbs_certificate_bytes,
+                                          ec.ECDSA(leaf.signature_hash_algorithm))
+        except InvalidSignature:
+            return False
+        except Exception:
+            # A key type whose verify() takes a different argument shape (RSA, say).
+            try:
+                authority.public_key().verify(leaf.signature, leaf.tbs_certificate_bytes,
+                                              padding.PKCS1v15(), leaf.signature_hash_algorithm)
+            except Exception:
+                return False
+        return True
+
+    @property
+    def handshake_failures(self) -> List[Dict]:
+        """Every TLS handshake that failed against this simulator, oldest first.
+
+        This is the only evidence a client refused the certificate served to it: such a client
+        never reaches HTTP, so there is no request to find in :attr:`requests` and no status
+        code to assert on. Each record carries client_address, error, reason and timestamp;
+        `reason` is the OpenSSL code, which separates a genuine refusal
+        (``TLSV1_ALERT_UNKNOWN_CA``) from expected noise such as a plain-HTTP probe on the TLS
+        port (``HTTP_REQUEST``).
+
+        Survives shutdown(), like the certificate cache, and is emptied by clear().
+        """
+        live = list(self._httpd.handshake_failures) if self.running and self._httpd else []
+        return self._handshake_failures + live
+
+    @property
+    def handshake_failure_count(self) -> int:
+        """How many TLS handshakes have failed against this simulator."""
+        return len(self.handshake_failures)
 
     @property
     def enroll_force_error(self) -> Optional[str]:
@@ -900,6 +1039,9 @@ class RemotedSimulator(BaseSimulator):
 
         self._httpd.shutdown()
         self._thread.join()
+        # Drained before server_close(), so a refusal recorded during this run is still
+        # readable afterwards -- a restart-and-assert test would otherwise lose it.
+        self._handshake_failures.extend(self._httpd.handshake_failures)
         self._httpd.server_close()
         self.running = False
 
@@ -908,9 +1050,12 @@ class RemotedSimulator(BaseSimulator):
             self._cert_dir = None
 
     def clear(self) -> None:
-        """Remove all recorded requests and enrolled agents."""
+        """Remove all recorded requests, handshake failures and enrolled agents."""
         with self._requests_lock:
             self._requests.clear()
+        self._handshake_failures.clear()
+        if self.running and self._httpd:
+            self._httpd.handshake_failures.clear()
         with self._enrollment_lock:
             self._enrolled_agents.clear()
             self._enrolled_by_key_hash.clear()
@@ -1154,12 +1299,13 @@ class RemotedSimulator(BaseSimulator):
     # Internal methods.
 
     @staticmethod
-    def _generate_certificate() -> Tuple[bytes, bytes]:
+    def _generate_self_signed_certificate() -> Tuple[bytes, bytes]:
         """Generate one self-signed certificate/key pair and return them as PEM.
 
-        Goes through generate_self_signed_certificate() rather than reimplementing the
-        encoding, so this stays in step with whatever that helper decides to emit; the
-        scratch directory only exists to read the bytes back out of.
+        The historical shape, used by the default (non-bootstrap-chain) topology: goes through
+        generate_self_signed_certificate() rather than reimplementing the encoding, so it stays
+        in step with whatever that helper emits; the scratch directory only exists to read the
+        bytes back out of.
 
         Returns:
             Tuple[bytes, bytes]: (certificate PEM, private key PEM).
@@ -1171,12 +1317,67 @@ class RemotedSimulator(BaseSimulator):
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
 
+    def _san_entries(self) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+        """Return the (hostnames, ip_addresses) a generated leaf should carry.
+
+        server_ip is folded into whichever list it belongs to, so an instance bound to ::1 or
+        to a hostname verifies without the caller having to restate the address.
+        """
+        hostnames = list(self.tls_san_hostnames)
+        ip_addresses = list(self.tls_san_ip_addresses)
+        try:
+            ipaddress.ip_address(self.server_ip)
+        except ValueError:
+            if self.server_ip not in hostnames:
+                hostnames.append(self.server_ip)
+        else:
+            if self.server_ip not in ip_addresses:
+                ip_addresses.append(self.server_ip)
+
+        return tuple(hostnames), tuple(ip_addresses)
+
+    def _ensure_certificate_material(self) -> None:
+        """Mint this instance's listener certificate and /cacerts certificate, once, together.
+
+        One step under one lock, because the two used to be independent lazy caches and that
+        independence is exactly why they could never be coherent: nothing could make the
+        certificate handed out by /cacerts be the one that signed what the listener serves.
+
+        Injected material wins over generated material on each side separately. Injecting a
+        listener certificate under use_bootstrap_chain therefore breaks the chain on purpose --
+        a genuine CA/leaf mismatch is a fixture worth having.
+        """
+        with self._material_lock:
+            if self._tls_material is not None and self._cacerts_material is not None:
+                return
+
+            if self.use_bootstrap_chain:
+                authority_pem, authority_key = generate_ca_certificate(
+                    common_name=self.tls_ca_common_name)
+                hostnames, ip_addresses = self._san_entries()
+                listener = generate_leaf_certificate(authority_pem, authority_key,
+                                                     common_name=self.tls_common_name,
+                                                     hostnames=hostnames,
+                                                     ip_addresses=ip_addresses)
+            else:
+                authority_pem, authority_key = self._generate_self_signed_certificate()
+                listener = self._generate_self_signed_certificate()
+
+            self._tls_material = (self.tls_certificate if self.tls_certificate is not None
+                                  else listener)
+            self._cacerts_material = ((self.cacerts_certificate, None)
+                                      if self.cacerts_certificate is not None
+                                      else (authority_pem, authority_key))
+
     def _ensure_tls_material(self) -> Tuple[bytes, bytes]:
         """Return this instance's (certificate PEM, key PEM), generating them once."""
-        if self._tls_material is None:
-            self._tls_material = (self.tls_certificate if self.tls_certificate is not None
-                                  else self._generate_certificate())
+        self._ensure_certificate_material()
         return self._tls_material
+
+    def _ensure_cacerts_material(self) -> Tuple[bytes, Optional[bytes]]:
+        """Return the /cacerts (certificate PEM, key PEM), generating them once."""
+        self._ensure_certificate_material()
+        return self._cacerts_material
 
     def _drain_tasks(self) -> List[Dict]:
         """Atomically return and clear the pending tasks (delivered once, locally)."""
