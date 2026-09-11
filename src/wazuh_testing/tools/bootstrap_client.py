@@ -43,7 +43,7 @@ import ssl
 import time
 from typing import Dict, NamedTuple, Optional, Tuple
 
-from wazuh_testing.utils import request_auth
+from wazuh_testing.utils import jwt_enroll, request_auth
 from wazuh_testing.utils.enrollment_token import (EnrollmentTokenError, adr_to_target,
                                                   b64url_decode, decode_token)
 
@@ -279,10 +279,18 @@ class EnrollmentBootstrapClient:
         headers = {'Content-Type': 'application/json',
                    'protocol-version': request_auth.PROTOCOL_VERSION}
 
-        if self.enroll_password is not None:
-            timestamp = int(time.time())
-            headers['Authorization'] = request_auth.sign_enroll_authorization(
-                target, timestamp, body, request_auth.derive_enroll_key(self.enroll_password))
+        # A `wazuh-enroll+jwt` bearer, not the AES-CMAC header this used to send: wazuh/wazuh
+        # #38582 retired that scheme. The token's own credential outranks a configured password,
+        # the same precedence the agent applies (enrollClient.cpp) -- an enrollment that carries
+        # a credential of its own must not also sign with a possibly unrelated authd.pass. The
+        # bearer binds time and a fresh jti, not the target or the body.
+        if self.token.key_id is not None:
+            headers['Authorization'] = 'Bearer ' + jwt_enroll.sign(
+                jwt_enroll.derive_token_key(self.token.key_secret),
+                kid=jwt_enroll.b64url_encode(self.token.key_id))
+        elif self.enroll_password is not None:
+            headers['Authorization'] = 'Bearer ' + jwt_enroll.sign(
+                jwt_enroll.derive_password_key(self.enroll_password))
 
         payload = self._send(connection, 'POST', target, body, headers, 'enroll_failed')
         for field in ('id', 'key'):
