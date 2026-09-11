@@ -1738,6 +1738,24 @@ class RemotedSimulator(BaseSimulator):
         self.enrollment_tokens[kid] = {'secret': bytes(secret), 'state': state}
         return kid
 
+    def set_reenroll_secret(self, agent_id: str, secret: str) -> None:
+        """Put a ``reenroll_secret`` on record for ``agent_id`` without an enrollment happening.
+
+        For seeding an agent that is already enrolled when the test starts: the agent's own
+        ``etc/reenroll.secret`` is written by the fixture, and this is the manager's half of that
+        same pair. Without it a pre-enrolled agent could only ever be answered ``unknown_agent``,
+        which is one of the very outcomes under test and would make the others unreachable.
+
+        Raises:
+            ValueError: if the secret is not the 64 hex characters the wire form uses.
+        """
+        if len(secret) != jwt_enroll.REENROLL_SECRET_HEX_CHARS:
+            raise ValueError(f'a reenroll_secret is {jwt_enroll.REENROLL_SECRET_HEX_CHARS} hex chars, '
+                             f'got {len(secret)}')
+        bytes.fromhex(secret)
+        with self._enrollment_lock:
+            self._reenroll_secrets[jwt_enroll.canonical_agent_id(agent_id)] = secret
+
     def reenroll_secret_for(self, agent_id: str) -> Optional[str]:
         """The ``reenroll_secret`` (64 hex chars) this manager holds for ``agent_id``, or None.
 

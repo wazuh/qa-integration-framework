@@ -438,3 +438,23 @@ def test_the_protocol_version_is_a_400_not_an_authentication_outcome(simulator, 
     status, body, _ = enroll(simulator, protocol_version=version)
     assert status == 400
     assert body == {'error': {'code': 0, 'message': expected}}
+
+
+def test_a_pre_enrolled_agent_can_be_seeded_without_an_enrollment(simulator):
+    """What an integration fixture needs: an agent that is already enrolled when the test starts.
+    Without it such an agent could only ever be answered `unknown_agent`, which is one of the very
+    outcomes under test."""
+    secret = jwt_enroll.random_reenroll_secret()
+    simulator.set_reenroll_secret('7', secret)
+    assert simulator.reenroll_secret_for('007') == secret
+
+    bearer = jwt_enroll.sign(jwt_enroll.derive_reenroll_key(secret), kid='007')
+    status, body, _ = enroll(simulator, bearer=bearer)
+    assert status == 200
+    assert body['id'] == '007'
+
+
+@pytest.mark.parametrize('secret', ['', 'ab' * 31, 'zz' * 32], ids=['empty', 'short', 'not-hex'])
+def test_seeding_an_impossible_secret_is_refused(simulator_factory, secret):
+    with pytest.raises(ValueError):
+        simulator_factory().set_reenroll_secret('001', secret)
