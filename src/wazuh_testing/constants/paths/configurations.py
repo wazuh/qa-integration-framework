@@ -35,6 +35,9 @@ CUSTOM_RULES_FILE = os.path.join(CUSTOM_RULES_PATH, 'local_rules.xml')
 CUSTOM_DECODERS_PATH = os.path.join(BASE_CONF_PATH, 'decoders')
 CUSTOM_DECODERS_FILE = os.path.join(CUSTOM_DECODERS_PATH, 'local_decoder.xml')
 DEFAULT_AUTHD_PASS_PATH = os.path.join(BASE_CONF_PATH, 'authd.pass')
+# The per-agent re-enrollment secret (wazuh/wazuh#39064). Alongside client.keys and with the
+# same protection, because it has the same power: whoever holds it can obtain that agent's key.
+AGENT_REENROLL_SECRET_PATH = os.path.join(BASE_CONF_PATH, 'reenroll.secret')
 
 # Wazuh API configurations path
 WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration', 'api.yaml')
