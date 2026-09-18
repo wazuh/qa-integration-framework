@@ -53,6 +53,7 @@ All notable changes to this project will be documented in this file.
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `TLSHTTPServer` now terminates TLS per accepted connection rather than wrapping its listening socket, and `RemotedSimulator.certificate_controller` is built on first use instead of in the constructor |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `mode='REJECT_AUTH'` now answers `unknown_agent` rather than a class-less 401, so the suites that use it to force a re-enrollment keep working now that a class-less 401 no longer makes the agent discard its identity |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | An unsupported `protocol-version` on `/enroll` is answered with `400` instead of `401`: it is not a credential failure, and conflating them hides which of the two the agent got wrong |
+| [#39284](https://github.com/wazuh/wazuh/issues/39284) | The default API password is resolved instead of assumed: `login()`, `set_authorization_header()` and `get_api_details_dict()` take it from `WAZUH_API_PASSWORD` in the environment, and only fall back to the historical literal, which still applies to a 4.x manager. A 5.x manager ships no password for its default users, so the value is whatever provisioned the node, and the integration workflow exports it. Resolution happens at call time rather than as a default argument, since the environment is provisioned after this module is imported, and only for the default users: a user a suite creates itself keeps the password its own fixture stored |
 
 ### Removed
 
