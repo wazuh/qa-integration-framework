@@ -48,7 +48,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlsplit
 
 from cryptography import x509
@@ -110,10 +110,32 @@ CACERTS_CA_MISMATCH_BODY = b'{"error":"ca_mismatch"}'
 # rather than something derived from cacerts_signs_listener on purpose: the default topology is
 # two unrelated certificates, so a derived 503 would fire on every default instance. Same call
 # this file already makes for /enroll, which scripts authd's outcomes instead of modelling them.
+CACERTS_RATE_LIMITED_BODY = b'{"error":"rate_limited"}'
+
 CACERTS_FORCED_ERRORS = {
     'not_found': (404, CACERTS_NOT_FOUND_BODY),
     'ca_mismatch': (503, CACERTS_CA_MISMATCH_BODY),
+    # wazuh/wazuh#39280 rate-limits /enroll and /cacerts (50 req/s per node, burst 100). A
+    # rotating fleet meets this for real, so an agent's handling of it is worth driving: it
+    # must keep the trust store it has, defer by Retry-After, and come back.
+    'rate_limited': (429, CACERTS_RATE_LIMITED_BODY),
 }
+
+# The publication a CA bundle is served at (wazuh/wazuh#39321). The manager stamps the response
+# with it and advertises the same integer on every notify; an agent adopts a bundle only when
+# the two agree, which is what stops a lagging node behind a load balancer installing content
+# the advertised publication never named.
+CACERTS_GENERATION_HEADER = 'Wazuh-CA-Generation'
+
+# The Retry-After this simulator sends with a 429, in seconds. Deliberately short: the agent
+# caps what it honours at a minute (MAX_AGENT_DELAY), and an integration test should not spend
+# that minute proving it.
+CACERTS_RETRY_AFTER_SECONDS = 1
+
+# Distinguishes "cacerts_generation was never set, so follow ca_generation" from "it was set to
+# None on purpose, so serve no publication header at all". Both are cases a test needs and
+# neither can be spelled with None alone.
+_FOLLOW_CA_GENERATION = object()
 
 # The path prefix a real 5.x manager's reverse proxy serves everything under by default
 # (see wazuh/wazuh#38624's <endpoint> grammar), and RemotedSimulator's own default `prefix`.
@@ -476,7 +498,10 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         forced = self.simulator.cacerts_force_error
         if forced is not None:
             status, body = CACERTS_FORCED_ERRORS[forced]
-            self.send_body(body, status, 'application/json')
+            # A rate limiter says when to come back; every other refusal says nothing.
+            headers = ({'Retry-After': CACERTS_RETRY_AFTER_SECONDS}
+                       if status == 429 else None)
+            self.send_body(body, status, 'application/json', extra_headers=headers)
             return
 
         pem = self.simulator.cacerts_pem
@@ -488,9 +513,16 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             self.send_body(CACERTS_NOT_FOUND_BODY, 404, 'application/json')
             return
 
+        # The publication this bundle is served at, when the instance has one. Absent by
+        # default, which is exactly how a manager predating #39321 answers -- and what an agent
+        # must treat as "do not adopt".
+        generation = self.simulator.cacerts_generation
+        headers = ({CACERTS_GENERATION_HEADER: generation}
+                   if generation is not None else None)
+
         # Byte for byte, with no normalisation: a bundle is served as a bundle, and the agent
         # copies whatever arrives into a fixed char[8192].
-        self.send_body(pem, 200, CACERTS_CONTENT_TYPE)
+        self.send_body(pem, 200, CACERTS_CONTENT_TYPE, extra_headers=headers)
 
     def tls_info(self) -> Dict:
         """Connection-level facts about the request being handled.
@@ -1082,6 +1114,8 @@ class RemotedSimulator(BaseSimulator):
         self.enroll_password: Optional[str] = None
         self._enroll_force_error: Optional[str] = None
         self._cacerts_force_error: Optional[str] = None
+        self._ca_generation: Optional[int] = None
+        self._cacerts_generation: Any = _FOLLOW_CA_GENERATION
         self._certificate_controller: Optional[CertificateController] = None
 
         # Enrollment credentials this instance accepts, beyond the shared password. Keyed by the
@@ -1391,6 +1425,54 @@ class RemotedSimulator(BaseSimulator):
         self._cacerts_force_error = outcome
 
     @property
+    def ca_generation(self) -> Optional[int]:
+        """The CA bundle publication every notify advertises, or None to advertise none.
+
+        None is the default and is not the same as 0: the field is omitted from the response
+        altogether, which is how a manager predating wazuh/wazuh#39321 answers. An agent must
+        treat that as "nothing to do", indefinitely.
+
+        Setting this does NOT change what GET /cacerts stamps on the bundle it serves -- see
+        :attr:`cacerts_generation`, which follows this by default precisely so the ordinary
+        case needs one knob and the interesting case needs two.
+        """
+        return self._ca_generation
+
+    @ca_generation.setter
+    def ca_generation(self, generation: Optional[int]) -> None:
+        if generation is not None and (not isinstance(generation, int)
+                                       or isinstance(generation, bool)):
+            raise ValueError('ca_generation must be an integer or None')
+        self._ca_generation = generation
+
+    @property
+    def cacerts_generation(self) -> Optional[int]:
+        """The publication GET /cacerts stamps on the bundle it serves.
+
+        Follows :attr:`ca_generation` unless set explicitly, so a test that simply publishes a
+        bundle sets one attribute and the two agree. Set it apart to play the case the header
+        exists to catch: a node behind a load balancer answering with a bundle other than the
+        one just advertised, which the agent must refuse rather than install.
+
+        Set to None while ``ca_generation`` is not to serve a bundle the node vouches for
+        nothing about -- also a refusal.
+        """
+        if self._cacerts_generation is _FOLLOW_CA_GENERATION:
+            return self._ca_generation
+        return self._cacerts_generation
+
+    @cacerts_generation.setter
+    def cacerts_generation(self, generation: Optional[int]) -> None:
+        if generation is not None and (not isinstance(generation, int)
+                                       or isinstance(generation, bool)):
+            raise ValueError('cacerts_generation must be an integer or None')
+        self._cacerts_generation = generation
+
+    def follow_ca_generation(self) -> None:
+        """Undo an explicit :attr:`cacerts_generation`, so it tracks ``ca_generation`` again."""
+        self._cacerts_generation = _FOLLOW_CA_GENERATION
+
+    @property
     def enrollment_adr(self) -> str:
         """This instance's address in the canonical `adr` form an enrollment token carries."""
         return adr_for(self.server_ip, self.port, self.prefix)
@@ -1640,6 +1722,11 @@ class RemotedSimulator(BaseSimulator):
             'agent': {'groups': self.groups, 'config_hash': self.config_hash},
             'settings_hash': self.settings_hash,
         }
+        # Top-level, beside settings_hash rather than nested under `agent` -- where #39321 puts
+        # it and where the agent's ControlStream reads it from. Omitted entirely when unset,
+        # which is what an older manager looks like on the wire.
+        if self.ca_generation is not None:
+            response['ca_generation'] = self.ca_generation
         tasks = self._drain_tasks()
         if tasks:
             response['tasks'] = tasks
