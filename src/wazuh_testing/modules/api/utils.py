@@ -16,8 +16,8 @@ from typing import Tuple, Union, List
 from .patterns import API_LOGIN_ERROR_MSG
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
-                                        WAZUH_API_PASSWORD, LOGIN_ROUTE, USERS_ROUTE, RESOURCE_ROUTE_MAP, \
-                                        TARGET_ROUTE_MAP
+                                        WAZUH_API_PASSWORD, DEFAULT_API_USERS, LOGIN_ROUTE, USERS_ROUTE, \
+                                        RESOURCE_ROUTE_MAP, TARGET_ROUTE_MAP
 from wazuh_testing.constants.paths.api import WAZUH_API_CERTIFICATE
 from wazuh_testing.utils.file import read_json_file
 
@@ -59,13 +59,13 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
 
     Args:
         user (str): User to login to the API.
-        password (str): Password to login to the API.
+        password (str): Password to login to the API. Resolved from the environment when omitted.
 
     Returns:
         headers (dict): Headers with authorization included
     """
     user = WAZUH_API_USER if user is None else user
-    password = WAZUH_API_PASSWORD if password is None else password
+    password = get_default_api_password(user) if password is None else password
     _token = generate_bearer_token(user, password)
     headers = deepcopy(BASE_HEADERS)
     headers['Authorization'] = f'Basic {_token.decode()}'
@@ -73,7 +73,30 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     return headers
 
 
-def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
+def get_default_api_password(user: str = WAZUH_API_USER) -> str:
+    """Resolve the password of a default API user on the manager under test.
+
+    A 5.x manager ships no password for them: whoever provisions the node decides it, and the value is
+    stored as a hash the moment the manager first starts, so there is nothing on disk to read it back from.
+    A test run states it through `WAZUH_API_PASSWORD` in the environment, which is what the integration
+    workflow exports after provisioning. Without it, the historical literal is used, which still applies to
+    a 4.x manager.
+
+    Args:
+        user (str): Default API user whose password to resolve.
+
+    Returns:
+        str: The password to authenticate with.
+    """
+    if user not in DEFAULT_API_USERS:
+        # A user a test created itself carries whatever password its fixture stored, not the one the
+        # node was provisioned with.
+        return WAZUH_API_PASSWORD
+
+    return os.environ.get('WAZUH_API_PASSWORD') or WAZUH_API_PASSWORD
+
+
+def login(user: str = WAZUH_API_USER, password: str = None,
           timeout: int = session_parameters.default_timeout, login_attempts: int = 3, backoff_factor: float = 0.5,
           host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, protocol: str = WAZUH_API_PROTOCOL
           ) -> Tuple[dict, requests.Response]:
@@ -96,6 +119,11 @@ def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
         RuntimeError(msg, requests.Response): When could not login after `login_attempts` every timeout determined by
         the `backoff_factor`.
     """
+    # Resolved here and not as a default argument: the environment is provisioned after this module is
+    # imported, and a default argument would freeze whatever was true at import time.
+    if password is None:
+        password = get_default_api_password(user)
+
     url = f"{get_base_url(protocol=protocol, host=host, port=port)}{LOGIN_ROUTE}"
 
     session = requests.Session()
@@ -386,9 +414,13 @@ def get_manager_configuration(section=None, field=None):
     return get_requested_values(answer, section, field)
 
 
-def get_api_details_dict(protocol=WAZUH_API_PROTOCOL, host=WAZUH_API_HOST, port=WAZUH_API_PORT, user=WAZUH_API_USER, password=WAZUH_API_PASSWORD,
+def get_api_details_dict(protocol=WAZUH_API_PROTOCOL, host=WAZUH_API_HOST, port=WAZUH_API_PORT,
+                         user=WAZUH_API_USER, password=None,
                          login_endpoint=LOGIN_ROUTE, timeout=10, login_attempts=1, sleep_time=0):
     """Get API details"""
+    if password is None:
+        password = get_default_api_password(user)
+
     login_token = get_token_login_api(protocol, host, port, user, password, login_endpoint, timeout, login_attempts,
                                       sleep_time)
     return {

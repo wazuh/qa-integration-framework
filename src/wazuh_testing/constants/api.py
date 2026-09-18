@@ -10,6 +10,8 @@ WAZUH_API_HOST = 'localhost'
 WAZUH_API_PORT = '55000'
 WAZUH_API_USER = 'wazuh'
 WAZUH_API_PASSWORD = 'wazuh'
+# The users the manager creates by itself, and the only ones whose password a deployment provisions.
+DEFAULT_API_USERS = (WAZUH_API_USER, 'wazuh-wui')
 
 # API routes
 LOGIN_ROUTE = '/security/user/authenticate'
