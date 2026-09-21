@@ -37,8 +37,10 @@ simulator returns for a /control startup:
   composable gates, see the class docstring; a successful /enroll is immediately usable
   for later CMAC-authenticated requests, with no client.keys file involved.
 """
+import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import secrets
 import shutil
@@ -46,15 +48,23 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlsplit
+
+from cryptography import x509
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, padding
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
 from wazuh_testing.constants.ports import DEFAULT_HTTPS_REMOTE_CONNECTION_PORT
 from wazuh_testing.tools.certificate_controller import CertificateController
-from wazuh_testing.tools.https_server import (BaseTLSRequestHandler, TLSHTTPServer,
+from wazuh_testing.tools.https_server import (DEFAULT_CA_COMMON_NAME, DEFAULT_SERVER_COMMON_NAME,
+                                              BaseTLSRequestHandler, TLSHTTPServer,
+                                              generate_ca_certificate, generate_leaf_certificate,
                                               generate_self_signed_certificate)
-from wazuh_testing.utils import request_auth
+from wazuh_testing.utils import jwt_enroll, request_auth
+from wazuh_testing.utils.enrollment_token import ID_BYTES, SECRET_BYTES, adr_for, encode_token
 from wazuh_testing.utils.client_keys import get_client_keys
 
 from .base_simulator import BaseSimulator
@@ -68,7 +78,12 @@ DOWNLOAD_ENDPOINT = '/download'
 CONFIG_ENDPOINT = '/config'
 STATS_ENDPOINT = '/stats'
 ENROLL_ENDPOINT = '/enroll'
+CACERTS_ENDPOINT = '/cacerts'
 
+# The POST set. Kept as ENDPOINTS, unchanged, because tests/integration and the /control-style
+# handlers import that name; /cacerts is deliberately NOT a member. Adding it would make
+# `POST /cacerts` resolve, survive fault injection and auth, and land on do_POST's final else
+# branch, whose comment (correctly) claims to be unreachable.
 ENDPOINTS = (
     CONTROL_ENDPOINT,
     STATELESS_ENDPOINT,
@@ -78,6 +93,27 @@ ENDPOINTS = (
     STATS_ENDPOINT,
     ENROLL_ENDPOINT,
 )
+POST_ENDPOINTS = ENDPOINTS
+GET_ENDPOINTS = (CACERTS_ENDPOINT,)
+
+# GET /cacerts hands out the CA that signs this listener's certificate, so an agent holding an
+# enrollment token can bootstrap trust without an out-of-band copy of the PEM. The real
+# manager's contract (remoted_module/src/endpoints/cacertsEndpoint.cpp), reproduced verbatim
+# including the absence of whitespace in the error bodies -- json.dumps would insert a space
+# after the colon and a byte-comparing test would fail on it.
+CACERTS_CONTENT_TYPE = 'application/x-pem-file'
+CACERTS_PEM_HEADER = b'-----BEGIN CERTIFICATE-----'
+CACERTS_NOT_FOUND_BODY = b'{"error":"not_found"}'
+CACERTS_CA_MISMATCH_BODY = b'{"error":"ca_mismatch"}'
+
+# /cacerts' forced-outcome table, mirroring ENROLL_FORCED_ERRORS' shape. 'ca_mismatch' is a flag
+# rather than something derived from cacerts_signs_listener on purpose: the default topology is
+# two unrelated certificates, so a derived 503 would fire on every default instance. Same call
+# this file already makes for /enroll, which scripts authd's outcomes instead of modelling them.
+CACERTS_FORCED_ERRORS = {
+    'not_found': (404, CACERTS_NOT_FOUND_BODY),
+    'ca_mismatch': (503, CACERTS_CA_MISMATCH_BODY),
+}
 
 # The path prefix a real 5.x manager's reverse proxy serves everything under by default
 # (see wazuh/wazuh#38624's <endpoint> grammar), and RemotedSimulator's own default `prefix`.
@@ -94,7 +130,72 @@ ENROLL_FORCED_ERRORS = {
     'internal_error': (500, 9001, 'Internal error'),
     'max_agents': (503, 9013, 'Maximum number of agents reached'),
     'cluster_unavailable': (503, 9016, 'Cannot communicate with master node'),
+    # authd's verdict on a bearer that DID verify, passed through with its numeric code. 403
+    # rather than 401 precisely because re-signing fixes nothing: a new token has to be minted,
+    # and the agent must stop rather than retry. Named with the `authd_` prefix so they are not
+    # confused with the same-sounding 401 classes below, which are a different decision entirely
+    # (the manager's own replica of the token store, before authd is consulted).
+    'authd_token_not_found': (403, 9022, 'Enrollment token not found or revoked'),
+    'authd_token_expired': (403, 9023, 'Enrollment token expired'),
+    'authd_token_exhausted': (403, 9024, 'Enrollment token uses exhausted'),
 }
+
+# The `401` authentication failure classes (docs/ref/modules/remoted/agent-api.yaml,
+# `AuthFailureClass`), which the agent reads to decide what a refusal costs it: only
+# `unknown_agent` means "your identity is gone, re-enroll"; `invalid_signature` means "do NOT
+# re-enroll, this credential does not work for that identity"; everything else is "retry".
+# Before wazuh/wazuh#39064 the agent re-enrolled on any 401 at all, so a simulator that cannot
+# name the class cannot exercise the policy -- which is why these are forceable.
+AUTH_FAILURE_CLASSES = (
+    'unknown_agent',
+    'stale_token',
+    'invalid_signature',
+    'invalid_request',
+    'enrollment_key_unavailable',
+    'token_unknown',
+    'token_expired',
+    'token_revoked',
+)
+
+# Classes only `POST /enroll` can produce: the three name an enrollment token's state, and the
+# fourth a manager that could not read its own enrollment password. A generic route has no
+# enrollment token and no password to be missing, so forcing one of these there would be a
+# response no real manager sends.
+ENROLL_ONLY_AUTH_CLASSES = ('token_unknown', 'token_expired', 'token_revoked', 'enrollment_key_unavailable')
+
+# The single generic message every 401 carries: the class is in `code`, never in prose.
+AUTH_ERROR_MESSAGE = 'Invalid client authentication'
+
+# What mode='REJECT_AUTH' names when nothing more specific is forced. `unknown_agent` and not a
+# classless 401 because that mode's documented purpose is to drive re-enrollment (see do_POST),
+# and since #39064 a 401 the agent cannot classify deliberately does NOT cost it its identity --
+# so a classless REJECT_AUTH would leave every such test waiting forever for an enrollment that
+# is never going to be attempted.
+DEFAULT_REJECT_AUTH_CLASS = 'unknown_agent'
+
+# Enrollment-token states the manager's replica of the token store can hold, and the 401 class
+# each one answers with. 'valid' is the only state that reaches authd.
+ENROLLMENT_TOKEN_STATES = {
+    'valid': None,
+    'expired': 'token_expired',
+    'revoked': 'token_revoked',
+}
+
+
+def www_authenticate_challenge(failure_class: str) -> str:
+    """Build the RFC 6750 section 3 challenge a `401` carries, for ``failure_class``.
+
+    Three shapes, and which one is sent is itself information: a credential that was judged and
+    failed gets ``invalid_token`` plus the class; a request that presented nothing usable gets
+    ``invalid_request`` with no class to report; and a manager that could not judge the credential
+    at all (``enrollment_key_unavailable``) gets a bare challenge, because naming a failure class
+    would tell the agent something about its credential that the manager never actually decided.
+    """
+    if failure_class == 'invalid_request':
+        return 'Bearer error="invalid_request"'
+    if failure_class == 'enrollment_key_unavailable':
+        return 'Bearer'
+    return f'Bearer error="invalid_token", error_description="{failure_class}"'
 
 # Default injectable state. Tests that need to customize it (e.g. the startup-hash
 # suite) overwrite these attributes on the instance before start(); they are not
@@ -138,6 +239,99 @@ DEFAULT_MERGED_MG = (
 
 # Seconds advertised in the Retry-After header of the SERVICE_UNAVAILABLE (503) fault mode.
 RETRY_AFTER_SECONDS = 5
+
+
+# SPKI pin helpers (RFC 7469 section 2.4) -- the manager side of the enrollment-token
+# bootstrap. The token's `pin` is the SHA-256 of a certificate's DER
+# SubjectPublicKeyInfo, NOT of the certificate: an SPKI digest survives the CA being
+# re-encoded or reissued from the same key pair, so a token minted today keeps working
+# through a CA renewal that keeps the key.
+#
+# These are pure functions, deliberately usable without a running simulator: a test mints
+# a token from a pin, which has to happen before the agent is ever started.
+#
+# Interop, which is the whole reason these live here: the agent computes the same value in
+# C++ (client-agent/https_client/src/spkiPin.cpp) via OpenSSL's X509_get0_pubkey +
+# i2d_PUBKEY. `public_bytes(DER, SubjectPublicKeyInfo)` below is the same key-derived
+# encoding, which is also what `openssl x509 -noout -pubkey | openssl pkey -pubin -outform
+# der` produces -- so all three agree byte for byte.
+
+CertificateLike = Union[x509.Certificate, bytes, str, Path]
+
+
+def load_certificate(material: CertificateLike) -> x509.Certificate:
+    """Load an X.509 certificate from whatever form the caller has it in.
+
+    Args:
+        material: An already-parsed certificate, PEM or DER bytes, PEM text, or a
+            path to a PEM/DER file.
+
+    Returns:
+        x509.Certificate: The parsed certificate.
+
+    Raises:
+        ValueError: If the material is not a certificate in any accepted form.
+    """
+    if isinstance(material, x509.Certificate):
+        return material
+
+    if isinstance(material, Path):
+        data = material.read_bytes()
+    elif isinstance(material, str):
+        # A PEM blob, or a path to one. A PEM header is unambiguous; anything else
+        # short enough to be a path is treated as one.
+        data = material.encode() if '-----BEGIN' in material else Path(material).read_bytes()
+    elif isinstance(material, bytes):
+        data = material
+    else:
+        raise ValueError(f'cannot load a certificate from {type(material).__name__}')
+
+    if b'-----BEGIN' in data:
+        return x509.load_pem_x509_certificate(data)
+
+    return x509.load_der_x509_certificate(data)
+
+
+def spki_sha256(material: CertificateLike) -> bytes:
+    """SHA-256 over a certificate's DER SubjectPublicKeyInfo: the pin's 32 raw bytes.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        bytes: The 32-byte digest.
+    """
+    public_key = load_certificate(material).public_key()
+    spki = public_key.public_bytes(serialization.Encoding.DER,
+                                   serialization.PublicFormat.SubjectPublicKeyInfo)
+    return hashlib.sha256(spki).digest()
+
+
+def spki_pin(material: CertificateLike) -> str:
+    """The pin as an enrollment token carries it: 43 chars of unpadded base64url.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        str: 43 characters, URL-safe alphabet, no padding.
+    """
+    return base64.urlsafe_b64encode(spki_sha256(material)).rstrip(b'=').decode()
+
+
+def spki_pin_hex(material: CertificateLike) -> str:
+    """The same digest as 64 lowercase hex characters, for diagnostics and runbooks.
+
+    Matches `openssl x509 -noout -pubkey | openssl pkey -pubin -outform der
+    | openssl dgst -sha256` so a value can be checked by hand.
+
+    Args:
+        material: Anything load_certificate() accepts.
+
+    Returns:
+        str: 64 lowercase hex characters.
+    """
+    return spki_sha256(material).hex()
 
 
 def parse_he_batch(body: bytes):
@@ -188,7 +382,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         return self.server.context
 
     def do_POST(self) -> None:
-        """Handle every agent request (all endpoints are POST)."""
+        """Handle every agent request except GET /cacerts (see :meth:`do_GET`)."""
         raw_body = self.read_body()
         endpoint = self.simulator.resolve_endpoint(self.path)
         self._authenticated_agent_id = None
@@ -199,7 +393,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         # or not the body arrived compressed).
         body, encoding_error = self.decode_body(raw_body)
 
-        self.simulator.record_request('POST', self.path, self.headers, body)
+        self.simulator.record_request('POST', self.path, self.headers, body, tls=self.tls_info())
 
         if endpoint is None:
             # The configured prefix (or its absence) doesn't match this request's path --
@@ -250,6 +444,73 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             # resolve_endpoint() never returns a value outside ENDPOINTS.
             self.send_json(200, {})
 
+    def do_GET(self) -> None:
+        """Handle GET /cacerts, the only GET route the agent uses.
+
+        Recorded before the routing decision, exactly as do_POST does, so a request sent to the
+        wrong spelling is still visible in get_requests('/cacerts') instead of vanishing into a
+        404 with nothing to inspect.
+        """
+        # Body-less by contract, but drain anything unexpected so keep-alive framing survives.
+        self.read_body()
+        endpoint = self.simulator.resolve_endpoint(self.path, method='GET')
+        self.simulator.record_request('GET', self.path, self.headers, b'', tls=self.tls_info())
+
+        if endpoint == CACERTS_ENDPOINT:
+            self._handle_cacerts()
+            return
+
+        # The transport's own unknown-route answer, which closes the connection.
+        self.send_body(CACERTS_NOT_FOUND_BODY, 404, 'application/json', close_connection=True)
+
+    def _handle_cacerts(self) -> None:
+        """Serve the CA an agent bootstraps trust from.
+
+        Unauthenticated by nature -- the caller has nothing to authenticate with yet -- and so
+        deliberately NOT routed through _inject_fault() or _verify_auth(): the real manager
+        registers this route with no auth gateway and outside the in-flight byte budget, and its
+        handler ignores the request entirely, Authorization header included. A consequence worth
+        knowing: mode='REJECT_AUTH' and mode='SERVICE_UNAVAILABLE' do not touch /cacerts. Script
+        its failures with cacerts_force_error instead.
+        """
+        forced = self.simulator.cacerts_force_error
+        if forced is not None:
+            status, body = CACERTS_FORCED_ERRORS[forced]
+            self.send_body(body, status, 'application/json')
+            return
+
+        pem = self.simulator.cacerts_pem
+
+        # The manager's own 404 rule: a CA file that is missing, unreadable or carries no
+        # certificate block. Derived rather than flagged, so `cacerts_certificate = b''`
+        # expresses it with no extra switch.
+        if CACERTS_PEM_HEADER not in pem:
+            self.send_body(CACERTS_NOT_FOUND_BODY, 404, 'application/json')
+            return
+
+        # Byte for byte, with no normalisation: a bundle is served as a bundle, and the agent
+        # copies whatever arrives into a fixed char[8192].
+        self.send_body(pem, 200, CACERTS_CONTENT_TYPE)
+
+    def tls_info(self) -> Dict:
+        """Connection-level facts about the request being handled.
+
+        Note the limit: `peer_certificate` is about a certificate the CLIENT presented, so this
+        can say the bootstrap fetch carried none and rode TLS 1.3, but it cannot say whether the
+        client verified this listener -- nothing server-side can. A client that refused the
+        certificate shows up in :attr:`RemotedSimulator.handshake_failures` instead.
+        """
+        connection = self.connection
+        try:
+            return {
+                'version': connection.version(),
+                'cipher': connection.cipher(),
+                'peer_certificate': connection.getpeercert(),
+            }
+        except AttributeError:
+            # A plain socket, which only happens in a test harness driving the handler directly.
+            return {'version': None, 'cipher': None, 'peer_certificate': None}
+
     def _inject_fault(self) -> bool:
         """Apply the simulator's fault-injection mode before normal routing.
 
@@ -262,7 +523,7 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             return False
 
         if mode == 'REJECT_AUTH':
-            self.send_error_response(401, 'Invalid client authentication')
+            self._send_auth_error(self.simulator.auth_force_class or DEFAULT_REJECT_AUTH_CLASS)
         elif mode == 'BAD_REQUEST':
             self.send_error_response(400, 'Bad request')
         elif mode == 'SERVICE_UNAVAILABLE':
@@ -275,40 +536,64 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
     def _verify_auth(self, body: bytes) -> bool:
         """Verify the AES-CMAC Authorization header when verification is enabled.
 
-        Returns True if the request is authenticated (or verification is off). On any
-        failure it sends a single generic ``401`` (never distinguishing the cause) and
-        returns False so the caller skips endpoint handling. On success it records the
-        authenticated agent id for later identity binding.
+        Returns True if the request is authenticated (or verification is off). On failure it
+        sends a ``401`` naming the failure class and returns False so the caller skips endpoint
+        handling. On success it records the authenticated agent id for later identity binding.
+
+        The class is not cosmetic and not guessed: each branch below already knows which of the
+        real manager's classes it is, and since wazuh/wazuh#39064 the agent acts on exactly that
+        distinction -- an id the manager has never heard of costs it its identity, a bad MAC for
+        an id it *does* know does not. A single indistinguishable 401 (what this used to send)
+        would make every one of those cases look like the one that ends in re-enrollment.
         """
         if not self.simulator.verify_auth:
             return True
 
+        forced = self.simulator.auth_force_class
+        if forced is not None:
+            return self._reject_auth(forced)
+
         if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
-            return self._reject_auth()
+            return self._reject_auth('invalid_request')
 
         credentials = request_auth.parse_authorization(self.headers.get('Authorization', ''))
         if credentials is None:
-            return self._reject_auth()
+            return self._reject_auth('invalid_request')
         agent_id, timestamp, mac = credentials
 
         if not self._timestamp_in_window(timestamp):
-            return self._reject_auth()
+            return self._reject_auth('stale_token')
 
         key = self.simulator.cmac_key_for(agent_id)
         if key is None:
-            return self._reject_auth()
+            # An id with no key on this manager: exactly what a purged or never-registered agent
+            # gets, and the only generic-route class that costs the agent its identity.
+            return self._reject_auth('unknown_agent')
 
         canonical = request_auth.build_canonical_request('POST', self.path, agent_id, timestamp, body)
         if not hmac.compare_digest(request_auth.compute_cmac(key, canonical), mac):
-            return self._reject_auth()
+            return self._reject_auth('invalid_signature')
 
         self._authenticated_agent_id = agent_id
         return True
 
-    def _reject_auth(self) -> bool:
-        """Send the single generic authentication error and return False."""
-        self.send_error_response(401, 'Invalid client authentication')
+    def _reject_auth(self, failure_class: str) -> bool:
+        """Send the authentication error naming ``failure_class`` and return False."""
+        self._send_auth_error(failure_class)
         return False
+
+    def _send_auth_error(self, failure_class: str, nested: bool = False) -> None:
+        """Send a ``401`` whose body and challenge both name ``failure_class``.
+
+        The body cannot go through ``send_error_response``: that helper puts the numeric status
+        in ``code``, and on a 401 ``code`` carries the failure class instead (agent-api.yaml,
+        ``ErrorResponse.code``). ``nested`` picks ``/enroll``'s ``{"error": {...}}`` envelope
+        over every other route's flat one -- the two really are different shapes, and the agent
+        parses them with different code.
+        """
+        body = ({'error': {'code': failure_class, 'message': AUTH_ERROR_MESSAGE}} if nested
+                else {'error': AUTH_ERROR_MESSAGE, 'code': failure_class})
+        self.send_json(401, body, extra_headers={'WWW-Authenticate': www_authenticate_challenge(failure_class)})
 
     @staticmethod
     def _timestamp_in_window(timestamp: str) -> bool:
@@ -420,8 +705,20 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
         ``send_error_response`` shape -- this matches the manager's own contract and how the
         agent parses it.
         """
-        if not self._authenticate_enroll(raw_body):
-            self.send_json(401, self.simulator.enroll_error_body(0, 'Invalid client authentication'))
+        # Checked before anything else, and a 400 rather than a 401: the manager cannot judge a
+        # credential it does not know the protocol version of, so this is not an authentication
+        # outcome at all (agent-api.yaml, POST /enroll 400).
+        if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
+            header = 'Missing' if self.headers.get('protocol-version') is None else 'Unsupported'
+            suffix = ' required header: protocol-version' if header == 'Missing' else ' protocol-version'
+            self.send_json(400, self.simulator.enroll_error_body(0, f'{header}{suffix}'))
+            return
+
+        self._enroll_agent_id = None
+        self._enroll_token_kid = None
+        failure_class = self._authenticate_enroll(raw_body)
+        if failure_class is not None:
+            self._send_auth_error(failure_class, nested=True)
             return
 
         try:
@@ -453,48 +750,126 @@ class _RemotedRequestHandler(BaseTLSRequestHandler):
             groups=request.get('groups'),
             ip=request.get('ip'),
             key_hash=request.get('key_hash'),
+            agent_id=self._enroll_agent_id,
         )
         self.send_json(200, response)
 
-    def _authenticate_enroll(self, raw_body: bytes) -> bool:
-        """Authenticate a ``/enroll`` request against two independent, composable gates.
+    def _authenticate_enroll(self, raw_body: bytes) -> Optional[str]:
+        """Authenticate a ``/enroll`` request; return the 401 class, or None when it passes.
 
-        Mirrors the real manager: a client-certificate requirement and a password
-        requirement are decided independently at startup, and both, either, or neither may
-        be active. Modeling this as a single exclusive mode (as an earlier version of this
-        simulator did) would silently drop the password check whenever a certificate was
-        also required -- exactly the failure mode the manager's own implementation calls
-        out avoiding.
+        Mirrors the real manager: a client-certificate requirement and a password requirement are
+        decided independently at startup, and both, either, or neither may be active. Modeling
+        this as a single exclusive mode (as an earlier version of this simulator did) would
+        silently drop the credential check whenever a certificate was also required -- exactly
+        the failure mode the manager's own implementation calls out avoiding.
 
-        - Certificate gate (``self.simulator.require_client_cert``): enforced by the TLS
-          layer itself before any handler runs (see :meth:`RemotedSimulator.start`); a
-          missing/invalid one never reaches HTTP at all, so this only confirms one was
-          presented.
-        - Password gate (``self.simulator.enroll_password`` set): ``Authorization:
-          WazuhEnroll <ts>:<mac>``, HKDF+CMAC-verified.
+        - Certificate gate (``self.simulator.require_client_cert``): enforced by the TLS layer
+          itself before any handler runs (see :meth:`RemotedSimulator.start`); a missing/invalid
+          one never reaches HTTP at all, so this only confirms one was presented.
+        - Bearer gate: a ``wazuh-enroll+jwt`` (``Authorization: Bearer <jwt>``), whose header's
+          ``kid`` says which of three credentials it is. The shared enrollment password is only
+          one of them -- an enrollment token and a re-enrolling agent's own secret are checked
+          whenever presented, in every mode, because they name a key the password gate knows
+          nothing about.
 
-        Neither gate active is 'open' mode: only ``protocol-version`` is required.
+        Neither gate active, and no bearer, is 'open' mode: the request is accepted as is.
         """
-        if self.headers.get('protocol-version') != request_auth.PROTOCOL_VERSION:
-            return False
+        forced = self.simulator.enroll_force_auth_class
+        if forced is not None:
+            return forced
 
         if self.simulator.require_client_cert and not self.connection.getpeercert():
-            return False
+            return 'invalid_request'
 
+        header = self.headers.get('Authorization', '')
+        if not header.startswith('Bearer '):
+            # Nothing usable was presented. That is only a failure when this manager actually
+            # requires a password: an open or mTLS-only instance has nothing to check.
+            return None if self.simulator.enroll_password is None else 'invalid_request'
+
+        token = header[len('Bearer '):].strip()
+        peeked = jwt_enroll.peek_kid(token)
+        if peeked is None:
+            # Not a `wazuh-enroll+jwt` at all. `invalid_signature` rather than a class of its own:
+            # the manager reports a malformed bearer the same way it reports a badly signed one,
+            # and the agent must treat both the same -- do not re-enroll, the credential is at
+            # fault, not the identity.
+            return 'invalid_signature'
+
+        if peeked.kind is jwt_enroll.KidKind.TOKEN:
+            return self._verify_enrollment_token_bearer(token, peeked.text)
+        if peeked.kind is jwt_enroll.KidKind.AGENT:
+            return self._verify_reenrollment_bearer(token, peeked.text)
+        return self._verify_password_bearer(token)
+
+    def _verify_password_bearer(self, token: str) -> Optional[str]:
+        """Check a bearer signed with the manager's shared enrollment password."""
         if self.simulator.enroll_password is None:
-            return True
+            # Open (or mTLS-only) mode: there is no password to judge this against, and the
+            # manager would not be in Password mode at all, so the bearer is simply ignored.
+            return None
+        if self.simulator.enrollment_key_unavailable:
+            # Password mode on a node that cannot read its own password: the credential is never
+            # judged, so no class about it can honestly be reported. The agent retries.
+            return 'enrollment_key_unavailable'
+        return self._classify_verify(
+            jwt_enroll.verify(token, jwt_enroll.derive_password_key(self.simulator.enroll_password)))
 
-        credentials = request_auth.parse_enroll_authorization(self.headers.get('Authorization', ''))
-        if credentials is None:
-            return False
-        timestamp, mac = credentials
+    def _verify_enrollment_token_bearer(self, token: str, kid: str) -> Optional[str]:
+        """Check a bearer signed with an enrollment token's secret, and that token's state."""
+        registered = self.simulator.enrollment_tokens.get(kid)
+        if registered is None:
+            # No key to check against, so the signature is never examined: an unknown id is
+            # reported before any cryptography happens, which is also what keeps the token store
+            # from becoming an oracle.
+            return 'token_unknown'
 
-        if not self._timestamp_in_window(timestamp):
-            return False
+        failure = self._classify_verify(jwt_enroll.verify(token, jwt_enroll.derive_token_key(registered['secret']),
+                                                          kid=kid))
+        if failure is not None:
+            return failure
 
-        key = request_auth.derive_enroll_key(self.simulator.enroll_password)
-        canonical = request_auth.build_enroll_canonical_request(self.path, timestamp, raw_body)
-        return hmac.compare_digest(request_auth.compute_cmac(key, canonical), mac)
+        # The signature is good; now the manager's replica of the token store has its say. A
+        # lapsed or revoked token is still a 401 (and not one of authd's 403s): this is the
+        # manager's own copy talking, before authd is consulted at all.
+        state_failure = ENROLLMENT_TOKEN_STATES[registered['state']]
+        if state_failure is not None:
+            return state_failure
+
+        self._enroll_token_kid = kid
+        return None
+
+    def _verify_reenrollment_bearer(self, token: str, kid: str) -> Optional[str]:
+        """Check a bearer signed with an agent's own ``reenroll_secret``.
+
+        The three verdicts here are authd's 9026/9027/9028 as the manager folds them onto the
+        wire: an id it does not know (or that has no secret on record) is ``unknown_agent``, a
+        signature it cannot match is ``invalid_signature``, and a bearer outside the window is
+        ``stale_token``. Only the first costs the agent its identity, which is the whole reason
+        the three are kept apart.
+        """
+        secret = self.simulator.reenroll_secret_for(kid)
+        if secret is None:
+            return 'unknown_agent'
+
+        failure = self._classify_verify(jwt_enroll.verify(token, jwt_enroll.derive_reenroll_key(secret), kid=kid))
+        if failure is not None:
+            return failure
+
+        self._enroll_agent_id = kid
+        return None
+
+    @staticmethod
+    def _classify_verify(error) -> Optional[str]:
+        """Map a :class:`~wazuh_testing.utils.jwt_enroll.VerifyError` onto its 401 class.
+
+        A structurally invalid token is reported as ``invalid_signature``, not as its own class:
+        the manager has no separate wire class for it, and telling the agent its clock is wrong
+        (``stale_token``) for a malformed bearer would send it chasing the wrong fix.
+        """
+        if error is jwt_enroll.VerifyError.NONE:
+            return None
+        return 'stale_token' if error is jwt_enroll.VerifyError.STALE_TOKEN else 'invalid_signature'
 
 
 class RemotedSimulator(BaseSimulator):
@@ -531,9 +906,51 @@ class RemotedSimulator(BaseSimulator):
       with ``certificate_controller.generate_agent_certificates(...)``. A client with no
       cert never reaches HTTP: the TLS handshake itself fails, so there is no HTTP 401 for
       that case.
-    - ``enroll_password`` set (non-None): the request must carry a HKDF+CMAC-signed
-      ``Authorization: WazuhEnroll <ts>:<mac>`` header.
+    - ``enroll_password`` set (non-None): the request must carry a ``wazuh-enroll+jwt``
+      bearer signed with the key that password derives.
     - Neither set (both defaults): 'open' mode -- no credential beyond ``protocol-version``.
+
+    Two further enrollment credentials are checked whenever presented, in every mode,
+    because each names a key the password gate knows nothing about. Which one a bearer
+    is, is decided by the shape of its ``kid`` (see :mod:`wazuh_testing.utils.jwt_enroll`):
+
+    - an **enrollment token**, registered with :meth:`register_enrollment_token` or minted
+      by :meth:`mint_enrollment_token` with a ``credential``. Its ``state`` ('valid',
+      'expired', 'revoked') is this manager's replica of the token store, and decides
+      which 401 class a correctly signed bearer gets.
+    - a **re-enrolling agent's own secret**, which is never configured: a successful
+      enrollment mints one and returns it as the response's ``reenroll_secret``, and
+      re-enrolling with it rotates both the key and the secret while keeping the id.
+      Set ``issue_reenroll_secret = False`` to model a manager that does not do this yet.
+
+    Every ``401`` names its failure class in ``code`` and in the ``WWW-Authenticate``
+    challenge. Force one without arranging the failure with ``enroll_force_auth_class``
+    (any of :data:`AUTH_FAILURE_CLASSES`) or, on the other routes,
+    ``auth_force_class``. Only ``unknown_agent`` costs an agent its identity, so a
+    simulator that could not name the class could not exercise that policy at all.
+
+    Certificate material follows the same set-before-:meth:`start` contract.
+    ``tls_certificate`` (a ``(cert PEM, key PEM)`` pair) replaces the generated
+    listener certificate; ``cacerts_certificate`` (a cert PEM) replaces the separate
+    one a ``GET /cacerts`` route serves. Either way :attr:`tls_pin` and
+    :attr:`cacerts_pin` report the SPKI pin of whatever is actually being served, and
+    both are readable before :meth:`start` so a test can mint an enrollment token
+    carrying the right pin and only then launch an agent. Serving chosen material is
+    what makes the negative cases expressible -- a CA that does not match the token's
+    pin, or a valid certificate for a different name.
+
+    ``use_bootstrap_chain`` chooses between two topologies, and it is the difference
+    between a pin that can become trust and one that cannot. By default the listener's
+    certificate and the ``/cacerts`` one are two unrelated self-signed certificates, so
+    a client can pin the fetched body and still fail to verify this listener against it
+    -- which is a useful fixture (it is what proves a matching pin is not, by itself,
+    trust) but is not the manager's shape. Set it True and the ``/cacerts`` body becomes
+    a real CA that signed the leaf this listener presents, with a SubjectAlternativeName
+    covering :attr:`server_ip`, ``localhost`` and loopback, so a fully verified reconnect
+    against the fetched anchor alone actually succeeds. The CA is never appended to the
+    served chain, in either topology, so the ``/cacerts`` bytes are never derivable from
+    the handshake. Tune the generated leaf with ``tls_san_hostnames``,
+    ``tls_san_ip_addresses``, ``tls_common_name`` and ``tls_ca_common_name``.
 
     A successful enrollment is immediately usable: :meth:`cmac_key_for` checks the
     in-memory enrolled-agent store before falling back to ``keys_path``, so the returned
@@ -561,7 +978,25 @@ class RemotedSimulator(BaseSimulator):
             on the next /enroll, or None (default) for normal handling.
         certificate_controller (CertificateController): CA used to validate client
             certificates when require_client_cert is set; also mints them via
-            generate_agent_certificates().
+            generate_agent_certificates(). Unrelated to the listener's own
+            certificate -- keeping the two apart is deliberate.
+        tls_certificate (tuple): (cert PEM, key PEM) to serve instead of a generated
+            pair, or None (default) to generate one. Set before start(). Under
+            use_bootstrap_chain this deliberately breaks the chain, which is a fixture in
+            its own right: the CA handed out no longer signs what is served.
+        cacerts_certificate (bytes): Certificate PEM for a GET /cacerts route to serve
+            instead of a generated one, or None (default). Set before start().
+        handshake_failures (list): One record per failed TLS handshake -- the only trace a
+            client that refused this simulator's certificate leaves behind.
+        use_bootstrap_chain (bool): Whether the /cacerts certificate is a CA that signed the
+            listener's leaf. Defaults: False (two unrelated self-signed certificates).
+        tls_common_name (str): CommonName of a generated listener leaf. Left as 'Manager' on
+            purpose, so only the SAN can satisfy a client's hostname check.
+        tls_ca_common_name (str): CommonName of a generated bootstrap CA.
+        tls_san_hostnames (tuple): DNS names for a generated leaf's SAN. server_ip is added
+            automatically when it is not an IP literal.
+        tls_san_ip_addresses (tuple): IP literals for a generated leaf's SAN. server_ip is
+            added automatically when it is one.
     """
 
     MODES = ['ACCEPT', 'REJECT_AUTH', 'BAD_REQUEST', 'SERVICE_UNAVAILABLE', 'PAYLOAD_TOO_LARGE']
@@ -581,7 +1016,8 @@ class RemotedSimulator(BaseSimulator):
                  mode: str = 'ACCEPT',
                  keys_path: str = WAZUH_CLIENT_KEYS_PATH,
                  verify_auth: bool = False,
-                 prefix: str = DEFAULT_MANAGER_ENDPOINT_PREFIX) -> None:
+                 prefix: str = DEFAULT_MANAGER_ENDPOINT_PREFIX,
+                 use_bootstrap_chain: bool = False) -> None:
         """Initialize a RemotedSimulator.
 
         Args:
@@ -597,6 +1033,10 @@ class RemotedSimulator(BaseSimulator):
                 mirroring the real manager's ``global_prefix``. Defaults to the real manager's
                 own default (``wazuh-manager``). Pass ``''`` for a bare-root manager (anything
                 prefixed 404s); pass another string to require that exact prefix instead.
+            use_bootstrap_chain (bool, optional): Serve a listener certificate signed by the
+                CA that GET /cacerts hands out, with a SAN covering server_ip, so a client
+                can pin the fetched CA and then reconnect fully verified against it.
+                Defaults: False, which keeps the historical two-unrelated-certificates shape.
         """
         super().__init__(server_ip, port, False)
 
@@ -634,13 +1074,72 @@ class RemotedSimulator(BaseSimulator):
         self.last_stats: Optional[Dict] = None
 
         # /enroll: two independent gates, fixed per instance, set before start() (the cert
-        # gate's TLS wiring happens once, at server startup). certificate_controller
-        # is created eagerly -- one RSA keygen, same cost generate_self_signed_certificate()
-        # already pays per instance -- so a test can mint a client cert any time before start().
+        # gate's TLS wiring happens once, at server startup). certificate_controller is built
+        # on first use rather than here: it is an RSA-4096 keygen wanted only by the mTLS gate
+        # and by tests that mint a client certificate, and this listener's own material no
+        # longer comes from it.
         self.require_client_cert = False
         self.enroll_password: Optional[str] = None
         self._enroll_force_error: Optional[str] = None
-        self.certificate_controller = CertificateController()
+        self._cacerts_force_error: Optional[str] = None
+        self._certificate_controller: Optional[CertificateController] = None
+
+        # Enrollment credentials this instance accepts, beyond the shared password. Keyed by the
+        # `kid` each bearer names: the token store's replica (register_enrollment_token) and the
+        # per-agent re-enrollment secrets, which are minted by a successful enrollment rather
+        # than configured -- an agent can only ever re-enroll with the secret it was handed.
+        self.enrollment_tokens: Dict[str, Dict] = {}
+        self._reenroll_secrets: Dict[str, str] = {}
+
+        # Whether a successful /enroll hands back a `reenroll_secret` at all. True is the 5.0
+        # manager; False models one that has not been upgraded yet, which is the case in which
+        # the agent must keep its enrollment password rather than shred it (wazuh/wazuh#39064).
+        self.issue_reenroll_secret = True
+        # Password mode on a node whose enrollment password is not readable: every password
+        # bearer gets `enrollment_key_unavailable` without ever being judged.
+        self.enrollment_key_unavailable = False
+
+        # Forced 401 classes, for driving the agent's policy without having to arrange the real
+        # failure. Set to one of AUTH_FAILURE_CLASSES; unlike enroll_force_error these are not
+        # consumed after one request, because the behaviours under test are about what an agent
+        # does when a refusal *keeps* happening.
+        self._auth_force_class: Optional[str] = None
+        self._enroll_force_auth_class: Optional[str] = None
+
+        # TLS material for THIS listener, and the certificate GET /cacerts serves. Both are
+        # minted lazily on first access, together, and then cached for the life of the
+        # instance -- not in __init__ (a keygen every construction would tax the many tests
+        # that never look at a pin) and not in start() (a token has to be minted from a pin
+        # BEFORE the agent runs, so the pins must be readable before the listener exists).
+        # The cache deliberately outlives shutdown(), so a restarted simulator keeps
+        # presenting the same certificate: silently rotating the key across a restart would
+        # break pin-based tests in a way that looks like an agent bug.
+        # Assign either attribute before start() to serve chosen material instead -- which is
+        # what makes an unmatched-pin or wrong-name negative test expressible.
+        self._tls_certificate: Optional[Tuple[bytes, bytes]] = None
+        self._cacerts_certificate: Optional[bytes] = None
+
+        # Certificate topology. Default False keeps the historical shape: two unrelated
+        # self-signed certificates, so the /cacerts body cannot verify this listener at all.
+        # True mints a CA and a leaf it signs, which is the real manager's shape
+        # (remote.https.ca_certificate signs the served certificate) and the only one in which
+        # a client can pin the /cacerts body and then reconnect verified against it. Opt-in
+        # because it changes what every existing instance would serve.
+        self.use_bootstrap_chain = use_bootstrap_chain
+        self.tls_common_name = DEFAULT_SERVER_COMMON_NAME
+        self.tls_ca_common_name = DEFAULT_CA_COMMON_NAME
+        self.tls_san_hostnames: Tuple[str, ...] = ('localhost',)
+        # server_ip is folded in on top of these by _san_entries(), so a simulator bound to
+        # ::1 or to a hostname verifies without the caller restating it.
+        self.tls_san_ip_addresses: Tuple[str, ...] = ('127.0.0.1', '::1')
+
+        self._tls_material: Optional[Tuple[bytes, bytes]] = None
+        self._cacerts_material: Optional[Tuple[bytes, Optional[bytes]]] = None
+        self._material_lock = threading.Lock()
+
+        # Drained off the listener at shutdown(), so the record of a client that refused this
+        # simulator's certificate survives the server it happened on.
+        self._handshake_failures: List[Dict] = []
         self._enrolled_agents: Dict[str, Dict] = {}
         self._enrolled_by_key_hash: Dict[str, str] = {}
         self._enrollment_lock = threading.Lock()
@@ -680,6 +1179,155 @@ class RemotedSimulator(BaseSimulator):
         ).hexdigest()
 
     @property
+    def tls_certificate(self) -> Optional[Tuple[bytes, bytes]]:
+        """(cert PEM, key PEM) to serve instead of a generated pair, or None to generate one."""
+        return self._tls_certificate
+
+    @tls_certificate.setter
+    def tls_certificate(self, material: Optional[Tuple[bytes, bytes]]) -> None:
+        # Drops only the listener's cached material, never the /cacerts side. That asymmetry is
+        # the point: a test signs a leaf with cacerts_key_pem -- which mints and caches the CA --
+        # and then assigns it here. Invalidating both would regenerate the CA underneath it and
+        # silently serve something else. Assigning after start() takes effect on the next
+        # start(); the running listener has already loaded its files.
+        self._tls_certificate = material
+        with self._material_lock:
+            self._tls_material = None
+
+    @property
+    def cacerts_certificate(self) -> Optional[bytes]:
+        """Certificate PEM for GET /cacerts to serve instead of a generated one, or None."""
+        return self._cacerts_certificate
+
+    @cacerts_certificate.setter
+    def cacerts_certificate(self, material: Optional[bytes]) -> None:
+        self._cacerts_certificate = material
+        with self._material_lock:
+            self._cacerts_material = None
+
+    @property
+    def certificate_controller(self) -> CertificateController:
+        """CA used to sign and validate CLIENT certificates, built on first access.
+
+        Unrelated to this listener's own certificate, deliberately: keeping the mTLS trust root
+        separate from the material the listener presents is what lets the two be tested
+        independently.
+        """
+        if self._certificate_controller is None:
+            self._certificate_controller = CertificateController()
+        return self._certificate_controller
+
+    @property
+    def tls_certificate_pem(self) -> bytes:
+        """PEM of the certificate this listener presents (generated on first access)."""
+        return self._ensure_tls_material()[0]
+
+    @property
+    def tls_key_pem(self) -> bytes:
+        """Private key of the certificate this listener presents."""
+        return self._ensure_tls_material()[1]
+
+    @property
+    def tls_pin(self) -> str:
+        """SPKI pin of the listener's certificate: 43 chars of unpadded base64url.
+
+        Readable before start(), which is what lets a test mint an enrollment token
+        carrying this pin and only then launch the agent.
+        """
+        return spki_pin(self.tls_certificate_pem)
+
+    @property
+    def tls_pin_hex(self) -> str:
+        """The same digest as 64 lowercase hex characters, for diagnostics."""
+        return spki_pin_hex(self.tls_certificate_pem)
+
+    @property
+    def cacerts_pem(self) -> bytes:
+        """PEM of the certificate a GET /cacerts route serves.
+
+        Always a DIFFERENT certificate from the listener's own, in both topologies: a test
+        asserting on this body then proves the agent received exactly the bytes this route
+        served, rather than something it could have derived from the handshake it rode in on.
+        (The agent-side C++ harness, fakeManager.hpp, splits them the same way and for the
+        same reason.) Under ``use_bootstrap_chain`` the two become related -- this is the CA
+        that signed the leaf -- but never equal, and the CA is never appended to the served
+        chain, which is what keeps that property true.
+        """
+        return self._ensure_cacerts_material()[0]
+
+    @property
+    def cacerts_key_pem(self) -> Optional[bytes]:
+        """Private key of the /cacerts certificate, or None when the material was injected.
+
+        Only meaningful under ``use_bootstrap_chain``, where it is the CA's key: a test can
+        sign a further leaf with it, e.g. one carrying the wrong SubjectAlternativeName that
+        nonetheless chains to the anchor the token pins.
+        """
+        return self._ensure_cacerts_material()[1]
+
+    @property
+    def cacerts_pin(self) -> str:
+        """SPKI pin of the /cacerts certificate -- the value a token should carry.
+
+        A bundle pins its FIRST certificate, which is the rule the agent applies too
+        (spkiSha256FromPem). Raises if the material is not a certificate at all -- which is a
+        legitimate thing to serve, since it is how the route's 404 case is expressed, but a
+        pin of it does not exist and a silent None would flow into a minted token.
+        """
+        return spki_pin(self.cacerts_pem)
+
+    @property
+    def cacerts_signs_listener(self) -> Optional[bool]:
+        """Whether the /cacerts certificate actually signed the one this listener presents.
+
+        Diagnostic only: a test can confirm the topology is what it believes without the
+        route's behaviour depending on it (the manager derives its 503 ca_mismatch from the
+        equivalent check, but this simulator scripts that with cacerts_force_error instead).
+        Signature only -- no dates, no chain -- mirroring the manager's own anyCaSignsLeaf.
+        None when either side cannot be parsed as a certificate.
+        """
+        try:
+            authority = load_certificate(self.cacerts_pem)
+            leaf = load_certificate(self.tls_certificate_pem)
+        except Exception:
+            return None
+
+        try:
+            authority.public_key().verify(leaf.signature, leaf.tbs_certificate_bytes,
+                                          ec.ECDSA(leaf.signature_hash_algorithm))
+        except InvalidSignature:
+            return False
+        except Exception:
+            # A key type whose verify() takes a different argument shape (RSA, say).
+            try:
+                authority.public_key().verify(leaf.signature, leaf.tbs_certificate_bytes,
+                                              padding.PKCS1v15(), leaf.signature_hash_algorithm)
+            except Exception:
+                return False
+        return True
+
+    @property
+    def handshake_failures(self) -> List[Dict]:
+        """Every TLS handshake that failed against this simulator, oldest first.
+
+        This is the only evidence a client refused the certificate served to it: such a client
+        never reaches HTTP, so there is no request to find in :attr:`requests` and no status
+        code to assert on. Each record carries client_address, error, reason and timestamp;
+        `reason` is the OpenSSL code, which separates a genuine refusal
+        (``TLSV1_ALERT_UNKNOWN_CA``) from expected noise such as a plain-HTTP probe on the TLS
+        port (``HTTP_REQUEST``).
+
+        Survives shutdown(), like the certificate cache, and is emptied by clear().
+        """
+        live = list(self._httpd.handshake_failures) if self.running and self._httpd else []
+        return self._handshake_failures + live
+
+    @property
+    def handshake_failure_count(self) -> int:
+        """How many TLS handshakes have failed against this simulator."""
+        return len(self.handshake_failures)
+
+    @property
     def enroll_force_error(self) -> Optional[str]:
         """One of ENROLL_FORCED_ERRORS' keys to force on the next /enroll, or None."""
         return self._enroll_force_error
@@ -691,6 +1339,62 @@ class RemotedSimulator(BaseSimulator):
                              f'{list(ENROLL_FORCED_ERRORS)}')
         self._enroll_force_error = outcome
 
+    @property
+    def auth_force_class(self) -> Optional[str]:
+        """A 401 class to force on every authenticated route, or None.
+
+        Applies to mode='REJECT_AUTH' and to a verify_auth instance alike, so a test can name the
+        class without also having to arrange the underlying failure. The four
+        ENROLL_ONLY_AUTH_CLASSES are refused here: a generic route has no enrollment token and no
+        enrollment password, so a real manager could not answer one of those on it.
+        """
+        return self._auth_force_class
+
+    @auth_force_class.setter
+    def auth_force_class(self, failure_class: Optional[str]) -> None:
+        if failure_class is not None and failure_class not in AUTH_FAILURE_CLASSES:
+            raise ValueError(f'Invalid auth_force_class. Valid classes: {list(AUTH_FAILURE_CLASSES)}')
+        if failure_class in ENROLL_ONLY_AUTH_CLASSES:
+            raise ValueError(f'{failure_class!r} is only reachable on /enroll; '
+                             f'set enroll_force_auth_class instead')
+        self._auth_force_class = failure_class
+
+    @property
+    def enroll_force_auth_class(self) -> Optional[str]:
+        """A 401 class to force on every ``POST /enroll``, or None.
+
+        All eight are allowed here -- ``/enroll`` is the one route that can produce every class --
+        and this is checked before any credential is examined, so it works on an open instance too.
+        """
+        return self._enroll_force_auth_class
+
+    @enroll_force_auth_class.setter
+    def enroll_force_auth_class(self, failure_class: Optional[str]) -> None:
+        if failure_class is not None and failure_class not in AUTH_FAILURE_CLASSES:
+            raise ValueError(f'Invalid enroll_force_auth_class. Valid classes: {list(AUTH_FAILURE_CLASSES)}')
+        self._enroll_force_auth_class = failure_class
+
+    @property
+    def cacerts_force_error(self) -> Optional[str]:
+        """One of CACERTS_FORCED_ERRORS' keys to force on GET /cacerts, or None.
+
+        Unlike enroll_force_error this is not consumed after one request: a manager whose CA is
+        unreadable, or whose CA does not match the certificate it serves, stays that way.
+        """
+        return self._cacerts_force_error
+
+    @cacerts_force_error.setter
+    def cacerts_force_error(self, outcome: Optional[str]) -> None:
+        if outcome is not None and outcome not in CACERTS_FORCED_ERRORS:
+            raise ValueError(f'Invalid cacerts_force_error. Valid outcomes: '
+                             f'{list(CACERTS_FORCED_ERRORS)}')
+        self._cacerts_force_error = outcome
+
+    @property
+    def enrollment_adr(self) -> str:
+        """This instance's address in the canonical `adr` form an enrollment token carries."""
+        return adr_for(self.server_ip, self.port, self.prefix)
+
     # Methods.
 
     def start(self) -> None:
@@ -699,7 +1403,14 @@ class RemotedSimulator(BaseSimulator):
             return
 
         self._cert_dir = tempfile.mkdtemp(prefix='remoted_simulator_')
-        cert_path, key_path = generate_self_signed_certificate(self._cert_dir)
+        # Same two filenames generate_self_signed_certificate() produced when it was
+        # called here directly, so nothing observable about start() changed; the
+        # material itself now comes from the instance cache (see __init__).
+        cert_pem, key_pem = self._ensure_tls_material()
+        cert_path = str(Path(self._cert_dir) / 'server.cert')
+        key_path = str(Path(self._cert_dir) / 'server.key')
+        Path(cert_path).write_bytes(cert_pem)
+        Path(key_path).write_bytes(key_pem)
 
         # require_client_cert requires a client certificate on every connection to this
         # instance (not just /enroll -- TLS has no per-route granularity), signed by this
@@ -725,6 +1436,9 @@ class RemotedSimulator(BaseSimulator):
 
         self._httpd.shutdown()
         self._thread.join()
+        # Drained before server_close(), so a refusal recorded during this run is still
+        # readable afterwards -- a restart-and-assert test would otherwise lose it.
+        self._handshake_failures.extend(self._httpd.handshake_failures)
         self._httpd.server_close()
         self.running = False
 
@@ -732,13 +1446,68 @@ class RemotedSimulator(BaseSimulator):
             shutil.rmtree(self._cert_dir, ignore_errors=True)
             self._cert_dir = None
 
+    def mint_enrollment_token(self, anchor: str = 'cacerts', adr: Optional[str] = None,
+                              credential: Optional[Tuple[bytes, bytes]] = None,
+                              state: str = 'valid') -> str:
+        """Mint an enrollment token for THIS instance.
+
+        Must be called before :meth:`start`, like every other certificate-dependent operation:
+        reading a pin is what mints and caches the material, so a token minted afterwards could
+        name a certificate other than the one being served.
+
+        Never hardcode a token instead of calling this. The address alone has three traps -- the
+        default port and prefix are dropped on encoding, and a bare-root instance has to be
+        written `host/` rather than `host`, since a bare host means the *default* prefix.
+
+        Args:
+            anchor (str, optional): Which anchor the token carries. 'cacerts' (default) pins the
+                certificate GET /cacerts serves, which is the one a bootstrap is meant to end up
+                trusting. 'tls' pins the listener's own certificate instead -- a
+                deliberately-wrong anchor, since the pin then names something the fetched body is
+                not. 'ca' embeds the /cacerts certificate itself, skipping the fetch entirely.
+            adr (str, optional): Override the address, for wrong-host and wrong-port cases.
+                Defaults to :attr:`enrollment_adr`.
+            credential (Tuple[bytes, bytes], optional): (id, secret), 16 bytes each. Registered
+                with this instance as it is minted (see :meth:`register_enrollment_token`), so a
+                token minted here is one this simulator will actually accept a bearer for. Pass
+                ``state`` to mint one it will refuse instead.
+            state (str, optional): The state to register the credential in: 'valid' (default),
+                'expired' or 'revoked'. Ignored when there is no credential.
+
+        Returns:
+            str: The token text.
+        """
+        address = self.enrollment_adr if adr is None else adr
+
+        if credential is not None:
+            self.register_enrollment_token(*credential, state=state)
+
+        if anchor == 'cacerts':
+            return encode_token(address, pin=self.cacerts_pin, credential=credential)
+        if anchor == 'tls':
+            return encode_token(address, pin=self.tls_pin, credential=credential)
+        if anchor == 'ca':
+            return encode_token(address, ca=self.cacerts_pem.decode(), credential=credential)
+
+        raise ValueError(f"anchor must be 'cacerts', 'tls' or 'ca', not {anchor!r}")
+
     def clear(self) -> None:
-        """Remove all recorded requests and enrolled agents."""
+        """Remove all recorded requests, handshake failures and enrolled agents.
+
+        The re-enrollment secrets go with the agents that own them -- an id this manager has
+        forgotten must answer ``unknown_agent``, not accept a bearer for a secret it no longer
+        has an agent for. Registered enrollment tokens are *not* cleared: they are configuration
+        an operator minted, not state this manager accumulated.
+        """
         with self._requests_lock:
             self._requests.clear()
+        self._handshake_failures.clear()
+        if self.running and self._httpd:
+            self._httpd.handshake_failures.clear()
         with self._enrollment_lock:
             self._enrolled_agents.clear()
             self._enrolled_by_key_hash.clear()
+            self._reenroll_secrets.clear()
 
     def destroy(self) -> None:
         """Clear the queue and shut the simulator down."""
@@ -754,7 +1523,8 @@ class RemotedSimulator(BaseSimulator):
         with self._tasks_lock:
             self._tasks.append(task)
 
-    def record_request(self, method: str, path: str, headers, body: bytes) -> None:
+    def record_request(self, method: str, path: str, headers, body: bytes,
+                       tls: Optional[Dict] = None) -> None:
         """Store a received request for later assertions.
 
         Args:
@@ -762,6 +1532,11 @@ class RemotedSimulator(BaseSimulator):
             path (str): Raw request target (path plus query string).
             headers: The request headers (email.message.Message).
             body (bytes): Exact request body bytes.
+            tls (Dict, optional): Connection-level facts (version, cipher, peer_certificate),
+                which is how a test tells the bootstrap's unverified fetch from a later
+                verified request: the two differ only in the connection they arrived on, not
+                in anything visible in the request itself. None for callers that do not
+                collect them.
         """
         with self._requests_lock:
             self._requests.append({
@@ -770,6 +1545,7 @@ class RemotedSimulator(BaseSimulator):
                 'headers': dict(headers.items()),
                 'agent_id': self._agent_id_from_headers(headers),
                 'body': body,
+                'tls': tls,
             })
 
     def get_requests(self, path: str = None) -> List[Dict]:
@@ -808,11 +1584,17 @@ class RemotedSimulator(BaseSimulator):
         return [request for request in snapshot
                 if urlsplit(request['path']).path.endswith(bare_path)]
 
-    def resolve_endpoint(self, raw_path: str) -> Optional[str]:
+    def resolve_endpoint(self, raw_path: str, method: str = 'POST') -> Optional[str]:
         """Resolve a raw request target to the bare endpoint it addresses, if any.
 
         Args:
             raw_path (str): A request's raw target (path, optionally with a query string).
+            method (str, optional): HTTP method, which selects the endpoint set to match
+                against. Defaults: 'POST', so every existing caller is unchanged. 'GET' matches
+                :data:`GET_ENDPOINTS`; a `POST /cacerts` therefore resolves to None and is
+                answered 404, which is what a real manager does too -- its router matches method
+                and path together, so a GET-only route falls through to the transport's
+                not_found handler rather than answering 405.
 
         Returns:
             Optional[str]: The matching member of :data:`ENDPOINTS` (e.g. ``/control``) if
@@ -832,7 +1614,7 @@ class RemotedSimulator(BaseSimulator):
         path = urlsplit(raw_path).path
         base = f'/{self.prefix}' if self.prefix else ''
 
-        for endpoint in ENDPOINTS:
+        for endpoint in (GET_ENDPOINTS if method == 'GET' else POST_ENDPOINTS):
             if path == base + endpoint:
                 return endpoint
         return None
@@ -927,9 +1709,75 @@ class RemotedSimulator(BaseSimulator):
             return self.wpk
         return None
 
-    def enroll_response(self, agent_id: str, name: str, ip: Optional[str], key: str) -> Dict:
-        """Build the successful ``/enroll`` response body: ``{id, name, ip, key}``."""
-        return {'id': agent_id, 'name': name, 'ip': ip or 'any', 'key': key}
+    def register_enrollment_token(self, token_id: bytes, secret: bytes, state: str = 'valid') -> str:
+        """Add an enrollment token to this manager's replica of the token store.
+
+        Args:
+            token_id (bytes): The token's 16-byte id. Its base64url spelling is the `kid` a
+                bearer names, and what this returns.
+            secret (bytes): The token's 16-byte credential secret; the bearer's key is derived
+                from it under WAZUH-ENROLL-TOKEN-KEY.
+            state (str, optional): 'valid' (default), 'expired' or 'revoked'. The latter two are
+                what a correctly signed bearer gets refused with, which is a *different*
+                situation from an id that was never registered ('token_unknown').
+
+        Returns:
+            str: The `kid`.
+
+        Raises:
+            ValueError: for a wrongly-sized id or secret, or an unknown state.
+        """
+        if len(token_id) != ID_BYTES or len(secret) != SECRET_BYTES:
+            raise ValueError(f'an enrollment token id and secret are {ID_BYTES} bytes each, '
+                             f'got {len(token_id)} and {len(secret)}')
+        if state not in ENROLLMENT_TOKEN_STATES:
+            raise ValueError(f'Invalid token state. Valid states: {list(ENROLLMENT_TOKEN_STATES)}')
+
+        kid = jwt_enroll.b64url_encode(bytes(token_id))
+        self.enrollment_tokens[kid] = {'secret': bytes(secret), 'state': state}
+        return kid
+
+    def set_reenroll_secret(self, agent_id: str, secret: str) -> None:
+        """Put a ``reenroll_secret`` on record for ``agent_id`` without an enrollment happening.
+
+        For seeding an agent that is already enrolled when the test starts: the agent's own
+        ``etc/reenroll.secret`` is written by the fixture, and this is the manager's half of that
+        same pair. Without it a pre-enrolled agent could only ever be answered ``unknown_agent``,
+        which is one of the very outcomes under test and would make the others unreachable.
+
+        Raises:
+            ValueError: if the secret is not the 64 hex characters the wire form uses.
+        """
+        if len(secret) != jwt_enroll.REENROLL_SECRET_HEX_CHARS:
+            raise ValueError(f'a reenroll_secret is {jwt_enroll.REENROLL_SECRET_HEX_CHARS} hex chars, '
+                             f'got {len(secret)}')
+        bytes.fromhex(secret)
+        with self._enrollment_lock:
+            self._reenroll_secrets[jwt_enroll.canonical_agent_id(agent_id)] = secret
+
+    def reenroll_secret_for(self, agent_id: str) -> Optional[str]:
+        """The ``reenroll_secret`` (64 hex chars) this manager holds for ``agent_id``, or None.
+
+        None is not the same as "wrong secret": an agent with no secret on record is exactly
+        authd's 9026, which the manager reports as ``unknown_agent`` -- the one refusal that
+        costs an agent its identity.
+        """
+        with self._enrollment_lock:
+            return self._reenroll_secrets.get(agent_id)
+
+    def enroll_response(self, agent_id: str, name: str, ip: Optional[str], key: str,
+                        reenroll_secret: Optional[str] = None) -> Dict:
+        """Build the successful ``/enroll`` response body: ``{id, name, ip, key}``.
+
+        ``reenroll_secret`` is the fifth field a 5.0 manager adds (wazuh/wazuh#39064). It is
+        omitted entirely rather than sent as null when there is none: the agent treats the field's
+        *absence* as "this manager does not do re-enrollment yet, keep the enrollment password",
+        and a null would be a malformed response instead.
+        """
+        response = {'id': agent_id, 'name': name, 'ip': ip or 'any', 'key': key}
+        if reenroll_secret is not None:
+            response['reenroll_secret'] = reenroll_secret
+        return response
 
     def enroll_error_body(self, code: int, message: str) -> Dict:
         """Build ``/enroll``'s nested error envelope: ``{"error": {"code", "message"}}``.
@@ -942,16 +1790,22 @@ class RemotedSimulator(BaseSimulator):
 
     def enroll_agent(self, name: str, version: Optional[str] = None,
                      groups: Optional[str] = None, ip: Optional[str] = None,
-                     key_hash: Optional[str] = None) -> Dict:
+                     key_hash: Optional[str] = None, agent_id: Optional[str] = None) -> Dict:
         """Mint or refresh an enrolled agent's identity; return the ``/enroll`` response body.
 
-        A ``key_hash`` matching an already-enrolled agent (``SHA1(id + name + raw_key)``,
-        the same algorithm the agent's own ``w_get_key_hash`` computes over its existing
-        local entry) is treated as a re-enrollment: the *same* id and key are returned, with
-        name/ip refreshed. This matters because the agent never updates its own cached id
-        after the first enrollment -- handing a re-enrolling agent a different id would
-        desync it from the manager permanently. Anything else mints a fresh id and a fresh
-        64-hex key.
+        Three paths, in descending precedence:
+
+        - ``agent_id`` given: a re-enrollment the caller has already authenticated against that
+          agent's own ``reenroll_secret``. The id is kept and the key *and* the secret are both
+          rotated -- the whole point of the secret is that using it consumes it, so a captured
+          response cannot be replayed. This outranks ``key_hash`` because a verified bearer is a
+          stronger statement than a hash the agent computed over its own file.
+        - ``key_hash`` matching an already-enrolled agent (``SHA1(id + name + raw_key)``, the same
+          algorithm the agent's own ``w_get_key_hash`` computes over its existing local entry):
+          the *same* id and key are returned, with name/ip refreshed. This matters because the
+          agent never updates its own cached id after the first enrollment -- handing a
+          re-enrolling agent a different id would desync it from the manager permanently.
+        - anything else: a fresh id and a fresh 64-hex key.
 
         Args:
             name (str): Agent name.
@@ -959,14 +1813,19 @@ class RemotedSimulator(BaseSimulator):
             groups (str, optional): Comma-separated group list (recorded, not otherwise used).
             ip (str, optional): Agent IP override.
             key_hash (str, optional): SHA1(id + name + raw_key) of an existing local entry.
+            agent_id (str, optional): The canonical id of an authenticated re-enrollment.
 
         Returns:
-            Dict: The ``{id, name, ip, key}`` response body.
+            Dict: The ``{id, name, ip, key}`` response body, plus ``reenroll_secret`` when
+            :attr:`issue_reenroll_secret` is set.
         """
         with self._enrollment_lock:
-            agent_id = self._enrolled_by_key_hash.get(key_hash) if key_hash else None
-            key = self._enrolled_agents[agent_id]['key'] if agent_id else secrets.token_hex(32)
-            agent_id = agent_id or self._next_agent_id()
+            if agent_id is None:
+                agent_id = self._enrolled_by_key_hash.get(key_hash) if key_hash else None
+                key = self._enrolled_agents[agent_id]['key'] if agent_id else secrets.token_hex(32)
+                agent_id = agent_id or self._next_agent_id()
+            else:
+                key = secrets.token_hex(32)
 
             self._enrolled_agents[agent_id] = {
                 'name': name, 'ip': ip, 'key': key, 'version': version, 'groups': groups,
@@ -974,9 +1833,111 @@ class RemotedSimulator(BaseSimulator):
             new_hash = hashlib.sha1(f'{agent_id}{name}{key}'.encode()).hexdigest()
             self._enrolled_by_key_hash[new_hash] = agent_id
 
-        return self.enroll_response(agent_id, name, ip, key)
+            secret = None
+            if self.issue_reenroll_secret:
+                # Minted on every success, including a re-enrollment: the agent overwrites its
+                # stored secret with this one, so the previous secret stops working the moment
+                # this response is written. A manager that reissued the same secret would leave
+                # a captured one usable forever.
+                secret = jwt_enroll.random_reenroll_secret()
+                self._reenroll_secrets[agent_id] = secret
+            else:
+                self._reenroll_secrets.pop(agent_id, None)
+
+        return self.enroll_response(agent_id, name, ip, key, reenroll_secret=secret)
 
     # Internal methods.
+
+    @staticmethod
+    def _generate_self_signed_certificate() -> Tuple[bytes, bytes]:
+        """Generate one self-signed certificate/key pair and return them as PEM.
+
+        The historical shape, used by the default (non-bootstrap-chain) topology: goes through
+        generate_self_signed_certificate() rather than reimplementing the encoding, so it stays
+        in step with whatever that helper emits; the scratch directory only exists to read the
+        bytes back out of.
+
+        Returns:
+            Tuple[bytes, bytes]: (certificate PEM, private key PEM).
+        """
+        scratch = tempfile.mkdtemp(prefix='remoted_simulator_cert_')
+        try:
+            cert_path, key_path = generate_self_signed_certificate(scratch)
+            return Path(cert_path).read_bytes(), Path(key_path).read_bytes()
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+    def _san_entries(self) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+        """Return the (hostnames, ip_addresses) a generated leaf should carry.
+
+        server_ip is folded into whichever list it belongs to, so an instance bound to ::1 or
+        to a hostname verifies without the caller having to restate the address.
+        """
+        hostnames = list(self.tls_san_hostnames)
+        ip_addresses = list(self.tls_san_ip_addresses)
+        try:
+            ipaddress.ip_address(self.server_ip)
+        except ValueError:
+            if self.server_ip not in hostnames:
+                hostnames.append(self.server_ip)
+        else:
+            if self.server_ip not in ip_addresses:
+                ip_addresses.append(self.server_ip)
+
+        return tuple(hostnames), tuple(ip_addresses)
+
+    def _ensure_certificate_material(self) -> None:
+        """Mint this instance's listener certificate and /cacerts certificate, once, together.
+
+        One step under one lock, because the two used to be independent lazy caches and that
+        independence is exactly why they could never be coherent: nothing could make the
+        certificate handed out by /cacerts be the one that signed what the listener serves.
+
+        Injected material wins over generated material on each side separately. Injecting a
+        listener certificate under use_bootstrap_chain therefore breaks the chain on purpose --
+        a genuine CA/leaf mismatch is a fixture worth having.
+        """
+        with self._material_lock:
+            if self._tls_material is not None and self._cacerts_material is not None:
+                return
+
+            # The /cacerts side first, because in the chained topology the listener's leaf is
+            # signed with its key. Minting the two sides separately is what lets a test read
+            # the CA, sign something with it, and only then inject that as the listener's
+            # certificate -- the ordering the wrong-name fixture needs.
+            if self._cacerts_material is None:
+                if self._cacerts_certificate is not None:
+                    self._cacerts_material = (self._cacerts_certificate, None)
+                elif self.use_bootstrap_chain:
+                    self._cacerts_material = generate_ca_certificate(
+                        common_name=self.tls_ca_common_name)
+                else:
+                    self._cacerts_material = self._generate_self_signed_certificate()
+
+            if self._tls_material is None:
+                authority_pem, authority_key = self._cacerts_material
+                if self._tls_certificate is not None:
+                    self._tls_material = self._tls_certificate
+                elif self.use_bootstrap_chain and authority_key is not None:
+                    hostnames, ip_addresses = self._san_entries()
+                    self._tls_material = generate_leaf_certificate(
+                        authority_pem, authority_key, common_name=self.tls_common_name,
+                        hostnames=hostnames, ip_addresses=ip_addresses)
+                else:
+                    # Either the default topology, or a chain whose CA was injected without a
+                    # key so nothing can be signed with it. Both leave the served certificate
+                    # unrelated to the one handed out, which is a mismatch fixture.
+                    self._tls_material = self._generate_self_signed_certificate()
+
+    def _ensure_tls_material(self) -> Tuple[bytes, bytes]:
+        """Return this instance's (certificate PEM, key PEM), generating them once."""
+        self._ensure_certificate_material()
+        return self._tls_material
+
+    def _ensure_cacerts_material(self) -> Tuple[bytes, Optional[bytes]]:
+        """Return the /cacerts (certificate PEM, key PEM), generating them once."""
+        self._ensure_certificate_material()
+        return self._cacerts_material
 
     def _drain_tasks(self) -> List[Dict]:
         """Atomically return and clear the pending tasks (delivered once, locally)."""
