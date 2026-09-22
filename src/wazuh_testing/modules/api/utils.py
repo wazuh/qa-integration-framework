@@ -17,7 +17,7 @@ from typing import Tuple, Union, List
 from .patterns import API_LOGIN_ERROR_MSG
 from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
-                                        WAZUH_API_PASSWORD, DEFAULT_API_USERS, LOGIN_ROUTE, USERS_ROUTE, \
+                                        WAZUH_API_PASSWORD, DEFAULT_API_USER_VARIABLES, LOGIN_ROUTE, USERS_ROUTE, \
                                         RESOURCE_ROUTE_MAP, TARGET_ROUTE_MAP
 from wazuh_testing.constants.paths.api import PRESEEDED_PASSWORDS_PATH, WAZUH_API_CERTIFICATE
 from wazuh_testing.utils.file import read_json_file
@@ -102,11 +102,16 @@ def _read_provisioned_password(user: str) -> Union[str, None]:
 def get_default_api_password(user: str = WAZUH_API_USER) -> str:
     """Resolve the password of a default API user on the manager under test.
 
-    A 5.x manager ships no password for them: the installation provisions one or the manager generates it,
-    and either way `rbac.db` holds only its hash. A test run states it through `WAZUH_API_PASSWORD` in the
-    environment, which is what the integration workflow exports. Without it, the credentials file the node
-    was seeded from is read, which covers a suite run by hand against an installed manager. Without that
-    either, the historical literal is used, which still applies to a 4.x manager.
+    A 5.x manager ships no password for them: the installation supplies one through that user's own
+    variable or the manager generates it, and either way `rbac.db` holds only its hash. A test run states
+    it through the same variable the installation reads, one per user. Without it, the credentials file the
+    node was seeded from is read, which is where a generated password lives and what covers a suite run by
+    hand against an installed manager. Without that either, the historical literal is used, which still
+    applies to a 4.x manager.
+
+    The variable is per user, not shared: an installation that sets `WAZUH_API_PASSWORD` and leaves
+    `WAZUH_WUI_PASSWORD` unset gives `wazuh-wui` a generated password, so reading one variable for both
+    would authenticate `wazuh-wui` with the other user's password and get `401`.
 
     Args:
         user (str): Default API user whose password to resolve.
@@ -114,12 +119,14 @@ def get_default_api_password(user: str = WAZUH_API_USER) -> str:
     Returns:
         str: The password to authenticate with.
     """
-    if user not in DEFAULT_API_USERS:
+    variable = DEFAULT_API_USER_VARIABLES.get(user)
+
+    if variable is None:
         # A user a test created itself carries whatever password its fixture stored, not the one the
-        # node was provisioned with.
+        # node was installed with.
         return WAZUH_API_PASSWORD
 
-    return os.environ.get('WAZUH_API_PASSWORD') or _read_provisioned_password(user) or WAZUH_API_PASSWORD
+    return os.environ.get(variable) or _read_provisioned_password(user) or WAZUH_API_PASSWORD
 
 
 def login(user: str = WAZUH_API_USER, password: str = None,

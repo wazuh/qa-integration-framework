@@ -10,8 +10,10 @@ WAZUH_API_HOST = 'localhost'
 WAZUH_API_PORT = '55000'
 WAZUH_API_USER = 'wazuh'
 WAZUH_API_PASSWORD = 'wazuh'
-# The users the manager creates by itself, and the only ones whose password a deployment provisions.
-DEFAULT_API_USERS = (WAZUH_API_USER, 'wazuh-wui')
+# The users the manager creates by itself, and the variable each one's password is installed through.
+# Mirrors PASSWORD_ENVIRONMENT_VARIABLES in the manager's `framework/scripts/rbac_control.py`: one variable
+# per user, because an installation can supply one and let the other be generated.
+DEFAULT_API_USER_VARIABLES = {WAZUH_API_USER: 'WAZUH_API_PASSWORD', 'wazuh-wui': 'WAZUH_WUI_PASSWORD'}
 
 # API routes
 LOGIN_ROUTE = '/security/user/authenticate'
