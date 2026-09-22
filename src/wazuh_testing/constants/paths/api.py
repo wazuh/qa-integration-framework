@@ -21,5 +21,9 @@ WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH, 'wazuh_manager_ap
 # Databases paths
 RBAC_DATABASE_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'rbac.db')
 
+# Credentials the manager seeds its default API users from, kept after seeding so the operator can read
+# what was generated. Only root and the Wazuh group can read it.
+PRESEEDED_PASSWORDS_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'wazuh-preseeded-passwords.yml')
+
 # SSL paths
 WAZUH_API_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'apid.pem')

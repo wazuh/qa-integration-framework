@@ -7,6 +7,7 @@ import json
 import os
 import requests
 import time
+import yaml
 from requests.adapters import HTTPAdapter, Retry
 from base64 import b64encode
 from copy import deepcopy
@@ -18,7 +19,7 @@ from wazuh_testing import session_parameters
 from wazuh_testing.constants.api import WAZUH_API_PROTOCOL, WAZUH_API_HOST, WAZUH_API_PORT, WAZUH_API_USER, \
                                         WAZUH_API_PASSWORD, DEFAULT_API_USERS, LOGIN_ROUTE, USERS_ROUTE, \
                                         RESOURCE_ROUTE_MAP, TARGET_ROUTE_MAP
-from wazuh_testing.constants.paths.api import WAZUH_API_CERTIFICATE
+from wazuh_testing.constants.paths.api import PRESEEDED_PASSWORDS_PATH, WAZUH_API_CERTIFICATE
 from wazuh_testing.utils.file import read_json_file
 
 
@@ -73,14 +74,39 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     return headers
 
 
+def _read_provisioned_password(user: str) -> Union[str, None]:
+    """Read a default user's password from the credentials file the manager was seeded from.
+
+    Kept on disk after seeding, so it is readable for as long as the operator has not removed it. Only
+    root and the Wazuh group can, and a suite that is not running as either gets nothing.
+
+    Args:
+        user (str): Default API user whose password to read.
+
+    Returns:
+        str: The provisioned password, or None when the file cannot be read or does not name the user.
+    """
+    try:
+        with open(PRESEEDED_PASSWORDS_PATH, encoding='utf-8') as credentials:
+            document = yaml.safe_load(credentials) or {}
+    except (OSError, yaml.YAMLError):
+        return None
+
+    for entry in document.get('manager') or []:
+        if isinstance(entry, dict) and entry.get('name') == user:
+            return entry.get('password')
+
+    return None
+
+
 def get_default_api_password(user: str = WAZUH_API_USER) -> str:
     """Resolve the password of a default API user on the manager under test.
 
-    A 5.x manager ships no password for them: whoever provisions the node decides it, and the value is
-    stored as a hash the moment the manager first starts, so there is nothing on disk to read it back from.
-    A test run states it through `WAZUH_API_PASSWORD` in the environment, which is what the integration
-    workflow exports after provisioning. Without it, the historical literal is used, which still applies to
-    a 4.x manager.
+    A 5.x manager ships no password for them: the installation provisions one or the manager generates it,
+    and either way `rbac.db` holds only its hash. A test run states it through `WAZUH_API_PASSWORD` in the
+    environment, which is what the integration workflow exports. Without it, the credentials file the node
+    was seeded from is read, which covers a suite run by hand against an installed manager. Without that
+    either, the historical literal is used, which still applies to a 4.x manager.
 
     Args:
         user (str): Default API user whose password to resolve.
@@ -93,7 +119,7 @@ def get_default_api_password(user: str = WAZUH_API_USER) -> str:
         # node was provisioned with.
         return WAZUH_API_PASSWORD
 
-    return os.environ.get('WAZUH_API_PASSWORD') or WAZUH_API_PASSWORD
+    return os.environ.get('WAZUH_API_PASSWORD') or _read_provisioned_password(user) or WAZUH_API_PASSWORD
 
 
 def login(user: str = WAZUH_API_USER, password: str = None,
