@@ -13,7 +13,8 @@ WAZUH_API_PASSWORD = 'wazuh'
 # The users the manager creates by itself, and the variable each one's password is installed through.
 # Mirrors PASSWORD_ENVIRONMENT_VARIABLES in the manager's `framework/scripts/rbac_control.py`: one variable
 # per user, because an installation can supply one and let the other be generated.
-DEFAULT_API_USER_VARIABLES = {WAZUH_API_USER: 'WAZUH_API_PASSWORD', 'wazuh-wui': 'WAZUH_WUI_PASSWORD'}
+DEFAULT_API_USER_VARIABLES = {WAZUH_API_USER: 'INITIAL_WAZUH_PASSWORD',
+                              'wazuh-wui': 'INITIAL_WAZUH_WUI_PASSWORD'}
 
 # API routes
 LOGIN_ROUTE = '/security/user/authenticate'

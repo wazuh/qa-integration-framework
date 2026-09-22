@@ -109,9 +109,9 @@ def get_default_api_password(user: str = WAZUH_API_USER) -> str:
     hand against an installed manager. Without that either, the historical literal is used, which still
     applies to a 4.x manager.
 
-    The variable is per user, not shared: an installation that sets `WAZUH_API_PASSWORD` and leaves
-    `WAZUH_WUI_PASSWORD` unset gives `wazuh-wui` a generated password, so reading one variable for both
-    would authenticate `wazuh-wui` with the other user's password and get `401`.
+    The variable is per user, not shared: an installation that sets `INITIAL_WAZUH_PASSWORD` and leaves
+    `INITIAL_WAZUH_WUI_PASSWORD` unset gives `wazuh-wui` a generated password, so reading one variable for
+    both would authenticate `wazuh-wui` with the other user's password and get `401`.
 
     Args:
         user (str): Default API user whose password to resolve.
