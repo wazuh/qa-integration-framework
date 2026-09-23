@@ -8,6 +8,12 @@ from . import PREFIX
 INVALID_VALUE_FOR_ELEMENT = fr"{PREFIX}.*Invalid value for element.*"
 INVALID_ELEMENT_IN_CONFIGURATION = fr"{PREFIX}.*Invalid element in the configuration.*"
 CONFIGURATION_ERROR = r".*{severity}:.*Configuration error at '{path}'.*"
+# The manager configuration (etc/wazuh-manager.yml) is validated against its schema before any daemon
+# reads it: an invalid value is reported once, with the JSON pointer of the offending option, followed
+# by the CONFIGURATION_ERROR CRITICAL above.
+# Matches both the daemon line ("at '<file>': <pointer>: ...") and the validator line the control
+# script writes ("at '<pointer>': ...").
+INVALID_CONFIGURATION = r".*ERROR: \(1244\): Invalid configuration at .*{pointer}.*"
 
 INVALID_VALUE_FOR_PORT_NUMBER = fr"{PREFIX}.*Invalid port number.*"
 

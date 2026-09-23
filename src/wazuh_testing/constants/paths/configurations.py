@@ -26,7 +26,8 @@ try:
 except Exception:
     _is_manager = False
 
-WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'wazuh-manager.conf' if _is_manager else 'ossec.conf')
+# The manager configuration is YAML (etc/wazuh-manager.yml); the agent one is still XML (etc/ossec.conf).
+WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'wazuh-manager.yml' if _is_manager else 'ossec.conf')
 WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(BASE_CONF_PATH, 'wazuh-manager-internal-options.conf' if _is_manager else 'local_internal_options.conf')
 ACTIVE_RESPONSE_CONFIGURATION = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')
 AR_CONF = os.path.join(SHARED_CONFIGURATIONS_PATH, 'ar.conf')

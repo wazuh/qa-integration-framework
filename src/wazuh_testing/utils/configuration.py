@@ -6,45 +6,88 @@ import json
 import xml.etree.ElementTree as ET
 
 from copy import deepcopy
-from typing import List
+from typing import List, Union
+
+import yaml
 
 from wazuh_testing import DATA_PATH
-from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS
+from wazuh_testing.constants.paths.configurations import WAZUH_CONF_PATH, WAZUH_LOCAL_INTERNAL_OPTIONS, _is_manager
 
 from . import file
 
 def get_minimal_configuration():
-    """Get the wazuh minimal configuration data.
+    """Get the wazuh minimal configuration data: the YAML manager configuration (etc/wazuh-manager.yml)
+    with everything disabled, or the XML agent one.
 
     Returns:
         List of str: Wazuh minimal configuration data.
     """
-    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', 'all_disabled_wazuh.conf'))
+    template = 'all_disabled_wazuh.yml' if _is_manager else 'all_disabled_wazuh.conf'
+    return file.read_file_lines(os.path.join(DATA_PATH, 'configuration_template', template))
 
 
 def get_wazuh_conf() -> List[str]:
     """
-    Get current `ossec.conf` file content.
+    Get the current content of the configuration file (etc/wazuh-manager.yml on a manager,
+    etc/ossec.conf on an agent).
 
     Returns
-        List of str: A list containing all the lines of the `ossec.conf` file.
+        List of str: A list containing all the lines of the configuration file.
     """
     return file.read_file_lines(WAZUH_CONF_PATH)
 
 
-def write_wazuh_conf(wazuh_conf: List[str]) -> None:
+def write_wazuh_conf(wazuh_conf: Union[List[str], str]) -> None:
     """
-    Write a new configuration in 'ossec.conf' file.
+    Write a new configuration file (etc/wazuh-manager.yml on a manager, etc/ossec.conf on an agent).
 
     Args:
-        wazuh_conf (list or str): Lines to be written in the ossec.conf file.
+        wazuh_conf (list or str): Lines, or the whole text, to be written in the configuration file.
     """
     file.write_file(WAZUH_CONF_PATH, wazuh_conf)
 
 
+def _prune_null_values(node):
+    """Drop the keys whose value is None: a `null` placeholder value means "leave the option unset"."""
+    if isinstance(node, dict):
+        return {key: _prune_null_values(value) for key, value in node.items() if value is not None}
+    if isinstance(node, list):
+        return [_prune_null_values(value) for value in node if value is not None]
+    return node
+
+
+def set_manager_conf(sections: dict, template: Union[List[str], str, None] = None) -> str:
+    """
+    Set sections of the manager configuration (etc/wazuh-manager.yml, YAML). Every top-level section
+    received replaces the whole section of the current document, the same granularity as
+    `set_section_wazuh_conf` for the agent XML; the manager's schema fills the rest with defaults.
+
+    Args:
+        sections (dict): Mapping section name -> section content (a YAML fragment of the manager
+                         configuration, e.g. `{'remote': {'legacy': {'port': 1514}}}`). A `None` value
+                         inside a section removes that option (it is left to its default).
+        template (list of str or str, optional): Configuration text to start from instead of the
+                                                 current file.
+
+    Returns:
+        str: The new configuration document, as YAML text.
+    """
+    raw = get_wazuh_conf() if template is None else template
+    text = ''.join(raw) if isinstance(raw, list) else raw
+    document = yaml.safe_load(text) or {}
+    if not isinstance(document, dict):
+        raise ValueError('The manager configuration must be a YAML mapping')
+
+    for name, content in sections.items():
+        document[name] = _prune_null_values(deepcopy(content))
+
+    return yaml.safe_dump(document, sort_keys=False, default_flow_style=False)
+
+
 def set_section_wazuh_conf(sections: List[dict], template: List[str] = None) -> List[str]:
     """
-    Set a configuration in a section of Wazuh. It replaces the content if it exists.
+    Set a configuration in a section of the agent XML configuration (etc/ossec.conf). It replaces the
+    content if it exists. Manager configurations are YAML: see `set_manager_conf`.
 
     Args:
         sections (list): List of dicts with section and new elements

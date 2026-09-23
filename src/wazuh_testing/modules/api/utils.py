@@ -320,8 +320,20 @@ def compare_config_api_response(configuration, section):
             configuration_to_compare = dict((key, configuration[i][key]['value']) for key in configuration[i].keys())
             assert api_answer_to_compare == configuration_to_compare
     else:
-        api_answer_to_compare = dict((key, api_answer[key]) for key in configuration.keys())
-        assert api_answer_to_compare == configuration
+        # Manager (etc/wazuh-manager.yml): the API returns the effective section (defaults filled in), so the
+        # configured values are compared as a subset, mapping by mapping.
+        _assert_configured_subset(configuration, api_answer)
+
+
+def _assert_configured_subset(expected, actual, path=''):
+    """Every option present in `expected` (a YAML fragment) must hold the same value in `actual`."""
+    if isinstance(expected, dict):
+        assert isinstance(actual, dict), f"{path or '/'}: expected a mapping, got {actual!r}"
+        for key, value in expected.items():
+            assert key in actual, f"{path}/{key}: missing in the API response {actual!r}"
+            _assert_configured_subset(value, actual[key], f"{path}/{key}")
+    else:
+        assert actual == expected, f"{path or '/'}: API returned {actual!r}, configured {expected!r}"
 
 
 def get_manager_configuration(section=None, field=None):

@@ -5,5 +5,7 @@ from . import WAZUH_DB_PREFIX
 
 
 BACKUP_CREATION_CALLBACK = r'.*Created Global database backup "(backup/db/global.db-backup.*.gz)"'
-WRONG_INTERVAL_CALLBACK = r".*Invalid value for element ('interval':.*)"
-WRONG_MAX_FILES_CALLBACK = r".*Invalid value for element ('max_files':.*)"
+# etc/wazuh-manager.yml is validated against its schema: an invalid backup option is reported with the
+# JSON pointer of the offending value (1244) before wazuh-db starts.
+WRONG_INTERVAL_CALLBACK = r".*\(1244\): Invalid configuration at .*/wdb/backup/global/interval.*"
+WRONG_MAX_FILES_CALLBACK = r".*\(1244\): Invalid configuration at .*/wdb/backup/global/max_files.*"
