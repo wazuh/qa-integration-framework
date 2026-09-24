@@ -74,18 +74,25 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     return headers
 
 
-def read_credentials_file_key(key: str, path: str = CREDENTIALS_FILE_PATH) -> Union[str, None]:
-    """Read one key from the shared credentials file, parsed the way the manager's resolver parses it.
+def _decode_double_quoted(value: str) -> str:
+    """Undo the backslash escapes the manager writes inside a double-quoted value."""
+    return re.sub(r'\\([\\"$`])', r'\1', value)
 
-    `KEY=VALUE` lines, never sourced. The last assignment wins, a single-quoted value undoes `'\\''`, and a
-    double-quoted value only loses its quotes.
+
+def read_credentials_file_key(key: str, path: str = CREDENTIALS_FILE_PATH) -> Union[str, None]:
+    """Read one key from the shared credentials file, parsed the way the manager's `wazuh_env_get` parses it.
+
+    `KEY=VALUE` lines, never sourced; blank lines and comments are skipped and spaces around the name and the
+    value are ignored. The last assignment wins. A single-quoted value only loses its quotes; a double-quoted
+    one also undoes the backslash escapes of a backslash, a double quote, `$` and a backtick. An unterminated
+    quote makes the file invalid.
 
     Args:
         key (str): Key to read.
         path (str): Credentials file.
 
     Returns:
-        str: The value, or None when the file cannot be read or does not set the key.
+        str: The value, or None when the file cannot be read, is invalid or does not set the key.
     """
     try:
         with open(path, encoding='utf-8') as credentials:
@@ -93,18 +100,25 @@ def read_credentials_file_key(key: str, path: str = CREDENTIALS_FILE_PATH) -> Un
     except OSError:
         return None
 
-    pattern = re.compile(rf'^\s*{re.escape(key)}=(.*)$')
-    values = [match.group(1) for match in map(pattern.match, lines) if match]
-    if not values or not values[-1]:
-        return None
+    result = None
+    for line in lines:
+        line = line.lstrip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        name, value = line.split('=', 1)
+        if name.rstrip() != key:
+            continue
 
-    value = values[-1]
-    if len(value) >= 2 and value[0] == value[-1] == "'":
-        return value[1:-1].replace("'\\''", "'")
-    if len(value) >= 2 and value[0] == value[-1] == '"':
-        return value[1:-1]
+        value = value.strip()
+        if value[:1] in ('"', "'") and (len(value) < 2 or value[-1] != value[0]):
+            return None
+        if len(value) >= 2 and value[0] == value[-1] == "'":
+            value = value[1:-1]
+        elif len(value) >= 2 and value[0] == value[-1] == '"':
+            value = _decode_double_quoted(value[1:-1])
+        result = value
 
-    return value
+    return result or None
 
 
 def get_default_api_password(user: str = WAZUH_API_USER) -> str:
