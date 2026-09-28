@@ -17,6 +17,7 @@ package_data_list = [
     'data/alerts_template/analysis_alert_windows.json',
     'data/alerts_template/mitre_event.json',
     'data/configuration_template/all_disabled_wazuh.conf',
+    'data/configuration_template/all_disabled_wazuh.yml',
     'data/configuration_template/agent.conf',
     'data/events_template/keepalives.txt',
     'data/events_template/rootcheck.txt',
