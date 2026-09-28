@@ -56,6 +56,7 @@ All notable changes to this project will be documented in this file.
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `TLSHTTPServer` now terminates TLS per accepted connection rather than wrapping its listening socket, and `RemotedSimulator.certificate_controller` is built on first use instead of in the constructor |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `mode='REJECT_AUTH'` now answers `unknown_agent` rather than a class-less 401, so the suites that use it to force a re-enrollment keep working now that a class-less 401 no longer makes the agent discard its identity |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | An unsupported `protocol-version` on `/enroll` is answered with `400` instead of `401`: it is not a credential failure, and conflating them hides which of the two the agent got wrong |
+| [#39554](https://github.com/wazuh/wazuh/issues/39554) | Resolved the default API users' password instead of assuming the shipped literal: `login()`, `set_authorization_header()` and `get_api_details_dict()` read `WAZUH_MANAGER_API_PASSWORD` for `wazuh` and `WAZUH_MANAGER_WUI_PASSWORD` for `wazuh-wui` from the environment, then from `/etc/wazuh/credentials.env`, and fall back to `wazuh` for a 4.x manager. |
 
 ### Removed
 

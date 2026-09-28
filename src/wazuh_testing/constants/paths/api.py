@@ -21,5 +21,9 @@ WAZUH_API_SCRIPT = os.path.join(WAZUH_API_SCRIPTS_FOLDER_PATH, 'wazuh_manager_ap
 # Databases paths
 RBAC_DATABASE_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'rbac.db')
 
+# Credentials file shared by the Wazuh components. The manager publishes the passwords it seeds its
+# default API users with there. Only root can read it.
+CREDENTIALS_FILE_PATH = os.path.join(os.sep, 'etc', 'wazuh', 'credentials.env')
+
 # SSL paths
 WAZUH_API_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'apid.pem')
