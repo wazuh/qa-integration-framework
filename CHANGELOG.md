@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.14.8]
+
+### Fixed
+
+- Fixed `query_wdb` not waiting for the wdb socket after the last wazuh-db restart. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+- Fixed `get_client_keys` callers racing authd's writer thread with a fixed sleep instead of polling for the entry. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+
 ## [4.14.7]
 
 ### Changed
