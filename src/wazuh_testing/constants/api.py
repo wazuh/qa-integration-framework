@@ -10,6 +10,11 @@ WAZUH_API_HOST = 'localhost'
 WAZUH_API_PORT = '55000'
 WAZUH_API_USER = 'wazuh'
 WAZUH_API_PASSWORD = 'wazuh'
+# The users the manager creates by itself, and the key each one's password is resolved from. Mirrors the
+# manager's credential resolver (`src/init/credentials/resolve-credentials`): one key per user, because an
+# installation can supply one and let the other be generated.
+DEFAULT_API_USER_KEYS = {WAZUH_API_USER: 'WAZUH_MANAGER_API_PASSWORD',
+                         'wazuh-wui': 'WAZUH_MANAGER_WUI_PASSWORD'}
 
 # API routes
 LOGIN_ROUTE = '/security/user/authenticate'
