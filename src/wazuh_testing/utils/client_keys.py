@@ -2,6 +2,7 @@
 # Created by Wazuh, Inc. <info@wazuh.com>.
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import random
+import time
 from typing import List
 
 from wazuh_testing.constants.paths.configurations import WAZUH_CLIENT_KEYS_PATH
@@ -87,6 +88,30 @@ def get_client_keys(path: str = WAZUH_CLIENT_KEYS_PATH) -> List[dict]:
         keys.append({'id': id, 'name': name, 'ip': ip, 'key': key})
 
     return keys
+
+
+def wait_for_client_keys_entry(expected_entry: dict, timeout: int = 10, interval: float = 0.5) -> bool:
+    """Poll the client keys file until an entry matching expected_entry appears.
+
+    authd flushes new entries to client.keys from a writer thread decoupled from the
+    request that triggered the registration, so a fixed sleep-then-read is not reliable.
+
+    Args:
+        expected_entry (dict): Subset of fields (e.g. 'name', 'ip') the entry must contain.
+        timeout (int): Max seconds to wait for the entry to appear.
+        interval (float): Seconds between reads.
+
+    Returns:
+        bool: True if a matching entry was found before the timeout, False otherwise.
+    """
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        for client_keys_entry in get_client_keys():
+            if expected_entry.items() <= client_keys_entry.items():
+                return True
+        time.sleep(interval)
+
+    return False
 
 
 def check_client_keys(id, expected):
