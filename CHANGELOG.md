@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Fixed `query_wdb` not waiting for the wdb socket after the last wazuh-db restart. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
 - Fixed `get_client_keys` callers racing authd's writer thread with a fixed sleep instead of polling for the entry. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+- Fixed `login` callers racing wazuh-apid's ASGI lifespan log, which fires before the API port is actually open, by adding `wait_for_api_port`. ([wazuh/wazuh#39019](https://github.com/wazuh/wazuh/issues/39019))
 
 ## [4.10.5]
 
