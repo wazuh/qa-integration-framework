@@ -52,6 +52,7 @@ All notable changes to this project will be documented in this file.
 | [#783](https://github.com/wazuh/qa-integration-framework/pull/783) | Updated the analysisd statistics template to the engine metrics dump format. |
 | [#790](https://github.com/wazuh/qa-integration-framework/pull/790) | Updated the agent analysisd statistics template to the engine metrics dump format. |
 | [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Updated the manager socket constants to the standardized `queue/sockets` layout. |
+| [#847](https://github.com/wazuh/qa-integration-framework/pull/847) | Updated the `wazuh-manager-db` statistics template to the counters `wazuh-db` exposes in 5.0.0: the agent DB counters are gone, `task`/`task_breakdown` became `mitre`/`mitre_breakdown`, and the global DB breakdown gained `sleep` and `open`. |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | Declared `cryptography` explicitly; four modules import it directly and it was only arriving transitively through `pyOpenSSL` |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `TLSHTTPServer` now terminates TLS per accepted connection rather than wrapping its listening socket, and `RemotedSimulator.certificate_controller` is built on first use instead of in the constructor |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | `mode='REJECT_AUTH'` now answers `unknown_agent` rather than a class-less 401, so the suites that use it to force a re-enrollment keep working now that a class-less 401 no longer makes the agent discard its identity |
@@ -63,7 +64,7 @@ All notable changes to this project will be documented in this file.
 | Issue | Comment |
 |-------|---------|
 | [#585](https://github.com/wazuh/qa-integration-framework/pull/585) | Removed wazuh-execd from manager daemon lists. |
-| [#835](https://github.com/wazuh/qa-integration-framework/pull/835) | Removed `wazuh-manager-monitord` from the manager daemon list. |
+| [#841](https://github.com/wazuh/qa-integration-framework/pull/841) | Removed `wazuh-manager-monitord` from the manager daemon list. |
 | [#834](https://github.com/wazuh/qa-integration-framework/pull/834) | Removed the socket constants for sockets the manager no longer creates. |
 | [#470](https://github.com/wazuh/qa-integration-framework/pull/470) | Removed Wazuh Manager deprecated daemons and CLI tools. |
 | [#444](https://github.com/wazuh/qa-integration-framework/pull/444) | Removed agent-auth references. |
