@@ -27,3 +27,6 @@ CREDENTIALS_FILE_PATH = os.path.join(os.sep, 'etc', 'wazuh', 'credentials.env')
 
 # SSL paths
 WAZUH_API_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'apid.pem')
+# Trust anchor for the API's certificate: since wazuh/wazuh#40053 the installer issues apid.pem signed by the
+# manager CA (it is no longer self-signed), so clients verify it against the CA, as server 'localhost'.
+WAZUH_API_CA_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'root-ca.pem')
