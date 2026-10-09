@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.14.10]
+
+### Added
+
+- Added `wait_for_tcp_port` to wait until a TCP port accepts connections instead of relying on a daemon's startup log. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+
+### Fixed
+
+- Fixed `query_wdb` not waiting for the wdb socket after the last wazuh-db restart, and restarting wazuh-db even when it was still alive and simply slow to create its socket. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+- Fixed `get_client_keys` callers racing authd's writer thread with a fixed sleep instead of polling for the entry. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+- Fixed `check_if_process_is_running` returning `False` for a running process when another process exits during the check. ([wazuh/wazuh#39611](https://github.com/wazuh/wazuh/issues/39611))
+
 ## [4.14.7]
 
 ### Changed

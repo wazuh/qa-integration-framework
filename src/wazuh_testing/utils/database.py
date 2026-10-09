@@ -32,23 +32,20 @@ def query_wdb(command, response_only=True, multiple_responses=False) -> List[str
     Returns:
         list: Query response data.
     """
-    # If the wdb socket is not yet up, then wait or restart wazuh-db
+    # If the wdb socket is not yet up, wait for it. Only restart wazuh-db if it isn't actually
+    # running: restarting a process that's merely slow to create its socket kills it
+    # mid-startup and resets the wait instead of shortening it.
     if not os.path.exists(WAZUH_DB_SOCKET_PATH):
-        max_retries = 6
-        for _ in range(2):
-            retry = 0
-            # Wait if the wdb socket is not still alive (due to wazuh-db restarts). Max 3 seconds
-            while not os.path.exists(WAZUH_DB_SOCKET_PATH) and retry < max_retries:
-                time.sleep(0.5)
-                retry += 1
+        if not services.check_if_process_is_running(WAZUH_DB_DAEMON):
+            services.control_service('restart', daemon=WAZUH_DB_DAEMON)
 
-            # Restart wazuh-db in case of wdb socket is not yet up.
-            if not os.path.exists(WAZUH_DB_SOCKET_PATH):
-                services.control_service('restart', daemon=WAZUH_DB_DAEMON)
-
-        # Raise custom exception if the socket is not up in the expected time, even restarting wazuh-db
-        if not os.path.exists(WAZUH_DB_SOCKET_PATH):
-            raise Exception('The wdb socket is not up. wazuh-db was restarted but the socket was not found')
+        end_time = time.time() + 30
+        while time.time() < end_time:
+            if os.path.exists(WAZUH_DB_SOCKET_PATH):
+                break
+            time.sleep(0.5)
+        else:
+            raise Exception('The wdb socket is not up. wazuh-db did not create it in time')
 
     # Create and open the socket connection with wazuh-db socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

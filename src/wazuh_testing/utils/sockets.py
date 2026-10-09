@@ -4,6 +4,7 @@
 import os
 import socket
 import ipaddress
+import time
 
 from wazuh_testing.tools.socket_controller import SocketController
 from wazuh_testing.constants.paths.sockets import QUEUE_SOCKETS_PATH, WAZUH_DB_SOCKET_PATH, \
@@ -103,3 +104,29 @@ def get_host_name():
         str: The host name.
     """
     return socket.gethostname()
+
+
+def wait_for_tcp_port(port, host='localhost', timeout=30, interval=0.5):
+    """Wait until a TCP port accepts connections.
+
+    A daemon can log that it started before it binds its port, so the log line alone is not a
+    reliable readiness signal right after a restart.
+
+    Args:
+        port (int): Port to connect to.
+        host (str): Host to connect to. Default `localhost`.
+        timeout (int): Max seconds to wait for the port to accept connections.
+        interval (float): Seconds between attempts.
+
+    Returns:
+        bool: True if the port accepted a connection before the timeout, False otherwise.
+    """
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        try:
+            with socket.create_connection((host, int(port)), timeout=1):
+                return True
+        except OSError:
+            time.sleep(interval)
+
+    return False
