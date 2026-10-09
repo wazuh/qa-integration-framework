@@ -94,6 +94,7 @@ All notable changes to this project will be documented in this file.
 
 ## Prior versions
 
+- [v4.14.10](https://github.com/wazuh/qa-integration-framework/blob/v4.14.10/CHANGELOG.md)
 - [v4.14.7](https://github.com/wazuh/qa-integration-framework/blob/v4.14.7/CHANGELOG.md)
 - [v4.14.6](https://github.com/wazuh/qa-integration-framework/blob/v4.14.6/CHANGELOG.md)
 - [v4.14.5](https://github.com/wazuh/qa-integration-framework/blob/v4.14.5/CHANGELOG.md)
