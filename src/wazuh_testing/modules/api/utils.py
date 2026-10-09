@@ -6,7 +6,6 @@ This program is free software; you can redistribute it and/or modify it under th
 import json
 import os
 import requests
-import socket
 import time
 from requests.adapters import HTTPAdapter, Retry
 from base64 import b64encode
@@ -72,34 +71,6 @@ def set_authorization_header(user: str = None, password: str = None) -> dict:
     headers['Authorization'] = f'Basic {_token.decode()}'
 
     return headers
-
-
-def wait_for_api_port(host: str = WAZUH_API_HOST, port: str = WAZUH_API_PORT, timeout: int = 30,
-                      interval: float = 0.5) -> bool:
-    """Wait until the API port accepts TCP connections.
-
-    wazuh-apid logs its "Listening on" line from the ASGI lifespan handler, which uvicorn
-    runs before it actually binds the socket (loop.create_server()), so that log is not a
-    reliable readiness signal right after a daemon restart. Polling the port directly is.
-
-    Args:
-        host (str): Host where the API is receiving requests.
-        port (str): Port where the API is listening.
-        timeout (int): Max seconds to wait for the port to accept connections.
-        interval (float): Seconds between attempts.
-
-    Returns:
-        bool: True if the port accepted a connection before the timeout, False otherwise.
-    """
-    end_time = time.time() + timeout
-    while time.time() < end_time:
-        try:
-            with socket.create_connection((host, int(port)), timeout=1):
-                return True
-        except OSError:
-            time.sleep(interval)
-
-    return False
 
 
 def login(user: str = WAZUH_API_USER, password: str = WAZUH_API_PASSWORD,
