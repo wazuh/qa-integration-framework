@@ -252,11 +252,16 @@ DEFAULT_CLUSTER = {'name': 'wazuh-cluster', 'node': 'node01'}
 DEFAULT_GROUPS = ['default']
 # merged.mg content whose SHA256 seeds the default config_hash. The /download endpoint
 # will serve these same bytes for config resources, so the default hash matches.
-DEFAULT_MERGED_MG = (
-    b'#default\n'
-    b'!0 agent.conf\n'
+# The entry size must match its data: the agent rejects a bundle with any line that is neither a
+# '#' comment nor an entry header, so a short size leaves the rest of agent.conf as invalid headers.
+_DEFAULT_AGENT_CONF = (
     b'<agent_config>\n'
     b'</agent_config>\n'
+)
+DEFAULT_MERGED_MG = (
+    b'#default\n'
+    + b'!%d agent.conf\n' % len(_DEFAULT_AGENT_CONF)
+    + _DEFAULT_AGENT_CONF
 )
 
 # Seconds advertised in the Retry-After header of the SERVICE_UNAVAILABLE (503) fault mode.
