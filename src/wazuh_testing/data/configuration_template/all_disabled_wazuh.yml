@@ -1,0 +1,50 @@
+# Minimal manager configuration (etc/wazuh-manager.yml) for the integration tests: the YAML twin of
+# all_disabled_wazuh.conf (agent XML). Every value is the shipped default except the disabled modules.
+
+# Format of the internal logs: plain, json or both ([plain, json])
+logging:
+  log_format: [plain]
+
+remote:
+  legacy:
+    enabled: true
+    port: 1514
+    protocol: [tcp]
+    local_ip: 0.0.0.0
+    queue_size: 131072
+
+vulnerability-detection:
+  enabled: false
+
+indexer:
+  hosts:
+    - http://0.0.0.0:9200
+  ssl:
+    certificate_authorities:
+      - etc/certs/root-ca.pem
+    certificate: etc/certs/indexer-connector.pem
+    key: etc/certs/indexer-connector-key.pem
+
+cluster:
+  name: wazuh
+  node_name: node01
+  node_type: master
+  key: fd3350b86d239654e34866ab3c4988a8
+  port: 1516
+  bind_addr: 127.0.0.1
+  nodes:
+    - 127.0.0.1
+  hidden: false
+
+# Configuration for wazuh-manager-authd
+auth:
+  disabled: false
+  port: 1515
+  use_source_ip: false
+  purge: true
+  use_password: true
+  ciphers: "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
+  # ssl_agent_ca: etc/certs/ca.pem
+  ssl_verify_host: false
+  ssl_manager_cert: etc/certs/remoted.pem
+  ssl_manager_key: etc/certs/remoted-key.pem
