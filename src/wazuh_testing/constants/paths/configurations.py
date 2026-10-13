@@ -10,21 +10,26 @@ from wazuh_testing.constants.platforms import WINDOWS
 from wazuh_testing.constants.daemons import WAZUH_MANAGER
 from wazuh_testing.utils.services import get_service
 
-from . import WAZUH_PATH
+from . import WAZUH_PATH, MANAGER_CONF_DIR
 from wazuh_testing.constants.paths.api import WAZUH_API_FOLDER_PATH, WAZUH_API_SECURITY_FOLDER_PATH
 
 
+try:
+    _is_manager = get_service() == WAZUH_MANAGER
+except Exception:
+    # No control script to ask (not installed yet): the manager is the one installed in wazuh-manager.
+    _is_manager = os.path.basename(os.path.normpath(WAZUH_PATH)) == 'wazuh-manager'
+
 if sys.platform == WINDOWS:
     BASE_CONF_PATH = WAZUH_PATH
+elif _is_manager:
+    # The manager's configuration lives outside its installation directory (wazuh/wazuh#40338).
+    BASE_CONF_PATH = MANAGER_CONF_DIR
 else:
     BASE_CONF_PATH = os.path.join(WAZUH_PATH, 'etc')
 
 WAZUH_CLIENT_KEYS_PATH = os.path.join(BASE_CONF_PATH, 'client.keys')
 SHARED_CONFIGURATIONS_PATH = os.path.join(BASE_CONF_PATH, 'shared')
-try:
-    _is_manager = get_service() == WAZUH_MANAGER
-except Exception:
-    _is_manager = False
 
 WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'wazuh-manager.conf' if _is_manager else 'ossec.conf')
 WAZUH_LOCAL_INTERNAL_OPTIONS = os.path.join(BASE_CONF_PATH, 'wazuh-manager-internal-options.conf' if _is_manager else 'local_internal_options.conf')

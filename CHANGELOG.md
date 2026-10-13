@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 
 | Issue | Comment |
 |-------|---------|
+| [#40338](https://github.com/wazuh/wazuh/issues/40338) | The manager's configuration paths (`BASE_CONF_PATH` and everything built on it, and the Server API certificates) now point to the fixed `/etc/wazuh-manager`, overridable with `WAZUH_MANAGER_CONF_DIR`; agent paths are unchanged. |
 | [#595](https://github.com/wazuh/qa-integration-framework/pull/595) | Adapted qa integration framework to new agent module startup. |
 | [#683](https://github.com/wazuh/qa-integration-framework/pull/683) | Migrated certificate generation to the `cryptography` API to keep up with pyOpenSSL 26.2.0 deprecations. |
 | [#468](https://github.com/wazuh/qa-integration-framework/pull/468) | Adapted Inventory patterns to use new sync protocol module. |
