@@ -1,6 +1,7 @@
 import argparse
 import re
 import subprocess
+import sys
 from os import chdir, remove
 from os.path import basename, exists, join, dirname
 
@@ -14,6 +15,8 @@ COVERAGE_REPORT = ''
 COVERAGE_REGEX = r'^([\w\/._-]+) +(\d+) +(\d+) +(\d+)\%$'
 GLOBAL_STMTS = 0
 GLOBAL_MISS = 0
+# Modules whose pytest run did not succeed, with its output
+FAILED_MODULES = []
 TABLE_HEADER = """| | | | | |
 |--|--|--|--|--|
 | **Name** | **Stmts** | **Miss** | **Cover** | **Status** |
@@ -25,12 +28,19 @@ def obtain_coverage(module):
     module_basename = basename(module)
 
     module_report = f'### {module_basename.upper()}\n\n{TABLE_HEADER}'
-    subprocess.run(['coverage', 'run', '--omit=*test*', '--source', module_basename,
-                    '-m', 'pytest', module_basename],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    pytest_run = subprocess.run(['coverage', 'run', '--omit=*test*', '--source', module_basename,
+                                 '-m', 'pytest', module_basename],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # A collection error or a failed test leaves the figure partial (import-time coverage only when
+    # collection aborts), so the run is reported as failed instead of trusting the number.
+    if pytest_run.returncode != 0:
+        FAILED_MODULES.append((module, pytest_run.returncode, pytest_run.stdout))
 
     coverage_result = subprocess.check_output(['coverage', 'report']).decode().strip()
     test_coverage_results = re.findall(COVERAGE_REGEX, coverage_result, re.MULTILINE)
+    if not test_coverage_results:
+        print(f'No coverage results for {module}:\n{coverage_result}', file=sys.stderr)
+        exit(1)
     for test in test_coverage_results:
         # test_name stmts miss cover
         coverage = int(test[3])
@@ -83,6 +93,12 @@ def main():
 
     print(COVERAGE_REPORT)
     print(f'\nOVERALL COVERAGE PERCENTAGE: {100 - int(GLOBAL_MISS * 100 / GLOBAL_STMTS)}%')
+
+    if FAILED_MODULES:
+        for module, returncode, output in FAILED_MODULES:
+            print(f'\npytest failed for {module} (exit code {returncode}); the coverage above is not valid.\n'
+                  f'pytest output:\n{output}', file=sys.stderr)
+        exit(1)
 
 
 if __name__ == '__main__':

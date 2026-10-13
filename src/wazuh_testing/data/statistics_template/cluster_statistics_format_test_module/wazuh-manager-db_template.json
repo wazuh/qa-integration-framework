@@ -53,17 +53,13 @@
                                     },
                                     "get_fragmentation": {
                                       "type": "integer"
-                                    },
-                                    "sleep": {
-                                      "type": "integer"
                                     }
                                   },
                                   "required": [
                                     "backup",
                                     "sql",
                                     "vacuum",
-                                    "get_fragmentation",
-                                    "sleep"
+                                    "get_fragmentation"
                                   ]
                                 },
                                 "tables": {
@@ -275,9 +271,6 @@
                                     },
                                     "get_fragmentation": {
                                       "type": "integer"
-                                    },
-                                    "sleep": {
-                                      "type": "integer"
                                     }
                                   },
                                   "required": [
@@ -285,7 +278,6 @@
                                     "sql",
                                     "vacuum",
                                     "get_fragmentation",
-                                    "sleep",
                                     "open"
                                   ]
                                 },
