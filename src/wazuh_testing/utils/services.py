@@ -300,13 +300,8 @@ def check_if_process_is_running(process_name):
     Returns
         boolean: True if process is running, False otherwise.
     """
-    is_running = False
-    try:
-        is_running = process_name in (p.name() for p in psutil.process_iter())
-    except psutil.NoSuchProcess:
-        pass
-
-    return is_running
+    # process_iter skips processes that exit while iterating instead of aborting the scan.
+    return any(p.info['name'] == process_name for p in psutil.process_iter(['name']))
 
 
 _WRAPPER_PROCESS_NAMES = {'sudo', 'su', 'doas'}
