@@ -32,3 +32,8 @@ elif sys.platform not in (WINDOWS, MACOS):
     # Prefer agent path when both installs are present unless explicitly overridden.
     if manager_exists and not agent_exists:
         WAZUH_PATH = os.path.join("/", "var", "wazuh-manager")
+
+# The manager's configuration directory is fixed (wazuh/wazuh#40338): it does not follow the installation
+# directory, so a manager with a custom WAZUH_PATH still keeps its configuration here.
+# WAZUH_MANAGER_CONF_DIR overrides it, for a test environment that stages the configuration elsewhere.
+MANAGER_CONF_DIR = os.getenv("WAZUH_MANAGER_CONF_DIR") or os.path.join("/", "etc", "wazuh-manager")
