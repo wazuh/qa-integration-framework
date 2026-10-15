@@ -5,7 +5,7 @@ This program is free software; you can redistribute it and/or modify it under th
 """
 import os
 
-from . import WAZUH_PATH
+from . import WAZUH_PATH, MANAGER_CONF_DIR
 
 # API paths that do not fit in `configurations`
 
@@ -26,7 +26,7 @@ RBAC_DATABASE_PATH = os.path.join(WAZUH_API_SECURITY_FOLDER_PATH, 'rbac.db')
 CREDENTIALS_FILE_PATH = os.path.join(os.sep, 'etc', 'wazuh', 'credentials.env')
 
 # SSL paths
-WAZUH_API_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'apid.pem')
+WAZUH_API_CERTIFICATE = os.path.join(MANAGER_CONF_DIR, 'certs', 'apid.pem')
 # Trust anchor for the API's certificate: since wazuh/wazuh#40053 the installer issues apid.pem signed by the
 # manager CA (it is no longer self-signed), so clients verify it against the CA, as server 'localhost'.
-WAZUH_API_CA_CERTIFICATE = os.path.join(WAZUH_PATH, 'etc', 'certs', 'root-ca.pem')
+WAZUH_API_CA_CERTIFICATE = os.path.join(MANAGER_CONF_DIR, 'certs', 'root-ca.pem')
