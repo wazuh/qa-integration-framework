@@ -11,7 +11,7 @@ WAZUH_API_PORT = '55000'
 WAZUH_API_USER = 'wazuh'
 WAZUH_API_PASSWORD = 'wazuh'
 # The users the manager creates by itself, and the key each one's password is resolved from. Mirrors the
-# manager's credential resolver (`src/init/credentials/resolve-credentials`): one key per user, because an
+# manager's credential resolver (`bin/wazuh-manager-resolve-credentials`): one key per user, because an
 # installation can supply one and let the other be generated.
 # User 2 is `wazuh-internal-client` since wazuh/wazuh#39923; `wazuh-wui` is its name on a manager
 # built before the rename. Both resolve from the same key, which the rename kept.
