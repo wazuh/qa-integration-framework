@@ -1616,6 +1616,14 @@ class Injector:
                 self.sender.socket.shutdown(socket.SHUT_RDWR)
             self.sender.socket.close()
 
+        # Don't let a thread outlive its test: closing the socket above unblocks the receiver, and
+        # the senders check stop_rec() between messages.
+        for thread in self.threads:
+            if thread.is_alive() and thread is not threading.current_thread():
+                thread.join(timeout=15)
+                if thread.is_alive():
+                    logging.warning(f"{thread.name} did not stop within 15 s")
+
     def wait(self):
         for thread in range(self.thread_number):
             self.threads[thread].join()
@@ -1643,19 +1651,38 @@ class InjectorThread(threading.Thread):
         self.stop_thread = 0
         self.limit_msg = limit_msg
 
+    def _wait(self, seconds):
+        """Sleep up to `seconds`, returning True as soon as stop_rec() has been called."""
+        deadline = time() + seconds
+        while self.stop_thread == 0:
+            remaining = deadline - time()
+            if remaining <= 0:
+                return False
+            sleep(min(remaining, 0.5))
+        return True
+
     def keep_alive(self):
         """Send a keep alive message from the agent to the manager."""
-        sleep(10)
+        # The startup phase must honour stop_rec() too: it lasts up to ~50 s and polls global.db,
+        # and query_wdb() restarts wazuh-manager-db on its own when it finds the socket missing. A
+        # thread still in this phase after its test ends does that while the next test stops and
+        # starts the manager, leaving a wazuh-manager-db outside the service whose sockets the
+        # framework's own stop then deletes.
+        if self._wait(10):
+            return
         logging.debug("Startup - {}({})".format(self.agent.name, self.agent.id))
         self.sender.send_event(self.agent.startup_msg)
 
         #waiting for 'pending' status
         for i in range(4):
+            if self.stop_thread != 0:
+                return
             if self.agent.get_connection_status() == 'pending':
-                sleep(10)
+                if self._wait(10):
+                    return
                 break
-            else:
-                sleep(5)
+            elif self._wait(5):
+                return
 
         self.sender.send_event(self.agent.keep_alive_event)
         sleep(1)
