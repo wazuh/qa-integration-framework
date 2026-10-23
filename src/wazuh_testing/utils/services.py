@@ -68,6 +68,33 @@ def get_version() -> str:
         ], stderr=subprocess.PIPE).decode('utf-8').rstrip()
 
 
+def _get_own_process_tree_pids() -> set:
+    """Get the PIDs of the current process and all of its ancestors.
+
+    Returns:
+        set: PIDs that must never be signalled by `control_service`.
+    """
+    current = psutil.Process()
+    return {current.pid, *(parent.pid for parent in current.parents())}
+
+
+def _is_daemon_process(proc: psutil.Process, daemon: str) -> bool:
+    """Check whether a process is the given daemon, not just a process that mentions it.
+
+    Args:
+        proc (psutil.Process): Process to check.
+        daemon (str): Name of the daemon.
+
+    Returns:
+        bool: True if the process name or the basename of `cmdline[0]` is the daemon name.
+    """
+    if proc.name() == daemon:
+        return True
+
+    cmdline = proc.cmdline()
+    return bool(cmdline) and os.path.basename(cmdline[0]) == daemon
+
+
 def control_service(action, daemon=None, debug_mode=False):
     """Perform the stop, start and restart operation with Wazuh.
 
@@ -182,9 +209,13 @@ def control_service(action, daemon=None, debug_mode=False):
                 control_service('start', daemon=daemon)
             elif action == 'stop':
                 processes = []
+                # Never signal the caller or its ancestors (e.g. the `sudo ... pytest` runner).
+                protected_pids = _get_own_process_tree_pids()
 
                 for proc in psutil.process_iter():
                     try:
+                        if proc.pid in protected_pids:
+                            continue
                         if daemon in [CLUSTER_DAEMON, API_DAEMON]:
                             for file in os.listdir(VAR_RUN_PATH):
                                 if daemon in file:
@@ -192,7 +223,7 @@ def control_service(action, daemon=None, debug_mode=False):
                                     pid = pid[2][0:-4]
                                     if pid == str(proc.pid):
                                         processes.append(proc)
-                        elif daemon in proc.name() or daemon in ' '.join(proc.cmdline()):
+                        elif _is_daemon_process(proc, daemon):
                             processes.append(proc)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
