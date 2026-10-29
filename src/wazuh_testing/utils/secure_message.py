@@ -3,6 +3,8 @@
 # This program is free software; you can redistribute it and/or modify it under the terms of GPLv2
 import hashlib
 import struct
+import threading
+import time
 import zlib
 
 from Crypto.Cipher import AES, Blowfish
@@ -16,6 +18,17 @@ __AES_IV = b'FEDCBA0987654321'
 __BLOWFISH_IC = b'\xfe\xdc\xba\x98\x76\x54\x32\x10'
 
 ALGORITHM_HEADERS = {'AES': b'#AES:', 'BLOWFISH': b':'}
+
+# Message counters, as a real agent sends them: a 10-digit global counter and a 4-digit local one that
+# together only move forward. The manager refuses to let a frame whose counters are not ahead of the
+# ones it stored take over an agent's session (a replay), so fixed counters would leave a simulated
+# agent unable to reconnect. The global counter starts from the clock so a later test run starts ahead
+# of what an earlier one left in the manager's rids files; it is shared by every simulated agent, which
+# keeps each agent's sequence increasing too.
+__COUNTER_LOCK = threading.Lock()
+__LOCAL_COUNTER_MAX = 9999
+__global_counter = int(time.time()) % 10**10
+__local_counter = 0
 
 
 def encrypt(message: bytes, key: bytes, algorithm: str) -> bytes:
@@ -74,7 +87,8 @@ def encode(message: bytes) -> str:
         str: The encoded message.
     """
     # Compose sec message
-    payload = b'55555' + b'1234567891' + b':' + b'0227' + b':' + message
+    global_counter, local_counter = next_counters()
+    payload = b'55555' + f'{global_counter:010d}'.encode() + b':' + f'{local_counter:04d}'.encode() + b':' + message
     message_hash = hashlib.md5(payload).hexdigest()
     payload = message_hash.encode() + payload
     # Compress
@@ -83,6 +97,27 @@ def encode(message: bytes) -> str:
     padding = (b'!' * (8 - extra if (extra := len(payload) % 8) > 0 else 8))
 
     return padding + payload
+
+
+def next_counters() -> Tuple[int, int]:
+    """
+    Return the next (global, local) message counters.
+
+    Every call returns a pair strictly greater than the previous one: the local counter advances and,
+    past 9999, wraps to 0 while the global counter advances, as an agent does.
+
+    Returns:
+        Tuple[int, int]: The global and local counters.
+    """
+    global __global_counter, __local_counter
+
+    with __COUNTER_LOCK:
+        __local_counter += 1
+        if __local_counter > __LOCAL_COUNTER_MAX:
+            __local_counter = 0
+            __global_counter = (__global_counter + 1) % 10**10
+
+        return __global_counter, __local_counter
 
 
 def decode(message: bytes) -> str:
