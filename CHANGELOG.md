@@ -93,7 +93,7 @@ All notable changes to this project will be documented in this file.
 | [#615](https://github.com/wazuh/qa-integration-framework/pull/615) | Fixed server clean up minor issues. |
 | [#621](https://github.com/wazuh/qa-integration-framework/pull/621) | Increased net stop retries and force kill process as last resort. |
 | [#39063](https://github.com/wazuh/wazuh/issues/39063) | Failed TLS handshakes are recorded in `handshake_failures` instead of being discarded; they were reaching `socketserver`'s `except OSError` and never surfacing, leaving a client that refused the served certificate with no server-side trace |
-| [#9037](https://github.com/wazuh/wazuh-qa-automation/issues/9037) | `control_service(..., daemon=...)` stops only the daemon's own processes, matching the executable name instead of any command line that mentions the daemon and never signalling the caller or its ancestors, so a branch name holding a daemon name no longer kills the integration test runner |
+| [#922](https://github.com/wazuh/qa-integration-framework/pull/922) | `control_service(..., daemon=...)` stops only the daemon's own processes, matching the executable name instead of any command line that mentions the daemon and never signalling the caller or its ancestors, so a branch name holding a daemon name no longer kills the integration test runner |
 
 ## Prior versions
 
