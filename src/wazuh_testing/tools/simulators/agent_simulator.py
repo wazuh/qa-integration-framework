@@ -474,6 +474,24 @@ class Agent:
 
         return bytes(data)
 
+    def _wait_for_new_socket(self, sender, closed_socket, timeout=60):
+        """Wait until the sender replaces a socket the manager closed.
+
+        Args:
+            sender (Sender): Sender whose socket was closed.
+            closed_socket (socket.socket): The socket that was closed.
+            timeout (int): Seconds to wait for the replacement.
+
+        Returns:
+            bool: True when a new socket is in place, False when the receiver is stopped or the wait times out.
+        """
+        deadline = time() + timeout
+        while self.stop_receive == 0 and time() < deadline:
+            if sender.socket is not closed_socket:
+                return True
+            sleep(0.5)
+        return False
+
     def receive_message(self, sender):
         """Agent listener to receive messages and process the accepted commands.
         Args:
@@ -482,14 +500,22 @@ class Agent:
         while self.stop_receive == 0:
             if is_tcp(sender.protocol):
                 try:
-                    rcv = self._recv_exact(sender.socket, 4)
+                    current_socket = sender.socket
+                    rcv = self._recv_exact(current_socket, 4)
                     if rcv is None:
-                        return
+                        # The manager closed the connection (it does so on a frame it refuses before
+                        # decrypting it, e.g. an agent ID it has not loaded yet). The sender opens a new
+                        # socket on its next send, as an agent reconnects: follow it instead of stopping.
+                        if not self._wait_for_new_socket(sender, current_socket):
+                            return
+                        continue
 
                     data_len = secure_message.unpack(rcv)
-                    buffer_array = self._recv_exact(sender.socket, data_len)
+                    buffer_array = self._recv_exact(current_socket, data_len)
                     if buffer_array is None:
-                        return
+                        if not self._wait_for_new_socket(sender, current_socket):
+                            return
+                        continue
                 except MemoryError:
                     logging.critical(f"Memory error, trying to allocate {data_len}.")
                     return
