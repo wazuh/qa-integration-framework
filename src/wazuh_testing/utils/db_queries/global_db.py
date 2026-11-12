@@ -111,16 +111,6 @@ def sync_agent_groups(last_id='0', condition='all', get_global_hash='true',
     return database.query_wdb(command)
 
 
-def get_groups_integrity(hash):
-    """
-    Gets groups integrity
-    """
-
-    command = f'global get-groups-integrity {hash}'
-    print(command)
-    return database.query_wdb(command)
-
-
 def get_agent_info(agent_id):
     """
     Gets agent info
