@@ -6,7 +6,7 @@ This program is free software; you can redistribute it and/or modify it under th
 import os
 import sys
 
-from wazuh_testing.constants.platforms import WINDOWS
+from wazuh_testing.constants.platforms import LINUX, WINDOWS
 from wazuh_testing.constants.daemons import WAZUH_MANAGER
 from wazuh_testing.utils.services import get_service
 
@@ -28,7 +28,14 @@ elif _is_manager:
 else:
     BASE_CONF_PATH = os.path.join(WAZUH_PATH, 'etc')
 
-WAZUH_CLIENT_KEYS_PATH = os.path.join(BASE_CONF_PATH, 'client.keys')
+# The Linux agent keeps its credentials in etc/keys/, the only part of etc/ its unprivileged user may
+# write; macOS, Windows and the manager keep them in the configuration directory itself.
+if sys.platform == LINUX and not _is_manager:
+    AGENT_KEYS_PATH = os.path.join(BASE_CONF_PATH, 'keys')
+else:
+    AGENT_KEYS_PATH = BASE_CONF_PATH
+
+WAZUH_CLIENT_KEYS_PATH = os.path.join(AGENT_KEYS_PATH, 'client.keys')
 SHARED_CONFIGURATIONS_PATH = os.path.join(BASE_CONF_PATH, 'shared')
 
 WAZUH_CONF_PATH = os.path.join(BASE_CONF_PATH, 'wazuh-manager.conf' if _is_manager else 'ossec.conf')
@@ -42,7 +49,7 @@ CUSTOM_DECODERS_FILE = os.path.join(CUSTOM_DECODERS_PATH, 'local_decoder.xml')
 DEFAULT_AUTHD_PASS_PATH = os.path.join(BASE_CONF_PATH, 'authd.pass')
 # The per-agent re-enrollment secret (wazuh/wazuh#39064). Alongside client.keys and with the
 # same protection, because it has the same power: whoever holds it can obtain that agent's key.
-AGENT_REENROLL_SECRET_PATH = os.path.join(BASE_CONF_PATH, 'reenroll.secret')
+AGENT_REENROLL_SECRET_PATH = os.path.join(AGENT_KEYS_PATH, 'reenroll.secret')
 
 # Wazuh API configurations path
 WAZUH_API_CONFIGURATION_PATH = os.path.join(WAZUH_API_FOLDER_PATH, 'configuration', 'api.yaml')
